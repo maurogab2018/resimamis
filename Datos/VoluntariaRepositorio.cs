@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
@@ -91,8 +91,8 @@ namespace ResimamisBackend.Datos
         }
         public List<VOLUNTARIA> obtenerVoluntariasLibres()
         {
-            var diaHoy = NegConversorFecha.ObtenerFechaArgentina().Date;
-            var voluntariasLibres = db.VOLUNTARIA.Include(v => v.RolInfo).Where(v => v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso.Value.Date == diaHoy && a.FechaHoraSalida == null) && v.Estado.nombre!="Inactiva" && v.Estado.nombre != "Licencia" && v.Estado.nombre != "Carpeta médica").Select(v=> new VOLUNTARIA()
+            var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var voluntariasLibres = db.VOLUNTARIA.Include(v => v.RolInfo).Where(v => v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null) && v.Estado.nombre!="Inactiva" && v.Estado.nombre != "Licencia" && v.Estado.nombre != "Carpeta médica").Select(v=> new VOLUNTARIA()
             {
                 IdVoluntaria= v.IdVoluntaria,
                 Dni= v.Dni,
@@ -111,8 +111,8 @@ namespace ResimamisBackend.Datos
         }
         public List<VOLUNTARIA> obtenerVoluntariasLibres1()
         {
-            var diaHoy = NegConversorFecha.ObtenerFechaArgentina().Date;
-            var voluntariasLibres = db.VOLUNTARIA.Include(v => v.RolInfo).Where(v => v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso.Value.Date == diaHoy && a.FechaHoraSalida == null)).Select(v => new VOLUNTARIA()
+            var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var voluntariasLibres = db.VOLUNTARIA.Include(v => v.RolInfo).Where(v => v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null)).Select(v => new VOLUNTARIA()
             {
                 IdVoluntaria = v.IdVoluntaria,
                 Dni = v.Dni,

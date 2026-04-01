@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
 
@@ -24,6 +24,7 @@ namespace ResimamisBackend.Negocio
 
 
             var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
+            var (diaInicio, diaFin) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
 
             // Traemos las tareas y voluntarias desde la base
             var tareas = db.TAREA.Where(t => requestAsignacion.idTareas.Contains(t.idTarea)).ToList();
@@ -39,7 +40,7 @@ namespace ResimamisBackend.Negocio
             var voluntariasConAsignaciones = voluntarias.Select(v => new VoluntariaConAsignaciones()
             {
                 Voluntaria = v,
-                CantidadAsignacionesHoy = v.Asignaciones?.Count(a => a.fechaHoraAsignacion.Date == fechaHoy.Date) ?? 0
+                CantidadAsignacionesHoy = v.Asignaciones?.Count(a => a.fechaHoraAsignacion >= diaInicio && a.fechaHoraAsignacion < diaFin) ?? 0
             }).ToList();
 
             // Para desempatar cuando hay igual cantidad de asignaciones
@@ -136,6 +137,7 @@ namespace ResimamisBackend.Negocio
                     var bebesAbrazar = bebeRepositorio.obtenerBebesAbrazar();
                     var voluntariasActivas = voluntariaRepositorio.obtenerVoluntariasLibres();
                     var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
+                    var (diaInicio, diaFin) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
                     var asignaciones = new List<ASIGNACION>();
                     if (bebesAbrazar.Count == voluntariasActivas.Count)
                     {
@@ -160,7 +162,7 @@ namespace ResimamisBackend.Negocio
                             int minAsignacionesHoy = voluntariasActivas
                                     .Where(voluntaria => voluntaria.Asignaciones != null)
                                     .Select(voluntaria => voluntaria.Asignaciones
-                                        .Count(asignacion => asignacion.fechaHoraAsignacion.Date == fechaHoy.Date))
+                                        .Count(asignacion => asignacion.fechaHoraAsignacion >= diaInicio && asignacion.fechaHoraAsignacion < diaFin))
                                     .DefaultIfEmpty(0) // Si no hay elementos, establece el valor predeterminado a 0
                                     .Min();
 
@@ -168,7 +170,7 @@ namespace ResimamisBackend.Negocio
                             // Filtrar voluntarias que tienen la cantidad mínima de asignaciones en el día actual
                             var voluntariaMenosAsignacionesHoy = voluntariasActivas
                                 .Where(voluntaria => voluntaria.Asignaciones != null && voluntaria.Asignaciones
-                                    .Count(asignacion => asignacion.fechaHoraAsignacion.Date == fechaHoy.Date) == minAsignacionesHoy)
+                                    .Count(asignacion => asignacion.fechaHoraAsignacion >= diaInicio && asignacion.fechaHoraAsignacion < diaFin) == minAsignacionesHoy)
                                 .ToList();
 
                             if (voluntariaMenosAsignacionesHoy.Count == 1)

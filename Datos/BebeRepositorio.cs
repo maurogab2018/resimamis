@@ -60,7 +60,7 @@ namespace ResimamisBackend.Datos
 
         public List<BEBE> obtenerBebesAbrazar()
         {
-            var diaHoy = NegConversorFecha.ObtenerFechaArgentina().Date;
+            var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
 
             var bebesAbrazar = db.BEBE
                 .Where(v => v.Estado != null
@@ -68,9 +68,9 @@ namespace ResimamisBackend.Datos
                             && v.Estado.nombre == "Sin abrazar"
                             && v.Estado.nombre != "Asignado"
                             && !v.Asignaciones.Any(a =>
-                                a.fechaHoraAsignacion.Date == diaHoy
+                                a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia
                                 && a.fechaHoraInicio != null
-                                && a.fechaHoraInicio.Value.Date == diaHoy))
+                                && a.fechaHoraInicio >= inicioDia && a.fechaHoraInicio < finDia))
                 .ToList();
             if(bebesAbrazar.Count==0)
                 throw new ApplicationException("No hay bebes para abrazar para el día de hoy");

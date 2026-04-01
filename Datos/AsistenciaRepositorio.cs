@@ -1,4 +1,4 @@
-﻿using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
 {
@@ -12,8 +12,8 @@ namespace ResimamisBackend.Datos
 
         public bool registrarAsistencia(ASISTENCIA asistencia)
         {
-            var fechaHoy=NegConversorFecha.ObtenerFechaArgentina().Date;
-            var yaExisteAsistencia = db.ASISTENCIA.FirstOrDefault(a =>a.FechaHoraIngreso!=null && a.FechaHoraIngreso.Value.Date == fechaHoy && a.IdVoluntaria == asistencia.IdVoluntaria);
+            var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var yaExisteAsistencia = db.ASISTENCIA.FirstOrDefault(a =>a.FechaHoraIngreso!=null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.IdVoluntaria == asistencia.IdVoluntaria);
             if (yaExisteAsistencia != null)
                 return false;
             var nuevaAsistencia = new ASISTENCIA()
@@ -28,8 +28,8 @@ namespace ResimamisBackend.Datos
 
         public bool consultarAsistencia(int idVoluntaria)
         {
-            var fechaHoy = NegConversorFecha.ObtenerFechaArgentina().Date;
-            var asistenciaHoy = db.ASISTENCIA.FirstOrDefault(a => a.FechaHoraIngreso!=null && a.FechaHoraIngreso.Value.Date == fechaHoy && a.IdVoluntaria==idVoluntaria);
+            var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var asistenciaHoy = db.ASISTENCIA.FirstOrDefault(a => a.FechaHoraIngreso!=null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.IdVoluntaria==idVoluntaria);
             if (asistenciaHoy == null)
                 return false;
             else
@@ -39,8 +39,8 @@ namespace ResimamisBackend.Datos
         public bool registrarAsistenciaSalida(int idVoluntaria)
         {
             var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
-            var fechaHoyDia = NegConversorFecha.ObtenerFechaArgentina().Date;
-            var asistenciaHoy = db.ASISTENCIA.FirstOrDefault(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso.Value.Date == fechaHoyDia && a.IdVoluntaria == idVoluntaria && a.FechaHoraSalida==null);
+            var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var asistenciaHoy = db.ASISTENCIA.FirstOrDefault(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.IdVoluntaria == idVoluntaria && a.FechaHoraSalida==null);
             if (asistenciaHoy == null)
                 throw new Exception("No existe un registro de asistencia para hoy o ya fue registrado");
             asistenciaHoy.FechaHoraSalida = fechaHoy;
@@ -50,8 +50,8 @@ namespace ResimamisBackend.Datos
 
         public List<ASISTENCIA> consultarAsistenciasFechahoy()
         {
-            var fechaHoy = NegConversorFecha.ObtenerFechaArgentina().Date;
-            var listaAsistencias = db.ASISTENCIA.Where(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso.Value.Date ==fechaHoy).Select(v=> new ASISTENCIA()
+            var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var listaAsistencias = db.ASISTENCIA.Where(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia).Select(v=> new ASISTENCIA()
             {
                 FechaHoraIngreso = v.FechaHoraIngreso,
                 FechaHoraSalida=v.FechaHoraSalida!=null ? v.FechaHoraSalida :v.FechaHoraSalida,

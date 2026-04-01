@@ -3,6 +3,10 @@ using ResimamisBackend;
 using ResimamisBackend.Datos;
 using Microsoft.OpenApi.Models;
 
+// Npgsql 6+: timestamptz solo acepta UTC por defecto; este switch tolera DateTime Local (p. ej. del cliente JSON).
+// Los repositorios usan UTC explicito + rango "hoy" Argentina donde hace falta.
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Render (y otros PaaS) suele setear PORT. Esto asegura que Kestrel escuche en el puerto correcto.
@@ -37,8 +41,8 @@ startup.ConfigureServicies(builder.Services);
 
 var app = builder.Build();
 
-// Aplica migraciones autom·ticamente al arrancar (˙til para deploy en Render).
-// Si no querÈs que se ejecute en todos los entornos, sete· RUN_MIGRATIONS_ON_STARTUP=false.
+// Aplica migraciones automùticamente al arrancar (ùtil para deploy en Render).
+// Si no querùs que se ejecute en todos los entornos, seteù RUN_MIGRATIONS_ON_STARTUP=false.
 if (builder.Configuration["RUN_MIGRATIONS_ON_STARTUP"]?.Equals("false", StringComparison.OrdinalIgnoreCase) != true)
 {
     using var scope = app.Services.CreateScope();
@@ -62,7 +66,7 @@ app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
-    c.RoutePrefix = string.Empty; // Para que se cargue en la raÌz del sitio
+    c.RoutePrefix = string.Empty; // Para que se cargue en la raùz del sitio
 });
 
 // AGREGAR ESTO PARA ENRUTAR

@@ -27,8 +27,8 @@ namespace ResimamisBackend.Datos
         }
         public List<ASIGNACION> listarAsignacionesHoy()
         {
-            var fechaHoy = NegConversorFecha.ObtenerFechaArgentina().Date;
-            var asignaciones= db.ASIGNACION.Where(a => a.fechaHoraAsignacion.Date ==fechaHoy).Select(a=> new ASIGNACION()
+            var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var asignaciones= db.ASIGNACION.Where(a => a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia).Select(a=> new ASIGNACION()
             {
                 idAsignacion=a.idAsignacion,
                 fechaHoraAsignacion = a.fechaHoraAsignacion,
@@ -58,8 +58,8 @@ namespace ResimamisBackend.Datos
 
         public List<ASIGNACION> listarAsignacionesHoyVoluntaria(int idVoluntaria)
         {
-            var fechaHoy = NegConversorFecha.ObtenerFechaArgentina().Date;
-            var asignaciones = db.ASIGNACION.Where(a => a.fechaHoraAsignacion.Date == fechaHoy && a.idVoluntaria==idVoluntaria).Select(a => new ASIGNACION()
+            var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var asignaciones = db.ASIGNACION.Where(a => a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia && a.idVoluntaria==idVoluntaria).Select(a => new ASIGNACION()
             {
                 idAsignacion = a.idAsignacion,
                 fechaHoraAsignacion = a.fechaHoraAsignacion,
