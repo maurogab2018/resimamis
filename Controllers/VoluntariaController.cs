@@ -5,7 +5,7 @@ using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Controllers
 {
-  //  [Authorize]
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class VoluntariaController : ControllerBase
