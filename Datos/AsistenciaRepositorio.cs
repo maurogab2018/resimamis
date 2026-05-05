@@ -3,6 +3,10 @@ using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
 {
+    /// <remarks>
+    /// Las consultas LINQ a EF no deben usar métodos estáticos (p. ej. EsAsistenciaOperativa) dentro de
+    /// Where/Any: no se traducen a SQL. Filtrar bajas lógicas con (idEstado == null || idEstado != idEliminado).
+    /// </remarks>
     public class AsistenciaRepositorio
     {
         private readonly ApplicationDbContext db;
@@ -24,6 +28,7 @@ namespace ResimamisBackend.Datos
 
         public bool registrarAsistencia(ASISTENCIA asistencia)
         {
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
             var yaExisteAsistencia = db.ASISTENCIA
                 .Include(a => a.Estado!)
@@ -32,9 +37,10 @@ namespace ResimamisBackend.Datos
                     a.FechaHoraIngreso != null
                     && a.FechaHoraIngreso >= inicioDia
                     && a.FechaHoraIngreso < finDia
-                    && a.IdVoluntaria == asistencia.IdVoluntaria);
+                    && a.IdVoluntaria == asistencia.IdVoluntaria
+                    && (a.idEstado == null || a.idEstado != idElim));
 
-            if (yaExisteAsistencia != null && EsAsistenciaOperativa(yaExisteAsistencia))
+            if (yaExisteAsistencia != null)
                 return false;
 
             var idCreada = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Creada", "Asistencias");
@@ -51,6 +57,7 @@ namespace ResimamisBackend.Datos
 
         public bool consultarAsistencia(int idVoluntaria)
         {
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
             var asistenciaHoy = db.ASISTENCIA
                 .Include(a => a.Estado!)
@@ -59,12 +66,14 @@ namespace ResimamisBackend.Datos
                     a.FechaHoraIngreso != null
                     && a.FechaHoraIngreso >= inicioDia
                     && a.FechaHoraIngreso < finDia
-                    && a.IdVoluntaria == idVoluntaria);
+                    && a.IdVoluntaria == idVoluntaria
+                    && (a.idEstado == null || a.idEstado != idElim));
             return asistenciaHoy != null && EsAsistenciaOperativa(asistenciaHoy);
         }
 
         public bool registrarAsistenciaSalida(int idVoluntaria)
         {
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
             var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
             var asistenciaHoy = db.ASISTENCIA
@@ -75,7 +84,8 @@ namespace ResimamisBackend.Datos
                     && a.FechaHoraIngreso >= inicioDia
                     && a.FechaHoraIngreso < finDia
                     && a.IdVoluntaria == idVoluntaria
-                    && a.FechaHoraSalida == null);
+                    && a.FechaHoraSalida == null
+                    && (a.idEstado == null || a.idEstado != idElim));
             if (asistenciaHoy == null || !EsAsistenciaOperativa(asistenciaHoy))
                 throw new Exception("No existe un registro de asistencia para hoy o ya fue registrado");
             asistenciaHoy.FechaHoraSalida = fechaHoy;
@@ -85,8 +95,10 @@ namespace ResimamisBackend.Datos
 
         public List<ASISTENCIA> consultarAsistenciasFechahoy()
         {
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
             var listaAsistencias = db.ASISTENCIA
+                .AsSplitQuery()
                 .Include(v => v.Voluntaria)
                 .Include(v => v.Estado!)
                 .ThenInclude(e => e!.ambito)
@@ -94,17 +106,10 @@ namespace ResimamisBackend.Datos
                     a.FechaHoraIngreso != null
                     && a.FechaHoraIngreso >= inicioDia
                     && a.FechaHoraIngreso < finDia
-                    && EsAsistenciaOperativa(a))
-                .Select(v => new ASISTENCIA()
-                {
-                    IdAsistencia = v.IdAsistencia,
-                    FechaHoraIngreso = v.FechaHoraIngreso,
-                    FechaHoraSalida = v.FechaHoraSalida != null ? v.FechaHoraSalida : v.FechaHoraSalida,
-                    IdVoluntaria = v.IdVoluntaria,
-                    IdHorario = v.IdHorario,
-                    idEstado = v.idEstado,
-                    Voluntaria = v.Voluntaria,
-                }).ToList();
+                    && (a.idEstado == null || a.idEstado != idElim))
+                .OrderBy(a => a.FechaHoraIngreso)
+                .ThenBy(a => a.IdVoluntaria)
+                .ToList();
             if (listaAsistencias.Count == 0)
                 throw new Exception("No existes asistencias para la fecha");
             return listaAsistencias;
@@ -112,10 +117,15 @@ namespace ResimamisBackend.Datos
 
         public List<ASISTENCIA> consultarAsistenciasVoluntaria(int idVoluntaria)
         {
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
             var listaAsistencias = db.ASISTENCIA
+                .AsSplitQuery()
                 .Include(a => a.Estado!)
                 .ThenInclude(e => e!.ambito)
-                .Where(a => a.IdVoluntaria == idVoluntaria && EsAsistenciaOperativa(a))
+                .Where(a =>
+                    a.IdVoluntaria == idVoluntaria
+                    && (a.idEstado == null || a.idEstado != idElim))
+                .OrderByDescending(a => a.FechaHoraIngreso)
                 .ToList();
             if (listaAsistencias.Count == 0)
                 throw new Exception("No existes asistencias para esa voluntaria");
@@ -140,6 +150,7 @@ namespace ResimamisBackend.Datos
         /// <summary>Asistencias con ingreso en [inicioUtc, finUtcExclusivo), excluye bajas lógicas.</summary>
         public List<ASISTENCIA> ListarAsistenciasPorPeriodoUtc(DateTime inicioUtc, DateTime finUtcExclusivo)
         {
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
             return db.ASISTENCIA
                 .AsNoTracking()
                 .AsSplitQuery()
@@ -150,10 +161,7 @@ namespace ResimamisBackend.Datos
                     a.FechaHoraIngreso != null
                     && a.FechaHoraIngreso >= inicioUtc
                     && a.FechaHoraIngreso < finUtcExclusivo
-                    && !(a.Estado != null
-                        && a.Estado.ambito != null
-                        && a.Estado.ambito.nombre == "Asistencias"
-                        && a.Estado.nombre == "Eliminado"))
+                    && (a.idEstado == null || a.idEstado != idElim))
                 .OrderBy(a => a.FechaHoraIngreso)
                 .ThenBy(a => a.IdVoluntaria)
                 .ToList();
