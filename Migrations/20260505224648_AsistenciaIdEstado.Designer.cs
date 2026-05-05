@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ResimamisBackend.Datos;
@@ -11,9 +12,11 @@ using ResimamisBackend.Datos;
 namespace ResimamisBackend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260505224648_AsistenciaIdEstado")]
+    partial class AsistenciaIdEstado
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -536,12 +539,7 @@ namespace ResimamisBackend.Migrations
                     b.Property<int>("IdVoluntaria")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("idEstado")
-                        .HasColumnType("integer");
-
                     b.HasKey("IdUsuario");
-
-                    b.HasIndex("idEstado");
 
                     b.ToTable("USUARIO");
                 });
@@ -727,15 +725,6 @@ namespace ResimamisBackend.Migrations
                     b.Navigation("EstadoDetalle");
                 });
 
-            modelBuilder.Entity("ResimamisBackend.Datos.USUARIO", b =>
-                {
-                    b.HasOne("ResimamisBackend.Datos.ESTADO", "Estado")
-                        .WithMany("Usuarios")
-                        .HasForeignKey("idEstado");
-
-                    b.Navigation("Estado");
-                });
-
             modelBuilder.Entity("ResimamisBackend.Datos.VOLUNTARIA", b =>
                 {
                     b.HasOne("ResimamisBackend.Datos.ESTADO", "Estado")
@@ -777,8 +766,6 @@ namespace ResimamisBackend.Migrations
                     b.Navigation("Insumos");
 
                     b.Navigation("Madres");
-
-                    b.Navigation("Usuarios");
 
                     b.Navigation("Voluntarias");
                 });

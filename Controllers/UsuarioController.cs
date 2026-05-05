@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Negocio;
 
@@ -51,6 +52,63 @@ namespace ResimamisBackend.Controllers
                 return StatusCode(500, ex.Message);
             }
 
+        }
+
+        [Authorize]
+        [HttpGet("id/{idUsuario}")]
+        public IActionResult GetById(int idUsuario)
+        {
+            try
+            {
+                var usuario = neg_Usuario.ConsultarUsuarioPorId(idUsuario);
+                return Ok(new { usuario });
+            }
+            catch (ApplicationException exApp)
+            {
+                return BadRequest(exApp.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpPut("id/{idUsuario}")]
+        public IActionResult PutUsuario(int idUsuario, USUARIO usuario)
+        {
+            try
+            {
+                var ok = neg_Usuario.ModificarUsuario(idUsuario, usuario);
+                return Ok(new { respuesta = ok });
+            }
+            catch (ApplicationException exApp)
+            {
+                return BadRequest(exApp.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [Authorize]
+        [HttpPost("delete")]
+        public IActionResult Delete(int idUsuario)
+        {
+            try
+            {
+                var ok = neg_Usuario.EliminarUsuario(idUsuario);
+                return Ok(new { respuesta = ok });
+            }
+            catch (ApplicationException exApp)
+            {
+                return BadRequest(exApp.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
     }
 }

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Negocio;
+using ResimamisBackend.Entidades;
 
 namespace ResimamisBackend.Controllers
 {
@@ -33,6 +34,25 @@ namespace ResimamisBackend.Controllers
             {
                 return BadRequest(ex.Message);
             }    
+        }
+
+        /// <summary>Reporte de asistencias por período (días inclusive, zona Argentina). Query: fechaInicio, fechaFin (ej. 2026-01-01).</summary>
+        [HttpGet("reporte")]
+        public IActionResult GetReporteAsistenciaPeriodo([FromQuery] DateTime fechaInicio, [FromQuery] DateTime fechaFin)
+        {
+            try
+            {
+                ReporteAsistenciaPeriodoRespuesta reporte = negAsistencia.ReporteAsistenciaPorPeriodo(fechaInicio, fechaFin);
+                return Ok(reporte);
+            }
+            catch (ApplicationException ex)
+            {
+                return BadRequest(new { mensaje = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensaje = ex.Message });
+            }
         }
 
         [HttpGet("hoy")]
@@ -96,6 +116,25 @@ namespace ResimamisBackend.Controllers
             {
                 var resultado = negAsistencia.registrarAsistenciaSalida(IdVoluntaria);
                 return Ok(resultado);
+            }
+            catch (ApplicationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        /// <summary>Baja lógica: estado Eliminado (ámbito Asistencias).</summary>
+        [HttpPost("delete")]
+        public IActionResult Delete(int idAsistencia)
+        {
+            try
+            {
+                var ok = negAsistencia.eliminarAsistencia(idAsistencia);
+                return Ok(new { respuesta = ok });
             }
             catch (ApplicationException ex)
             {

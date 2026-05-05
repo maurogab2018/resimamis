@@ -1,4 +1,5 @@
-﻿using ResimamisBackend.Entidades;
+﻿using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
@@ -6,22 +7,51 @@ namespace ResimamisBackend.Datos
     public class InsumoRepositorio
     {
         private readonly ApplicationDbContext db;
-        private VoluntariaRepositorio voluntariaRepositorio;
+        private readonly VoluntariaRepositorio voluntariaRepositorio;
+        private readonly EstadoRepositorio estadoRepositorio;
+
         public InsumoRepositorio()
         {
             voluntariaRepositorio = new VoluntariaRepositorio();
             db = new ApplicationDbContext();
+            estadoRepositorio = new EstadoRepositorio();
         }
 
+        /// <summary>Insumo con estado en ámbito Insumos y que no esté en estado Eliminado.</summary>
+        internal static bool EsInsumoVisibleLista(INSUMO i) =>
+            i.idEstado != null
+            && i.Estado != null
+            && i.Estado.ambito != null
+            && i.Estado.ambito.nombre == "Insumos"
+            && i.Estado.nombre != "Eliminado";
+
+        private IQueryable<INSUMO> QueryInsumosVisiblesAmbitoInsumos()
+        {
+            return db.INSUMO
+                .Include(i => i.Estado!)
+                .ThenInclude(e => e!.ambito)
+                .Where(i =>
+                    i.idEstado != null
+                    && i.Estado != null
+                    && i.Estado!.ambito!.nombre == "Insumos"
+                    && i.Estado.nombre != "Eliminado");
+        }
 
         public List<INSUMO> obtenerInsumos()
         {
-            return db.INSUMO.ToList();
+            return QueryInsumosVisiblesAmbitoInsumos().AsNoTracking().ToList();
         }
+
+        public INSUMO? obtenerInsumoPorIdSinTracking(int idInsumo)
+        {
+            return QueryInsumosVisiblesAmbitoInsumos().AsNoTracking().FirstOrDefault(i => i.idInsumo == idInsumo);
+        }
+
         public List<PROVEEDOR> obtenerProveedores()
         {
-            return db.PROVEEDOR.ToList();   
+            return db.PROVEEDOR.ToList();
         }
+
         public List<ConsultaMovimiento> obtenerMovimientos(RequestMovimiento? movimientoFiltro)
         {
             var listaMovimientos = db.MOVIMIENTOSTOCK
@@ -51,24 +81,66 @@ namespace ResimamisBackend.Datos
 
         public INSUMO consultarInsumo(int idInsumo)
         {
-            var insumo = db.INSUMO.FirstOrDefault(i => i.idInsumo == idInsumo);
+            var insumo = db.INSUMO
+                .Include(i => i.Estado!)
+                .ThenInclude(e => e!.ambito)
+                .FirstOrDefault(i => i.idInsumo == idInsumo);
             if (insumo == null)
                 throw new ApplicationException("Insumo con ese id inexistente");
+            if (!EsInsumoVisibleLista(insumo))
+                throw new ApplicationException("Insumo no disponible o dado de baja.");
             return insumo;
         }
 
-        public bool actualizarStock(INSUMO insumo,int cantidad)
+        public INSUMO obtenerInsumoParaModificar(int idInsumo)
         {
-            insumo.stockActual = insumo.stockActual - cantidad;
-            db.SaveChangesAsync();
+            var insumo = db.INSUMO
+                .Include(i => i.Estado!)
+                .ThenInclude(e => e!.ambito)
+                .FirstOrDefault(i => i.idInsumo == idInsumo);
+            if (insumo == null)
+                throw new ApplicationException("Insumo con ese id inexistente");
+            if (insumo.Estado != null && insumo.Estado.ambito?.nombre == "Insumos" && insumo.Estado.nombre == "Eliminado")
+                throw new ApplicationException("No se puede modificar un insumo dado de baja.");
+            return insumo;
+        }
+
+        public bool modificarInsumo(INSUMO parcial, INSUMO existente)
+        {
+            existente.nombre = parcial.nombre;
+            existente.descripcion = parcial.descripcion;
+            existente.stockMaximo = parcial.stockMaximo;
+            existente.stockMinimo = parcial.stockMinimo;
+            existente.stockActual = parcial.stockActual;
+            if (parcial.idEstado.HasValue)
+                existente.idEstado = parcial.idEstado;
+            db.SaveChanges();
             return true;
         }
+
+        public bool eliminarInsumoLogico(int idInsumo)
+        {
+            var insumo = db.INSUMO.FirstOrDefault(i => i.idInsumo == idInsumo);
+            if (insumo == null)
+                throw new ApplicationException("Insumo con ese id inexistente");
+            insumo.idEstado = estadoRepositorio.ObtenerIdEstadoEliminado("Insumos");
+            db.SaveChanges();
+            return true;
+        }
+
+        public bool actualizarStock(INSUMO insumo, int cantidad)
+        {
+            insumo.stockActual = insumo.stockActual - cantidad;
+            db.SaveChanges();
+            return true;
+        }
+
         public bool registrarMovimientoStock(MOVIMIENTOSTOCK movimiento)
         {
             var insumo = consultarInsumo(movimiento.idInsumo);
-            if (movimiento.esEntrada=="S" || movimiento.esEntrada == "s")
-            { 
-                if(insumo.stockActual + movimiento.cantidad!.Value > insumo.stockMaximo)
+            if (movimiento.esEntrada == "S" || movimiento.esEntrada == "s")
+            {
+                if (insumo.stockActual + movimiento.cantidad!.Value > insumo.stockMaximo)
                 {
                     throw new ApplicationException("El ingreso de este insumo supera el stock maximo de: " + insumo.stockMaximo);
                 }
@@ -76,7 +148,7 @@ namespace ResimamisBackend.Datos
             }
             else
             {
-                if(insumo.stockActual < movimiento.cantidad)
+                if (insumo.stockActual < movimiento.cantidad)
                 {
                     throw new ApplicationException("La cantidad de salida de este insumo supera el stock disponible de: " + insumo.stockActual);
                 }
@@ -84,17 +156,44 @@ namespace ResimamisBackend.Datos
             }
             movimiento.fechaMovimiento = NegConversorFecha.ObtenerFechaArgentina();
             db.MOVIMIENTOSTOCK.Add(movimiento);
-            db.SaveChangesAsync();
+            db.SaveChanges();
             return true;
         }
 
         public List<EstadisticaInsumo> devolverEstadisticas()
         {
             var resultado = db.DETALLEASIGNACION
-                .GroupBy(detalle => detalle.insumo.nombre)
+                .Include(d => d.insumo!)
+                .ThenInclude(i => i!.Estado!)
+                .ThenInclude(e => e!.ambito)
+                .Where(d =>
+                    d.insumo != null
+                    && d.insumo.idEstado != null
+                    && d.insumo.Estado != null
+                    && d.insumo.Estado.ambito != null
+                    && d.insumo.Estado.ambito.nombre == "Insumos"
+                    && d.insumo.Estado.nombre != "Eliminado")
+                .GroupBy(detalle => detalle.insumo!.nombre)
                 .Select(grupo => new EstadisticaInsumo() { nombreInsumo = grupo.Key, cantidad = grupo.Sum(detalle => detalle.cantidad) })
                 .ToList();
             return resultado;
+        }
+
+        /// <summary>Indica si un idEstado existe y pertenece al ámbito Insumos (cualquier nombre de estado).</summary>
+        public bool IdEstadoEsDelAmbitoInsumos(int idEstado)
+        {
+            return db.ESTADO.AsNoTracking()
+                .Include(e => e.ambito)
+                .Any(e => e.idEstado == idEstado && e.ambito.nombre == "Insumos");
+        }
+
+        /// <summary>Evita usar estado Eliminado en altas/modificaciones vía payload.</summary>
+        public bool IdEstadoEsEliminadoInsumos(int idEstado)
+        {
+            return db.ESTADO.AsNoTracking()
+                .Include(e => e.ambito)
+                .Any(e =>
+                    e.idEstado == idEstado && e.ambito.nombre == "Insumos" && e.nombre == "Eliminado");
         }
     }
 }

@@ -23,6 +23,12 @@ namespace ResimamisBackend.Datos
 
         public ICollection<ASIGNACION>? Asignaciones { get; set; }
 
+        public ICollection<INSUMO>? Insumos { get; set; }
+
+        public ICollection<ASISTENCIA>? Asistencias { get; set; }
+
+        public ICollection<USUARIO>? Usuarios { get; set; }
+
 
     }
 }

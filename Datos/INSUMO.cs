@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace ResimamisBackend.Datos
 {
@@ -14,6 +15,12 @@ namespace ResimamisBackend.Datos
 
         public int stockActual { get; set; }
 
-        public virtual ICollection<DETALLEASIGNACION> detalles { get; set; }
+        /// <summary>Estado operativo del insumo (tabla ESTADO, ámbito Insumos). Baja lógica: Eliminado.</summary>
+        public int? idEstado { get; set; }
+
+        [JsonIgnore]
+        public virtual ESTADO? Estado { get; set; }
+
+        public virtual ICollection<DETALLEASIGNACION>? detalles { get; set; }
     }
 }

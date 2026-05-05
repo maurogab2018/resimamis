@@ -103,6 +103,12 @@ namespace ResimamisBackend.Datos
             .HasForeignKey(a => a.IdVoluntaria);
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<ASISTENCIA>()
+                .HasOne(a => a.Estado)
+                .WithMany(e => e.Asistencias)
+                .HasForeignKey(a => a.idEstado);
+            base.OnModelCreating(modelBuilder);
+
             modelBuilder.Entity<ASIGNACION>()
             .HasOne(a => a.voluntaria)
             .WithMany(v => v.Asignaciones)
@@ -142,8 +148,20 @@ namespace ResimamisBackend.Datos
 
             modelBuilder.Entity<DETALLEASIGNACION>()
             .HasOne(detalle => detalle.insumo)
-            .WithMany(insumo=>insumo.detalles)
+            .WithMany(insumo => insumo.detalles!)
             .HasForeignKey(detalle => detalle.idInsumo);
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<INSUMO>()
+                .HasOne(i => i.Estado)
+                .WithMany(e => e.Insumos)
+                .HasForeignKey(i => i.idEstado);
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<USUARIO>()
+                .HasOne(u => u.Estado)
+                .WithMany(e => e.Usuarios)
+                .HasForeignKey(u => u.idEstado);
             base.OnModelCreating(modelBuilder);
         }
     }

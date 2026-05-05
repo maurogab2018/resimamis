@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
@@ -40,8 +41,8 @@ namespace ResimamisBackend.Controllers
         {
             try
             {
-                var respuesta = negAsignacion.listarAsignacionesHoy();
-                return Ok(new { listadoAsignaciones = respuesta });
+                var respuesta = negAsignacion.consultarAsignacionPorId(idAsignacion);
+                return Ok(new { asignacion = respuesta });
             }
             catch (ApplicationException ex)
             {
@@ -190,6 +191,42 @@ namespace ResimamisBackend.Controllers
             {
                 var respuesta = negAsignacion.registrarInicioAsignacionAbrazo(idAsignacion);
                 return Ok(new { respuesta = respuesta });
+            }
+            catch (ApplicationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpDelete("id/{idAsignacion}")]
+        public IActionResult DeleteAsignacion(int idAsignacion)
+        {
+            try
+            {
+                var respuesta = negAsignacion.eliminarAsignacion(idAsignacion);
+                return Ok(new { respuesta });
+            }
+            catch (ApplicationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpPut("id/{idAsignacion}")]
+        public IActionResult PutModificarAsignacion(int idAsignacion, ASIGNACION datos)
+        {
+            try
+            {
+                var respuesta = negAsignacion.modificarAsignacion(idAsignacion, datos);
+                return Ok(new { respuesta });
             }
             catch (ApplicationException ex)
             {

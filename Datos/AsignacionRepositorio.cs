@@ -7,10 +7,13 @@ namespace ResimamisBackend.Datos
     {
         private readonly ApplicationDbContext db;
         private readonly InsumoRepositorio insumoRepositorio;
+        private readonly EstadoRepositorio estadoRepositorio;
+
         public AsignacionRepositorio()
         {
             db = new ApplicationDbContext();
             insumoRepositorio = new InsumoRepositorio();
+            estadoRepositorio = new EstadoRepositorio();
         }
 
         public void registrarAsignacion(ASIGNACION asignacion)
@@ -25,10 +28,33 @@ namespace ResimamisBackend.Datos
                 throw new ApplicationException("Asignación con ese id inexistente");
             return asignacion;
         }
+
+        public bool modificarAsignacion(ASIGNACION datos, ASIGNACION existente)
+        {
+            existente.idTarea = datos.idTarea;
+            existente.idBebe = datos.idBebe;
+            existente.idVoluntaria = datos.idVoluntaria;
+            existente.comentario = datos.comentario;
+            db.SaveChanges();
+            return true;
+        }
+
+        public bool eliminarAsignacionLogica(int idAsignacion)
+        {
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+            var asignacion = consultarAsignacion(idAsignacion);
+            if (asignacion.idEstado == idElim)
+                throw new ApplicationException("La asignación ya está eliminada.");
+            asignacion.idEstado = idElim;
+            db.SaveChanges();
+            return true;
+        }
+
         public List<ASIGNACION> listarAsignacionesHoy()
         {
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
-            var asignaciones= db.ASIGNACION.Where(a => a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia).Select(a=> new ASIGNACION()
+            var asignaciones= db.ASIGNACION.Where(a => a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia && a.idEstado != idElim).Select(a=> new ASIGNACION()
             {
                 idAsignacion=a.idAsignacion,
                 fechaHoraAsignacion = a.fechaHoraAsignacion,
@@ -58,8 +84,9 @@ namespace ResimamisBackend.Datos
 
         public List<ASIGNACION> listarAsignacionesHoyVoluntaria(int idVoluntaria)
         {
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
-            var asignaciones = db.ASIGNACION.Where(a => a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia && a.idVoluntaria==idVoluntaria).Select(a => new ASIGNACION()
+            var asignaciones = db.ASIGNACION.Where(a => a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia && a.idVoluntaria==idVoluntaria && a.idEstado != idElim).Select(a => new ASIGNACION()
             {
                 idAsignacion = a.idAsignacion,
                 fechaHoraAsignacion = a.fechaHoraAsignacion,

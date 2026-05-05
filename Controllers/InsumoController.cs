@@ -36,6 +36,62 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        [HttpGet("id/{idInsumo}")]
+        public IActionResult GetById(int idInsumo)
+        {
+            try
+            {
+                var insumo = negInsumos.obtenerInsumoPorId(idInsumo);
+                if (insumo == null)
+                    return BadRequest("Insumo inexistente o no disponible para el ámbito Insumos.");
+                return Ok(new { insumo });
+            }
+            catch (ApplicationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpPut("id/{idInsumo}")]
+        public IActionResult Put(int idInsumo, INSUMO insumo)
+        {
+            try
+            {
+                var ok = negInsumos.modificarInsumo(idInsumo, insumo);
+                return Ok(new { respuesta = ok });
+            }
+            catch (ApplicationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [HttpPost("delete")]
+        public IActionResult Delete(int idInsumo)
+        {
+            try
+            {
+                var ok = negInsumos.eliminarInsumo(idInsumo);
+                return Ok(new { respuesta = ok });
+            }
+            catch (ApplicationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
         [HttpPost("consultaMovimientos")]
         public IActionResult GetMovimientos(RequestMovimiento? movimientoFiltro)
         {

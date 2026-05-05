@@ -9,13 +9,22 @@ namespace ResimamisBackend.Negocio
         private readonly BebeRepositorio bebeRepositorio;
         private readonly VoluntariaRepositorio voluntariaRepositorio;
         private readonly AsignacionRepositorio asignacionRepositorio;
+        private readonly EstadoRepositorio estadoRepositorio;
         private readonly ApplicationDbContext db;
         public NegAsignacion()
         {
             bebeRepositorio = new BebeRepositorio();
             voluntariaRepositorio = new VoluntariaRepositorio();
             asignacionRepositorio= new AsignacionRepositorio();
+            estadoRepositorio = new EstadoRepositorio();
             db = new ApplicationDbContext();
+        }
+
+        private void AsegurarAsignacionNoEliminada(ASIGNACION asignacion)
+        {
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+            if (asignacion.idEstado == idElim)
+                throw new ApplicationException("La asignación fue eliminada.");
         }
 
 
@@ -36,11 +45,20 @@ namespace ResimamisBackend.Negocio
             if (voluntarias == null || voluntarias.Count == 0)
                 throw new ApplicationException("No se encontraron voluntarias válidas.");
 
-            // Armamos un diccionario con las asignaciones de hoy para cada voluntaria
+            var idEstadoAsignacionCreada = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Creada", "Asignaciones");
+            var idEstadoAsignacionEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+
+            var asignacionesHoyPorVoluntaria = db.ASIGNACION
+                .Where(a => requestAsignacion.idVoluntarias.Contains(a.idVoluntaria)
+                    && a.fechaHoraAsignacion >= diaInicio && a.fechaHoraAsignacion < diaFin
+                    && a.idEstado != idEstadoAsignacionEliminado)
+                .GroupBy(a => a.idVoluntaria)
+                .ToDictionary(g => g.Key, g => g.Count());
+
             var voluntariasConAsignaciones = voluntarias.Select(v => new VoluntariaConAsignaciones()
             {
                 Voluntaria = v,
-                CantidadAsignacionesHoy = v.Asignaciones?.Count(a => a.fechaHoraAsignacion >= diaInicio && a.fechaHoraAsignacion < diaFin) ?? 0
+                CantidadAsignacionesHoy = asignacionesHoyPorVoluntaria.GetValueOrDefault(v.IdVoluntaria, 0)
             }).ToList();
 
             // Para desempatar cuando hay igual cantidad de asignaciones
@@ -65,7 +83,7 @@ namespace ResimamisBackend.Negocio
                     idVoluntaria = seleccionada.IdVoluntaria,
                     idTarea = tarea.idTarea,
                     fechaHoraAsignacion = fechaHoy,
-                    idEstado = 1
+                    idEstado = idEstadoAsignacionCreada
                 };
 
                 voluntariaRepositorio.asignarVoluntaria(seleccionada.IdVoluntaria);
@@ -99,12 +117,13 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("Tarea no encontrada");
             try
             {
+                var idEstadoAsignacionCreada = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Creada", "Asignaciones");
                 var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
                 var asignacion = new ASIGNACION();
                 asignacion.idVoluntaria = voluntaria.IdVoluntaria;
                 //asignacion.idBebe = bebesAbrazar[i].ID;
                 asignacion.fechaHoraAsignacion = fechaHoy;
-                asignacion.idEstado = 1;
+                asignacion.idEstado = idEstadoAsignacionCreada;
                 asignacion.idTarea = tarea.idTarea;
                 voluntariaRepositorio.asignarVoluntaria(voluntaria.IdVoluntaria);
                 db.ASIGNACION.Add(asignacion);
@@ -148,7 +167,10 @@ namespace ResimamisBackend.Negocio
                 var idEstadoBebeAsignado = estBebeRow.idEstado;
                 var idEstadoVolAsignada = estVolRow.idEstado;
 
-                var bebesAbrazar = CargarBebesAbrazarParaGenerar(diaInicio, diaFin);
+                var idEstadoAsignacionCreada = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Creada", "Asignaciones");
+                var idEstadoAsignacionEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+
+                var bebesAbrazar = CargarBebesAbrazarParaGenerar(diaInicio, diaFin, idEstadoAsignacionEliminado);
                 if (bebesAbrazar.Count == 0)
                     throw new ApplicationException("No hay bebes para abrazar para el día de hoy");
 
@@ -185,7 +207,7 @@ namespace ResimamisBackend.Negocio
                             idVoluntaria = voluntariasActivas[i].IdVoluntaria,
                             idBebe = bebesAbrazar[i].ID,
                             fechaHoraAsignacion = fechaHoy,
-                            idEstado = 1
+                            idEstado = idEstadoAsignacionCreada
                         };
                         AplicarEstadosBebeYVoluntaria(bebesAbrazar[i], voluntariasActivas[i].IdVoluntaria);
                         db.ASIGNACION.Add(asignacion);
@@ -200,13 +222,13 @@ namespace ResimamisBackend.Negocio
                         int minAsignacionesHoy = voluntariasActivas
                             .Where(voluntaria => voluntaria.Asignaciones != null)
                             .Select(voluntaria => voluntaria.Asignaciones!
-                                .Count(asignacion => asignacion.fechaHoraAsignacion >= diaInicio && asignacion.fechaHoraAsignacion < diaFin))
+                                .Count(asignacion => asignacion.fechaHoraAsignacion >= diaInicio && asignacion.fechaHoraAsignacion < diaFin && asignacion.idEstado != idEstadoAsignacionEliminado))
                             .DefaultIfEmpty(0)
                             .Min();
 
                         var voluntariaMenosAsignacionesHoy = voluntariasActivas
                             .Where(voluntaria => voluntaria.Asignaciones != null && voluntaria.Asignaciones
-                                .Count(asignacion => asignacion.fechaHoraAsignacion >= diaInicio && asignacion.fechaHoraAsignacion < diaFin) == minAsignacionesHoy)
+                                .Count(asignacion => asignacion.fechaHoraAsignacion >= diaInicio && asignacion.fechaHoraAsignacion < diaFin && asignacion.idEstado != idEstadoAsignacionEliminado) == minAsignacionesHoy)
                             .ToList();
 
                         if (voluntariaMenosAsignacionesHoy.Count == 1)
@@ -218,7 +240,7 @@ namespace ResimamisBackend.Negocio
                                 idVoluntaria = vol.IdVoluntaria,
                                 idBebe = bebesAbrazar[i].ID,
                                 fechaHoraAsignacion = fechaHoy,
-                                idEstado = 1
+                                idEstado = idEstadoAsignacionCreada
                             };
                             vol.Asignaciones!.Add(asignacion);
                             AplicarEstadosBebeYVoluntaria(bebesAbrazar[i], vol.IdVoluntaria);
@@ -231,13 +253,13 @@ namespace ResimamisBackend.Negocio
                         {
                             int minAsignacionesMesPasado = voluntariaMenosAsignacionesHoy
                                 .Select(voluntaria => voluntaria.Asignaciones!
-                                    .Count(asignacion => asignacion.fechaHoraAsignacion >= fechaMesAnterior && asignacion.fechaHoraAsignacion < fechaHoy))
+                                    .Count(asignacion => asignacion.fechaHoraAsignacion >= fechaMesAnterior && asignacion.fechaHoraAsignacion < fechaHoy && asignacion.idEstado != idEstadoAsignacionEliminado))
                                 .DefaultIfEmpty(0)
                                 .Min();
 
                             var voluntariaMenosAsignacionesMes = voluntariaMenosAsignacionesHoy
                                 .Where(voluntaria => voluntaria.Asignaciones != null && voluntaria.Asignaciones
-                                    .Count(asignacion => asignacion.fechaHoraAsignacion >= fechaMesAnterior && asignacion.fechaHoraAsignacion < fechaHoy) == minAsignacionesMesPasado)
+                                    .Count(asignacion => asignacion.fechaHoraAsignacion >= fechaMesAnterior && asignacion.fechaHoraAsignacion < fechaHoy && asignacion.idEstado != idEstadoAsignacionEliminado) == minAsignacionesMesPasado)
                                 .FirstOrDefault();
 
                             if (voluntariaMenosAsignacionesMes != null)
@@ -249,7 +271,7 @@ namespace ResimamisBackend.Negocio
                                     idVoluntaria = vol.IdVoluntaria,
                                     idBebe = bebesAbrazar[i].ID,
                                     fechaHoraAsignacion = fechaHoy,
-                                    idEstado = 1
+                                    idEstado = idEstadoAsignacionCreada
                                 };
                                 var actualizaVoluntariasLibres = voluntariasActivas.Single(v => v.IdVoluntaria == vol.IdVoluntaria);
                                 actualizaVoluntariasLibres.Asignaciones!.Add(asignacion);
@@ -266,7 +288,7 @@ namespace ResimamisBackend.Negocio
                                     idVoluntaria = voluntariasActivas[0].IdVoluntaria,
                                     idBebe = bebesAbrazar[i].ID,
                                     fechaHoraAsignacion = fechaHoy,
-                                    idEstado = 1
+                                    idEstado = idEstadoAsignacionCreada
                                 };
                                 var actualizaVoluntariaAsignada = voluntariasActivas.Single(v => v.IdVoluntaria == voluntariasActivas[0].IdVoluntaria);
                                 voluntariasActivas.Remove(actualizaVoluntariaAsignada);
@@ -287,13 +309,13 @@ namespace ResimamisBackend.Negocio
                         int minAsignacionesMesPasado = voluntariasActivas
                             .Where(voluntaria => voluntaria.Asignaciones != null)
                             .Select(voluntaria => voluntaria.Asignaciones!
-                                .Count(asignacion => asignacion.fechaHoraAsignacion >= fechaMesAnterior && asignacion.fechaHoraAsignacion < fechaHoy))
+                                .Count(asignacion => asignacion.fechaHoraAsignacion >= fechaMesAnterior && asignacion.fechaHoraAsignacion < fechaHoy && asignacion.idEstado != idEstadoAsignacionEliminado))
                             .DefaultIfEmpty(0)
                             .Min();
 
                         var voluntariaMenosAsignacionesMes = voluntariasActivas
                             .Where(voluntaria => (voluntaria.Asignaciones ?? new List<ASIGNACION>())
-                                .Count(asignacion => asignacion.fechaHoraAsignacion >= fechaMesAnterior && asignacion.fechaHoraAsignacion < fechaHoy) == minAsignacionesMesPasado)
+                                .Count(asignacion => asignacion.fechaHoraAsignacion >= fechaMesAnterior && asignacion.fechaHoraAsignacion < fechaHoy && asignacion.idEstado != idEstadoAsignacionEliminado) == minAsignacionesMesPasado)
                             .FirstOrDefault();
 
                         if (voluntariaMenosAsignacionesMes != null)
@@ -305,7 +327,7 @@ namespace ResimamisBackend.Negocio
                                 idVoluntaria = vol.IdVoluntaria,
                                 idBebe = bebesAbrazar[i].ID,
                                 fechaHoraAsignacion = fechaHoy,
-                                idEstado = 1
+                                idEstado = idEstadoAsignacionCreada
                             };
                             var actualizaVoluntariaAsignada = voluntariasActivas.Single(v => v.IdVoluntaria == vol.IdVoluntaria);
                             voluntariasActivas.Remove(actualizaVoluntariaAsignada);
@@ -325,7 +347,7 @@ namespace ResimamisBackend.Negocio
                                 idVoluntaria = vol0.IdVoluntaria,
                                 idBebe = bebesAbrazar[i].ID,
                                 fechaHoraAsignacion = fechaHoy,
-                                idEstado = 1
+                                idEstado = idEstadoAsignacionCreada
                             };
                             var actualizaVoluntariaAsignada = voluntariasActivas.Single(v => v.IdVoluntaria == vol0.IdVoluntaria);
                             voluntariasActivas.Remove(actualizaVoluntariaAsignada);
@@ -374,7 +396,7 @@ namespace ResimamisBackend.Negocio
         }
 
         /// <summary>Misma lógica que BebeRepositorio.obtenerBebesAbrazar, sobre el DbContext de esta clase (una sola unidad de trabajo).</summary>
-        private List<BEBE> CargarBebesAbrazarParaGenerar(DateTime diaInicio, DateTime diaFin)
+        private List<BEBE> CargarBebesAbrazarParaGenerar(DateTime diaInicio, DateTime diaFin, int idEstadoAsignacionEliminado)
         {
             return db.BEBE
                 .Where(v => v.Estado != null
@@ -382,7 +404,8 @@ namespace ResimamisBackend.Negocio
                             && v.Estado.nombre == "Sin abrazar"
                             && v.Estado.nombre != "Asignado"
                             && !v.Asignaciones.Any(a =>
-                                a.fechaHoraAsignacion >= diaInicio && a.fechaHoraAsignacion < diaFin
+                                a.idEstado != idEstadoAsignacionEliminado
+                                && a.fechaHoraAsignacion >= diaInicio && a.fechaHoraAsignacion < diaFin
                                 && a.fechaHoraInicio != null
                                 && a.fechaHoraInicio >= diaInicio && a.fechaHoraInicio < diaFin))
                 .ToList();
@@ -407,6 +430,7 @@ namespace ResimamisBackend.Negocio
         public bool registrarInicioAsignacionAbrazo(int idAsignacion)
         {
             var asignacion = asignacionRepositorio.consultarAsignacion(idAsignacion);
+            AsegurarAsignacionNoEliminada(asignacion);
             if (asignacion.fechaHoraInicio != null)
                 throw new ApplicationException("Abrazo ya inicializado");
 
@@ -440,6 +464,7 @@ namespace ResimamisBackend.Negocio
         public bool registrarFinAsignacionAbrazo(int idAsignacion,string comentario)
         {
             var asignacion = asignacionRepositorio.consultarAsignacion(idAsignacion);
+            AsegurarAsignacionNoEliminada(asignacion);
             if (asignacion.fechaHoraInicio == null)
                 throw new ApplicationException("Abrazo nunca fue inicializado");
 
@@ -471,6 +496,69 @@ namespace ResimamisBackend.Negocio
             asignacionRepositorio.registrarCambioaAsignacion();
 
             return true;
+        }
+
+        /// <summary>Actualiza tarea, bebé, voluntaria y comentario de una asignación existente.</summary>
+        public bool eliminarAsignacion(int idAsignacion)
+        {
+            return asignacionRepositorio.eliminarAsignacionLogica(idAsignacion);
+        }
+
+        public bool modificarAsignacion(int idAsignacion, ASIGNACION datos)
+        {
+            var existentePrevio = asignacionRepositorio.consultarAsignacion(idAsignacion);
+            AsegurarAsignacionNoEliminada(existentePrevio);
+
+            if (datos.idVoluntaria <= 0)
+                throw new ApplicationException("Voluntaria inválida");
+
+            voluntariaRepositorio.consultarVoluntaria(datos.idVoluntaria);
+
+            if (datos.idTarea.HasValue)
+            {
+                var tarea = db.TAREA.FirstOrDefault(t => t.idTarea == datos.idTarea.Value);
+                if (tarea == null)
+                    throw new ApplicationException("Tarea no encontrada");
+            }
+
+            if (datos.idBebe.HasValue)
+                bebeRepositorio.consultarBebe(datos.idBebe.Value);
+
+            return asignacionRepositorio.modificarAsignacion(datos, existentePrevio);
+        }
+
+        public RespuestaAsignaciones consultarAsignacionPorId(int idAsignacion)
+        {
+            var a = db.ASIGNACION
+                .Include(x => x.voluntaria)
+                .Include(x => x.bebe)
+                .FirstOrDefault(x => x.idAsignacion == idAsignacion);
+            if (a == null)
+                throw new ApplicationException("Asignación con ese id inexistente");
+
+            AsegurarAsignacionNoEliminada(a);
+
+            return new RespuestaAsignaciones
+            {
+                idAsignacion = a.idAsignacion,
+                idTarea = a.idTarea,
+                idBebe = a.idBebe,
+                idVoluntaria = a.idVoluntaria,
+                nombreBebe = a.bebe?.nombre,
+                nombreVoluntaria = a.voluntaria != null ? $"{a.voluntaria.Nombre} {a.voluntaria.Apellido}" : "",
+                fechaHoraAsignacion = a.fechaHoraAsignacion,
+                fechaHoraFin = a.fechaHoraFin,
+                fechaHoraInicio = a.fechaHoraInicio,
+                estadoAsignacion = a.idEstado.ToString(),
+                sala = a.bebe?.IdSala,
+                detalles = db.DETALLEASIGNACION.Where(d => d.idAsignacion == a.idAsignacion).Select(d => new DetalleAsignacionResumido
+                {
+                    cantidad = d.cantidad,
+                    idInsumo = d.idInsumo,
+                    nombreInsumo = d.nombreInsumo,
+                    fechaEntrega = d.fechaEntrega!.Value
+                }).ToList()
+            };
         }
 
 

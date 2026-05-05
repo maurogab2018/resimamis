@@ -24,6 +24,16 @@ namespace ResimamisBackend.Datos
                 .FirstOrDefault();
         }
 
+        private int? IdEstadoEliminadoAsistencias()
+        {
+            return db.ESTADO
+                .AsNoTracking()
+                .Include(e => e.ambito)
+                .Where(e => e.nombre == "Eliminado" && e.ambito.nombre == "Asistencias")
+                .Select(e => (int?)e.idEstado)
+                .FirstOrDefault();
+        }
+
         public List<VOLUNTARIA> listarVoluntarias()
         {
             var idEl = IdEstadoEliminadoVoluntarias();
@@ -106,9 +116,10 @@ namespace ResimamisBackend.Datos
         {
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
             var idEl = IdEstadoEliminadoVoluntarias();
+            var idElimAsist = IdEstadoEliminadoAsistencias();
             var voluntariasLibres = db.VOLUNTARIA.Include(v => v.RolInfo).Include(v => v.Estado).Where(v =>
                 (idEl == null || v.IdEstado != idEl)
-                && v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null) && v.Estado != null && v.Estado.nombre != "Eliminado" && v.Estado.nombre!="Inactiva" && v.Estado.nombre != "Licencia" && v.Estado.nombre != "Carpeta médica").Select(v=> new VOLUNTARIA()
+                && v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null && (idElimAsist == null || a.idEstado != idElimAsist)) && v.Estado != null && v.Estado.nombre != "Eliminado" && v.Estado.nombre!="Inactiva" && v.Estado.nombre != "Licencia" && v.Estado.nombre != "Carpeta médica").Select(v=> new VOLUNTARIA()
             {
                 IdVoluntaria= v.IdVoluntaria,
                 Dni= v.Dni,
@@ -129,9 +140,10 @@ namespace ResimamisBackend.Datos
         {
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
             var idEl = IdEstadoEliminadoVoluntarias();
+            var idElimAsist = IdEstadoEliminadoAsistencias();
             var voluntariasLibres = db.VOLUNTARIA.Include(v => v.RolInfo).Where(v =>
                 (idEl == null || v.IdEstado != idEl)
-                && v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null)).Select(v => new VOLUNTARIA()
+                && v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null && (idElimAsist == null || a.idEstado != idElimAsist))).Select(v => new VOLUNTARIA()
             {
                 IdVoluntaria = v.IdVoluntaria,
                 Dni = v.Dni,
