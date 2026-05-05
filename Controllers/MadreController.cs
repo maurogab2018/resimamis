@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
@@ -104,8 +104,12 @@ namespace ResimamisBackend.Controllers
         {
             try
             {
-                var resultado = neg_Madres.modificarMadre(madre,Id);
-                return Ok(resultado);
+                var resultado = neg_Madres.modificarMadre(madre, Id, out var madreActualizada);
+
+                if (!resultado.Exito)
+                    return StatusCode(500, resultado.Errores);
+
+                return Ok(madreActualizada);
             }
             catch (ApplicationException exa)
             {
@@ -116,6 +120,24 @@ namespace ResimamisBackend.Controllers
                 return StatusCode(500, ex.Message);
             }
 
+        }
+
+        [HttpPost("delete")]
+        public IActionResult Delete(int idMadre)
+        {
+            try
+            {
+                var ok = neg_Madres.eliminarMadre(idMadre);
+                return Ok(new { respuesta = ok });
+            }
+            catch (ApplicationException exa)
+            {
+                return BadRequest(exa.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpGet("estadisticaEdadesMadre")]

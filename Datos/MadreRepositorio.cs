@@ -6,14 +6,33 @@ namespace ResimamisBackend.Datos
     public class MadreRepositorio
     {
         private readonly ApplicationDbContext db;
+        private readonly EstadoRepositorio estadoRepositorio;
+
         public MadreRepositorio()
         {
             db = new ApplicationDbContext();
+            estadoRepositorio = new EstadoRepositorio();
+        }
+
+        /// <summary>Madres activas y no marcadas como Eliminado (ámbito Madres).</summary>
+        private IQueryable<MADRE> QueryMadresVisibles()
+        {
+            int? idEliminado = db.ESTADO
+                .AsNoTracking()
+                .Include(e => e.ambito)
+                .Where(e => e.nombre == "Eliminado" && e.ambito.nombre == "Madres")
+                .Select(e => (int?)e.idEstado)
+                .FirstOrDefault();
+
+            if (idEliminado == null)
+                return db.MADRE.Where(m => m.Estado);
+
+            return db.MADRE.Where(m => m.Estado && m.IdEstado != idEliminado);
         }
 
         public List<MADRE> listarMadres()
         {
-            return db.MADRE.Where(m=>m.Estado==true).ToList();
+            return QueryMadresVisibles().ToList();
         }
 
         public bool registrarMadre(MADRE madre)
@@ -91,7 +110,7 @@ namespace ResimamisBackend.Datos
 
         public List<EstadisticaLocalidades> devolverEstadisticasLocalidades()
         {
-            var madree = db.MADRE;
+            var madree = QueryMadresVisibles();
             var localidadd = db.LOCALIDAD;
 
             var resultado = localidadd
@@ -123,6 +142,19 @@ namespace ResimamisBackend.Datos
                 .OrderBy(r => r.Edad)
                 .ToList();
             return resultado;
+        }
+
+        public bool eliminarMadreLogico(int idMadre)
+        {
+            var madre = db.MADRE.FirstOrDefault(m => m.IdMadre == idMadre);
+            if (madre == null)
+                throw new ApplicationException("Madre no existente con ese Id");
+
+            var idEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Madres");
+            madre.IdEstado = idEliminado;
+            madre.Estado = false;
+            db.SaveChanges();
+            return true;
         }
 
     }

@@ -7,15 +7,32 @@ namespace ResimamisBackend.Datos
     {
         private readonly ApplicationDbContext db;
         private readonly MadreRepositorio madreRepositorio;
+        private readonly EstadoRepositorio estadoRepositorio;
+
         public BebeRepositorio()
         {
             db = new ApplicationDbContext();
             madreRepositorio = new MadreRepositorio();
+            estadoRepositorio = new EstadoRepositorio();
         }
 
-        public List<BEBE> listarBebes() { 
+        private int? IdEstadoEliminadoBebes()
+        {
+            return db.ESTADO
+                .AsNoTracking()
+                .Include(e => e.ambito)
+                .Where(e => e.nombre == "Eliminado" && e.ambito.nombre == "Bebes")
+                .Select(e => (int?)e.idEstado)
+                .FirstOrDefault();
+        }
 
-            return db.BEBE.Include(b => b.Sala).ToList();
+        public List<BEBE> listarBebes()
+        {
+            var idEl = IdEstadoEliminadoBebes();
+            var q = db.BEBE.Include(b => b.Sala).AsQueryable();
+            if (idEl != null)
+                q = q.Where(b => b.IdEstado != idEl);
+            return q.ToList();
         }
 
         public List<SALA> listarSalas()
@@ -42,6 +59,7 @@ namespace ResimamisBackend.Datos
         {
             var madreBebe = madreRepositorio.consultarMadre(bebe.IdMadre!.Value);
             bebeModificar.nombre = bebe.nombre;
+            bebeModificar.apellido = bebe.apellido;
             bebeModificar.Sexo = bebe.Sexo;
             bebeModificar.LugarNacimiento = bebe.LugarNacimiento;
             bebeModificar.FechaNacimiento = bebe.FechaNacimiento;
@@ -54,7 +72,19 @@ namespace ResimamisBackend.Datos
             bebeModificar.DiagnosticoIngreso = bebe.DiagnosticoIngreso;
             bebeModificar.IdSala = bebe.IdSala;
             bebeModificar.IdMadre = madreBebe.IdMadre;
-            db.SaveChangesAsync();
+            db.SaveChanges();
+            return true;
+        }
+
+        public bool eliminarBebeLogico(int idBebe)
+        {
+            var bebe = db.BEBE.FirstOrDefault(b => b.ID == idBebe);
+            if (bebe == null)
+                throw new ApplicationException("Bebe no existente con ese Id");
+
+            var idEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Bebes");
+            bebe.IdEstado = idEliminado;
+            db.SaveChanges();
             return true;
         }
 
@@ -62,8 +92,10 @@ namespace ResimamisBackend.Datos
         {
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
 
+            var idElim = IdEstadoEliminadoBebes();
             var bebesAbrazar = db.BEBE
                 .Where(v => v.Estado != null
+                            && (idElim == null || v.IdEstado != idElim)
                             && v.Estado.ambito.nombre == "Bebes"
                             && v.Estado.nombre == "Sin abrazar"
                             && v.Estado.nombre != "Asignado"

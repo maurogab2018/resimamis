@@ -1,4 +1,5 @@
 ﻿using ResimamisBackend.Datos;
+using System.Text.RegularExpressions;
 
 namespace ResimamisBackend.Negocio
 {
@@ -10,6 +11,51 @@ namespace ResimamisBackend.Negocio
             voluntariaRepositorio = new VoluntariaRepositorio();
         }
 
+        private void ValidarVoluntaria(VOLUNTARIA voluntaria)
+        {
+            if (voluntaria == null)
+                throw new ApplicationException("Voluntaria inválida");
+
+            if (string.IsNullOrWhiteSpace(voluntaria.Nombre) || voluntaria.Nombre.Length > 50)
+                throw new ApplicationException("Nombre inválido");
+
+            if (string.IsNullOrWhiteSpace(voluntaria.Apellido) || voluntaria.Apellido.Length > 50)
+                throw new ApplicationException("Apellido inválido");
+
+            if (voluntaria.Dni <= 0 || !Regex.IsMatch(voluntaria.Dni.ToString(), @"^\d{7,8}$"))
+                throw new ApplicationException("Dni inválido");
+
+            if (string.IsNullOrWhiteSpace(voluntaria.Mail) || voluntaria.Mail.Length > 100)
+                throw new ApplicationException("Mail inválido");
+
+            // Validación simple (evita mails obviamente rotos). Si quieren una regla más estricta, se ajusta.
+            if (!Regex.IsMatch(voluntaria.Mail, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+                throw new ApplicationException("Mail inválido");
+
+            var celularStr = voluntaria.Celular.ToString();
+            if (voluntaria.Celular <= 0 || !Regex.IsMatch(celularStr, @"^\d{10,13}$"))
+                throw new ApplicationException("Celular inválido");
+
+            if (voluntaria.FechaInicio == default)
+                throw new ApplicationException("FechaInicio inválida");
+
+            if (voluntaria.FechaFin.HasValue && voluntaria.FechaFin.Value < voluntaria.FechaInicio)
+                throw new ApplicationException("FechaFin inválida");
+
+            if (voluntaria.IdEstado.HasValue)
+            {
+                if (voluntaria.IdEstado.Value <= 0)
+                    throw new ApplicationException("Estado inválido");
+
+                var estadosValidos = voluntariaRepositorio.devolverEstadosVoluntarias().Select(e => e.idEstado).ToHashSet();
+                if (!estadosValidos.Contains(voluntaria.IdEstado.Value))
+                    throw new ApplicationException("Estado inválido");
+            }
+
+            if (voluntaria.IdRol.HasValue && voluntaria.IdRol.Value <= 0)
+                throw new ApplicationException("Rol inválido");
+        }
+
         public List<VOLUNTARIA> listarVoluntarias()
         {
             return voluntariaRepositorio.listarVoluntarias();
@@ -17,7 +63,7 @@ namespace ResimamisBackend.Negocio
 
         public bool registrarVoluntaria(VOLUNTARIA voluntaria)
         {
-            //aca van las validaciones
+            ValidarVoluntaria(voluntaria);
             bool registroVoluntaria = voluntariaRepositorio.registrarVoluntaria(voluntaria);
             return registroVoluntaria;
         }
@@ -35,13 +81,8 @@ namespace ResimamisBackend.Negocio
 
         public bool modificarVoluntaria(VOLUNTARIA voluntaria,int id)
         {
-            //validaciones
             var voluntariaModificar = voluntariaRepositorio.consultarVoluntaria(id);
-            if (voluntaria.Nombre == null || voluntaria.Nombre.Length > 50)
-                throw new ApplicationException("Nombre inválido");
-            if (voluntaria.Apellido == null || voluntaria.Apellido.Length > 50)
-                throw new ApplicationException("Apellido inválido");
-
+            ValidarVoluntaria(voluntaria);
 
             return voluntariaRepositorio.modificarVoluntaria(voluntaria, voluntariaModificar);
         }

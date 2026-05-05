@@ -6,14 +6,31 @@ namespace ResimamisBackend.Datos
     public class VoluntariaRepositorio
     {
         private readonly ApplicationDbContext db;
+        private readonly EstadoRepositorio estadoRepositorio;
+
         public VoluntariaRepositorio()
         {
             db = new ApplicationDbContext();
+            estadoRepositorio = new EstadoRepositorio();
+        }
+
+        private int? IdEstadoEliminadoVoluntarias()
+        {
+            return db.ESTADO
+                .AsNoTracking()
+                .Include(e => e.ambito)
+                .Where(e => e.nombre == "Eliminado" && e.ambito.nombre == "Voluntarias")
+                .Select(e => (int?)e.idEstado)
+                .FirstOrDefault();
         }
 
         public List<VOLUNTARIA> listarVoluntarias()
         {
-            return db.VOLUNTARIA.Include(v => v.RolInfo).Where(v=>v.IdEstado!=7).ToList();
+            var idEl = IdEstadoEliminadoVoluntarias();
+            var q = db.VOLUNTARIA.Include(v => v.RolInfo).AsQueryable();
+            if (idEl != null)
+                q = q.Where(v => v.IdEstado != idEl);
+            return q.ToList();
         }
 
         public bool registrarVoluntaria(VOLUNTARIA Voluntaria)
@@ -67,12 +84,8 @@ namespace ResimamisBackend.Datos
 
             if (voluntaria == null)
                 throw new ApplicationException("Voluntaria no existente con ese Id");
-            var estado =  db.ESTADO.FirstOrDefault(e => e.ambito.nombre == "Voluntarias" && e.nombre=="Inactiva");
-
-            if (estado == null)
-                throw new ApplicationException("No se encontro el estado");
-            voluntaria.IdEstado = estado.idEstado;
-            db.SaveChangesAsync();
+            voluntaria.IdEstado = estadoRepositorio.ObtenerIdEstadoEliminado("Voluntarias");
+            db.SaveChanges();
             return true;
         }
 
@@ -92,7 +105,10 @@ namespace ResimamisBackend.Datos
         public List<VOLUNTARIA> obtenerVoluntariasLibres()
         {
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
-            var voluntariasLibres = db.VOLUNTARIA.Include(v => v.RolInfo).Where(v => v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null) && v.Estado.nombre!="Inactiva" && v.Estado.nombre != "Licencia" && v.Estado.nombre != "Carpeta médica").Select(v=> new VOLUNTARIA()
+            var idEl = IdEstadoEliminadoVoluntarias();
+            var voluntariasLibres = db.VOLUNTARIA.Include(v => v.RolInfo).Include(v => v.Estado).Where(v =>
+                (idEl == null || v.IdEstado != idEl)
+                && v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null) && v.Estado != null && v.Estado.nombre != "Eliminado" && v.Estado.nombre!="Inactiva" && v.Estado.nombre != "Licencia" && v.Estado.nombre != "Carpeta médica").Select(v=> new VOLUNTARIA()
             {
                 IdVoluntaria= v.IdVoluntaria,
                 Dni= v.Dni,
@@ -112,7 +128,10 @@ namespace ResimamisBackend.Datos
         public List<VOLUNTARIA> obtenerVoluntariasLibres1()
         {
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
-            var voluntariasLibres = db.VOLUNTARIA.Include(v => v.RolInfo).Where(v => v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null)).Select(v => new VOLUNTARIA()
+            var idEl = IdEstadoEliminadoVoluntarias();
+            var voluntariasLibres = db.VOLUNTARIA.Include(v => v.RolInfo).Where(v =>
+                (idEl == null || v.IdEstado != idEl)
+                && v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null)).Select(v => new VOLUNTARIA()
             {
                 IdVoluntaria = v.IdVoluntaria,
                 Dni = v.Dni,

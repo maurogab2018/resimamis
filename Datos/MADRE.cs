@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace ResimamisBackend.Datos
 {
@@ -19,11 +20,18 @@ namespace ResimamisBackend.Datos
 
         public int CantidadHijos { get; set; }
 
+        /// <summary>Activa / inactiva (legado). La baja lógica usa <see cref="IdEstado"/> = Eliminado (ámbito Madres).</summary>
         public bool Estado { get; set; }
 
         public string MotivoAbrazo { get; set; }
 
         public Int64 Celular { get; set; }
+
+        /// <summary>Estado operativo (tabla ESTADO, ámbito Madres), p. ej. Eliminado.</summary>
+        public int? IdEstado { get; set; }
+
+        [JsonIgnore]
+        public virtual ESTADO? EstadoDetalle { get; set; }
 
 
         public  List<BEBE>? Bebe {get; set;}

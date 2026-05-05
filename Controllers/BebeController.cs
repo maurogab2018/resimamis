@@ -105,5 +105,23 @@ namespace ResimamisBackend.Controllers
 
         }
 
+        [HttpPost("delete")]
+        public IActionResult Delete(int idBebe)
+        {
+            try
+            {
+                var ok = neg_Bebes.eliminarBebe(idBebe);
+                return Ok(new { respuesta = ok });
+            }
+            catch (ApplicationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
     }
 }

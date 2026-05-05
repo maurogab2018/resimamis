@@ -42,7 +42,8 @@ SET client_encoding = 'UTF8';
 -- ---------------------------------------------------------------------------
 INSERT INTO "AMBITO" ("nombre", "descripcion") VALUES
   ('Voluntarias', 'Ámbito de estados de voluntarias'),
-  ('Bebes', 'Ámbito de estados de bebés');
+  ('Bebes', 'Ámbito de estados de bebés'),
+  ('Madres', 'Ámbito de estados de madres');
 
 -- ---------------------------------------------------------------------------
 -- ESTADO (primera fila = idEstado 1 si la tabla estaba vacía)
@@ -74,6 +75,18 @@ CROSS JOIN (VALUES
   ('Abrazado', 'En abrazo')
 ) AS v(n, d)
 WHERE a."nombre" = 'Bebes';
+
+INSERT INTO "ESTADO" ("nombre", "descripcion", "idAmbito")
+SELECT 'Eliminado', 'Baja lógica', a."idAmbito" FROM "AMBITO" a WHERE a."nombre" = 'Voluntarias'
+AND NOT EXISTS (SELECT 1 FROM "ESTADO" e JOIN "AMBITO" am ON e."idAmbito" = am."idAmbito" WHERE am."nombre" = 'Voluntarias' AND e."nombre" = 'Eliminado');
+
+INSERT INTO "ESTADO" ("nombre", "descripcion", "idAmbito")
+SELECT 'Eliminado', 'Baja lógica', a."idAmbito" FROM "AMBITO" a WHERE a."nombre" = 'Bebes'
+AND NOT EXISTS (SELECT 1 FROM "ESTADO" e JOIN "AMBITO" am ON e."idAmbito" = am."idAmbito" WHERE am."nombre" = 'Bebes' AND e."nombre" = 'Eliminado');
+
+INSERT INTO "ESTADO" ("nombre", "descripcion", "idAmbito")
+SELECT 'Eliminado', 'Baja lógica', a."idAmbito" FROM "AMBITO" a WHERE a."nombre" = 'Madres'
+AND NOT EXISTS (SELECT 1 FROM "ESTADO" e JOIN "AMBITO" am ON e."idAmbito" = am."idAmbito" WHERE am."nombre" = 'Madres' AND e."nombre" = 'Eliminado');
 
 -- ---------------------------------------------------------------------------
 -- ROL

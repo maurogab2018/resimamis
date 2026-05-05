@@ -73,6 +73,11 @@ namespace ResimamisBackend.Datos
             .HasForeignKey(bebe => bebe.IdEstado);
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<MADRE>()
+            .HasOne(m => m.EstadoDetalle)
+            .WithMany(e => e.Madres)
+            .HasForeignKey(m => m.IdEstado);
+            base.OnModelCreating(modelBuilder);
 
 
             modelBuilder.Entity<VOLUNTARIA>()

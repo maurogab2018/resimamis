@@ -19,6 +19,8 @@ namespace ResimamisBackend.Datos
 
         public ICollection<VOLUNTARIA>? Voluntarias { get; set; }
 
+        public ICollection<MADRE>? Madres { get; set; }
+
         public ICollection<ASIGNACION>? Asignaciones { get; set; }
 
 
