@@ -93,20 +93,21 @@ namespace ResimamisBackend.Datos
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
 
             var idElim = IdEstadoEliminadoBebes();
-            var bebesAbrazar = db.BEBE
+            return db.BEBE
+                .AsNoTracking()
+                .Include(b => b.Estado!)
+                .ThenInclude(e => e!.ambito)
+                .Include(b => b.Sala)
                 .Where(v => v.Estado != null
                             && (idElim == null || v.IdEstado != idElim)
                             && v.Estado.ambito.nombre == "Bebes"
                             && v.Estado.nombre == "Sin abrazar"
-                            && v.Estado.nombre != "Asignado"
                             && !v.Asignaciones.Any(a =>
                                 a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia
                                 && a.fechaHoraInicio != null
                                 && a.fechaHoraInicio >= inicioDia && a.fechaHoraInicio < finDia))
+                .OrderBy(b => b.nombre)
                 .ToList();
-            if(bebesAbrazar.Count==0)
-                throw new ApplicationException("No hay bebes para abrazar para el día de hoy");
-            return bebesAbrazar;
         }
         public bool cambioEstadoBebe(BEBE bebe, int idEstado )
         {

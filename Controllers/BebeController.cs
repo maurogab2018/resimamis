@@ -49,13 +49,20 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        /// <summary>Bebés disponibles para abrazar hoy (estado Sin abrazar; sin abrazo ya iniciado en el día).</summary>
+        [HttpGet("disponibles-abrazo")]
         [HttpGet("abrazar")]
-        public IActionResult GetAbrazar()
+        public IActionResult GetBebesDisponiblesParaAbrazar()
         {
             try
             {
-                var bebeDni = neg_Bebes.listarBebesAbrazar();
-                return Ok(new { bebe = bebeDni });
+                var listado = neg_Bebes.listarBebesAbrazar();
+                return Ok(new
+                {
+                    listadoBebesDisponiblesParaAbrazo = listado,
+                    cantidad = listado.Count,
+                    bebe = listado
+                });
             }
             catch (ApplicationException ex)
             {
