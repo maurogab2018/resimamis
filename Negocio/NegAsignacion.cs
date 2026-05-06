@@ -498,6 +498,69 @@ namespace ResimamisBackend.Negocio
             return true;
         }
 
+        /// <summary>
+        /// Cierra asignaciones con bebé donde el abrazo se inició antes del día calendario actual en Argentina
+        /// (<see cref="NegConversorFecha.RangoDiaHoyArgentinaEnUtc"/>) y nunca se finalizó: bebé a Sin abrazar,
+        /// voluntaria a Activa, asignación con fechaHoraFin y comentario de sistema. Idempotente sobre vacío.
+        /// </summary>
+        /// <returns>Cantidad de asignaciones actualizadas.</returns>
+        public int ResetearAbrazosBebeColgadosAntesDeHoy()
+        {
+            var (inicioHoyUtc, _) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var idElimAsig = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+
+            var ids = db.ASIGNACION
+                .AsNoTracking()
+                .Where(a =>
+                    a.idBebe != null
+                    && a.fechaHoraInicio != null
+                    && a.fechaHoraFin == null
+                    && a.fechaHoraInicio < inicioHoyUtc
+                    && a.idEstado != idElimAsig)
+                .Select(a => a.idAsignacion)
+                .ToList();
+
+            if (ids.Count == 0)
+                return 0;
+
+            var estadoVolActiva = db.ESTADO.FirstOrDefault(e => e.nombre == "Activa" && e.ambito.nombre == "Voluntarias")
+                ?? throw new ApplicationException("Estado Activa (Voluntarias) no existente.");
+            var estadoBebeSinAbrazar = db.ESTADO.FirstOrDefault(e => e.nombre == "Sin abrazar" && e.ambito.nombre == "Bebes")
+                ?? throw new ApplicationException("Estado Sin abrazar (Bebes) no existente.");
+
+            const string comentarioAuto = "Cierre automático: abrazo iniciado en día anterior sin finalizar.";
+            var ahora = NegConversorFecha.ObtenerFechaArgentina();
+
+            using var tx = db.Database.BeginTransaction();
+            try
+            {
+                foreach (var id in ids)
+                {
+                    var asignacion = db.ASIGNACION.First(a => a.idAsignacion == id);
+                    var vol = db.VOLUNTARIA.First(v => v.IdVoluntaria == asignacion.idVoluntaria);
+                    var bebe = db.BEBE.First(b => b.ID == asignacion.idBebe!.Value);
+
+                    vol.IdEstado = estadoVolActiva.idEstado;
+                    bebe.IdEstado = estadoBebeSinAbrazar.idEstado;
+                    asignacion.fechaHoraFin = ahora;
+                    asignacion.comentario = string.IsNullOrWhiteSpace(asignacion.comentario)
+                        ? comentarioAuto
+                        : (asignacion.comentario.Contains("Cierre automático", StringComparison.Ordinal)
+                            ? asignacion.comentario
+                            : $"{comentarioAuto} | {asignacion.comentario}");
+                }
+
+                db.SaveChanges();
+                tx.Commit();
+                return ids.Count;
+            }
+            catch
+            {
+                tx.Rollback();
+                throw;
+            }
+        }
+
         /// <summary>Actualiza tarea, bebé, voluntaria y comentario de una asignación existente.</summary>
         public bool eliminarAsignacion(int idAsignacion)
         {

@@ -256,6 +256,25 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        /// <summary>Cierra abrazos colgados: iniciados antes de hoy (AR) sin finalizar. Bebé → Sin abrazar, voluntaria → Activa.</summary>
+        [HttpPost("resetearAbrazosColgados")]
+        public IActionResult PostResetearAbrazosColgados()
+        {
+            try
+            {
+                var cantidad = negAsignacion.ResetearAbrazosBebeColgadosAntesDeHoy();
+                return Ok(new { cantidad });
+            }
+            catch (ApplicationException ex)
+            {
+                return BadRequest(new { mensaje = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mensaje = ex.Message });
+            }
+        }
+
 
     }
 }
