@@ -26,6 +26,16 @@ namespace ResimamisBackend.Datos
                 .FirstOrDefault();
         }
 
+        private int? IdEstadoEliminadoAsignaciones()
+        {
+            return db.ESTADO
+                .AsNoTracking()
+                .Include(e => e.ambito)
+                .Where(e => e.nombre == "Eliminado" && e.ambito.nombre == "Asistencias")
+                .Select(e => (int?)e.idEstado)
+                .FirstOrDefault();
+        }
+
         public List<BEBE> listarBebes()
         {
             var idEl = IdEstadoEliminadoBebes();
@@ -92,20 +102,22 @@ namespace ResimamisBackend.Datos
         {
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
 
-            var idElim = IdEstadoEliminadoBebes();
+            var idElimBebe = IdEstadoEliminadoBebes();
+            var idElimAsig = IdEstadoEliminadoAsignaciones();
             return db.BEBE
                 .AsNoTracking()
                 .Include(b => b.Estado!)
                 .ThenInclude(e => e!.ambito)
                 .Include(b => b.Sala)
                 .Where(v => v.Estado != null
-                            && (idElim == null || v.IdEstado != idElim)
+                            && (idElimBebe == null || v.IdEstado != idElimBebe)
                             && v.Estado.ambito.nombre == "Bebes"
                             && v.Estado.nombre == "Sin abrazar"
                             && !v.Asignaciones.Any(a =>
                                 a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia
                                 && a.fechaHoraInicio != null
-                                && a.fechaHoraInicio >= inicioDia && a.fechaHoraInicio < finDia))
+                                && a.fechaHoraInicio >= inicioDia && a.fechaHoraInicio < finDia
+                                && (idElimAsig == null || a.idEstado == null || a.idEstado != idElimAsig)))
                 .OrderBy(b => b.nombre)
                 .ToList();
         }

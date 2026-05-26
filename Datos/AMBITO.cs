@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace ResimamisBackend.Datos
 {
@@ -12,6 +13,7 @@ namespace ResimamisBackend.Datos
 
         public string descripcion { get; set; }
 
+        [JsonIgnore]
         public ICollection<ESTADO>? estados { get; set; }
     }
 }
