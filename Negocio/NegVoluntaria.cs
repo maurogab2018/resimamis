@@ -16,11 +16,18 @@ namespace ResimamisBackend.Negocio
             if (voluntaria == null)
                 throw new ApplicationException("Voluntaria inválida");
 
+            voluntaria.Nombre = ValidacionTextoPersona.Normalizar(voluntaria.Nombre) ?? voluntaria.Nombre;
+            voluntaria.Apellido = ValidacionTextoPersona.Normalizar(voluntaria.Apellido) ?? voluntaria.Apellido;
+
             if (string.IsNullOrWhiteSpace(voluntaria.Nombre) || voluntaria.Nombre.Length > 50)
                 throw new ApplicationException("Nombre inválido");
+            if (!ValidacionTextoPersona.EsNombreApellidoValido(voluntaria.Nombre))
+                throw new ApplicationException("Nombre solo permite letras, espacios y tildes.");
 
             if (string.IsNullOrWhiteSpace(voluntaria.Apellido) || voluntaria.Apellido.Length > 50)
                 throw new ApplicationException("Apellido inválido");
+            if (!ValidacionTextoPersona.EsNombreApellidoValido(voluntaria.Apellido))
+                throw new ApplicationException("Apellido solo permite letras, espacios y tildes.");
 
             if (voluntaria.Dni <= 0 || !Regex.IsMatch(voluntaria.Dni.ToString(), @"^\d{7,8}$"))
                 throw new ApplicationException("Dni inválido");

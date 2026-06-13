@@ -21,15 +21,28 @@ namespace ResimamisBackend.Negocio
                 return;
             }
 
+            bebe.nombre = ValidacionTextoPersona.Normalizar(bebe.nombre) ?? bebe.nombre;
+            bebe.apellido = ValidacionTextoPersona.Normalizar(bebe.apellido) ?? bebe.apellido;
+
             if (string.IsNullOrWhiteSpace(bebe.nombre))
                 resultado.Errores.Add(prefijo + "Nombre es obligatorio.");
-            else if (bebe.nombre.Length > 50)
-                resultado.Errores.Add(prefijo + "Nombre no permite más de 50 caracteres.");
+            else
+            {
+                if (!ValidacionTextoPersona.EsNombreApellidoValido(bebe.nombre))
+                    resultado.Errores.Add(prefijo + "Nombre solo permite letras, espacios y tildes.");
+                else if (bebe.nombre.Trim().Length > 50)
+                    resultado.Errores.Add(prefijo + "Nombre no permite más de 50 caracteres.");
+            }
 
             if (string.IsNullOrWhiteSpace(bebe.apellido))
                 resultado.Errores.Add(prefijo + "Apellido es obligatorio.");
-            else if (bebe.apellido.Length > 50)
-                resultado.Errores.Add(prefijo + "Apellido no permite más de 50 caracteres.");
+            else
+            {
+                if (!ValidacionTextoPersona.EsNombreApellidoValido(bebe.apellido))
+                    resultado.Errores.Add(prefijo + "Apellido solo permite letras, espacios y tildes.");
+                else if (bebe.apellido.Trim().Length > 50)
+                    resultado.Errores.Add(prefijo + "Apellido no permite más de 50 caracteres.");
+            }
 
             if (string.IsNullOrWhiteSpace(bebe.Sexo))
                 resultado.Errores.Add(prefijo + "Sexo es obligatorio.");

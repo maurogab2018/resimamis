@@ -133,12 +133,15 @@ namespace ResimamisBackend.Negocio
 
         private static void ValidarCamposMadre(MADRE madre, ResultadoValidacion resultado)
         {
+            madre.Nombre = ValidacionTextoPersona.Normalizar(madre.Nombre) ?? madre.Nombre;
+            madre.Apellido = ValidacionTextoPersona.Normalizar(madre.Apellido) ?? madre.Apellido;
+
             if (string.IsNullOrWhiteSpace(madre.Nombre))
                 resultado.Errores.Add("Nombre es obligatorio.");
             else
             {
-                if (!Regex.IsMatch(madre.Nombre, @"^[a-zA-Z]+$"))
-                    resultado.Errores.Add("Nombre no permite caracteres especiales.");
+                if (!ValidacionTextoPersona.EsNombreApellidoValido(madre.Nombre))
+                    resultado.Errores.Add("Nombre solo permite letras, espacios y tildes.");
                 if (madre.Nombre.Length > 15)
                     resultado.Errores.Add("Nombre no permite más de 15 caracteres.");
             }
@@ -147,8 +150,8 @@ namespace ResimamisBackend.Negocio
                 resultado.Errores.Add("Apellido es obligatorio.");
             else
             {
-                if (!Regex.IsMatch(madre.Apellido, @"^[a-zA-Z]+$"))
-                    resultado.Errores.Add("Apellido no permite caracteres especiales.");
+                if (!ValidacionTextoPersona.EsNombreApellidoValido(madre.Apellido))
+                    resultado.Errores.Add("Apellido solo permite letras, espacios y tildes.");
                 if (madre.Apellido.Length > 20)
                     resultado.Errores.Add("Apellido no permite más de 20 caracteres.");
             }
@@ -197,6 +200,8 @@ namespace ResimamisBackend.Negocio
             madreActualizada = null;
             var resultado = new ResultadoValidacion();
             var madreModificar = repositorioMadre.consultarMadre(Id);
+            madre.Nombre = ValidacionTextoPersona.Normalizar(madre.Nombre) ?? madre.Nombre;
+            madre.Apellido = ValidacionTextoPersona.Normalizar(madre.Apellido) ?? madre.Apellido;
             var aValidar = CombinarParcheMadre(madreModificar, madre);
             ValidarCamposMadre(aValidar, resultado);
             ValidarBebesEnModificacion(madre, madreModificar, resultado);
