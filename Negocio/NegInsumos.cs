@@ -69,6 +69,11 @@ namespace ResimamisBackend.Negocio
 
         public bool registrarMovimientoInsumos(MOVIMIENTOSTOCK movimiento)
         {
+            if (movimiento == null)
+                throw new ApplicationException("Movimiento inválido.");
+            movimiento.observacion = string.IsNullOrWhiteSpace(movimiento.observacion)
+                ? string.Empty
+                : movimiento.observacion.Trim();
             return insumoRepositorio.registrarMovimientoStock(movimiento);
         }
 

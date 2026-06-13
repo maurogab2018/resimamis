@@ -11,10 +11,10 @@ namespace ResimamisBackend.Datos
         public int? idVoluntaria { get; set; }
         public DateTime? fechaMovimiento { get; set; }
 
-        public string observacion { get; set; }
+        public string? observacion { get; set; }
 
         public int? cantidad { get; set; }
-        public string esEntrada { get; set; }
+        public string? esEntrada { get; set; }
 
         public int? idProveedor { get; set; }
     }
