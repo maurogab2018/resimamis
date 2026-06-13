@@ -10,6 +10,7 @@ namespace ResimamisBackend.Negocio
         private readonly VoluntariaRepositorio voluntariaRepositorio;
         private readonly AsignacionRepositorio asignacionRepositorio;
         private readonly EstadoRepositorio estadoRepositorio;
+        private readonly NegTareas negTareas;
         private readonly ApplicationDbContext db;
         public NegAsignacion()
         {
@@ -17,6 +18,7 @@ namespace ResimamisBackend.Negocio
             voluntariaRepositorio = new VoluntariaRepositorio();
             asignacionRepositorio= new AsignacionRepositorio();
             estadoRepositorio = new EstadoRepositorio();
+            negTareas = new NegTareas();
             db = new ApplicationDbContext();
         }
 
@@ -69,6 +71,8 @@ namespace ResimamisBackend.Negocio
 
             foreach (var tarea in tareas)
             {
+                negTareas.ValidarTareaDisponibleParaAsignar(tarea.idTarea);
+
                 // Obtenemos las voluntarias con menor cantidad de asignaciones hoy
                 var minAsignaciones = voluntariasConAsignaciones.Min(v => v.CantidadAsignacionesHoy);
                 var candidatas = voluntariasConAsignaciones
@@ -115,6 +119,7 @@ namespace ResimamisBackend.Negocio
             var tarea = db.TAREA.FirstOrDefault(t=>t.idTarea==requestAsignacion.idTarea);
             if (tarea == null)
                 throw new ApplicationException("Tarea no encontrada");
+            negTareas.ValidarTareaDisponibleParaAsignar(tarea.idTarea);
             try
             {
                 var idEstadoAsignacionCreada = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Creada", "Asignaciones");
