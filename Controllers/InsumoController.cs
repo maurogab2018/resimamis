@@ -56,6 +56,24 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        [HttpPost]
+        public IActionResult Post(INSUMO insumo)
+        {
+            try
+            {
+                var creado = negInsumos.registrarInsumo(insumo);
+                return Ok(new { insumo = creado });
+            }
+            catch (ApplicationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
         [HttpPut("id/{idInsumo}")]
         public IActionResult Put(int idInsumo, INSUMO insumo)
         {

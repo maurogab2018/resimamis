@@ -105,6 +105,24 @@ namespace ResimamisBackend.Datos
             return insumo;
         }
 
+        public INSUMO registrarInsumo(INSUMO insumo)
+        {
+            var nombreNormalizado = insumo.nombre.Trim();
+            var duplicado = QueryInsumosVisiblesAmbitoInsumos()
+                .Any(i => i.nombre.ToLower() == nombreNormalizado.ToLower());
+            if (duplicado)
+                throw new ApplicationException("Ya existe un insumo activo con ese nombre.");
+
+            if (!insumo.idEstado.HasValue)
+                insumo.idEstado = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Activo", "Insumos");
+
+            insumo.nombre = nombreNormalizado;
+            insumo.descripcion = insumo.descripcion.Trim();
+            db.INSUMO.Add(insumo);
+            db.SaveChanges();
+            return insumo;
+        }
+
         public bool modificarInsumo(INSUMO parcial, INSUMO existente)
         {
             existente.nombre = parcial.nombre;

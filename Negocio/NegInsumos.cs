@@ -47,6 +47,12 @@ namespace ResimamisBackend.Negocio
             return insumoRepositorio.obtenerInsumoPorIdSinTracking(idInsumo);
         }
 
+        public INSUMO registrarInsumo(INSUMO insumo)
+        {
+            ValidarDatosInsumo(insumo, insumoRepositorio);
+            return insumoRepositorio.registrarInsumo(insumo);
+        }
+
         public bool modificarInsumo(int idInsumo, INSUMO insumo)
         {
             ValidarDatosInsumo(insumo, insumoRepositorio);
