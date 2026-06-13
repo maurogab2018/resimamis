@@ -184,6 +184,35 @@ namespace ResimamisBackend.Datos
         {
             return db.ESTADO.Where(e => e.ambito.nombre == "Voluntarias" && (e.nombre== "Carpeta médica" || e.nombre == "Inactiva" || e.nombre == "Licencia" || e.nombre == "Activa")).ToList();
         }
+
+        public List<VOLUNTARIA> listarVoluntariasSinUsuario()
+        {
+            var idElVol = IdEstadoEliminadoVoluntarias();
+            var idElUsu = db.ESTADO
+                .AsNoTracking()
+                .Include(e => e.ambito)
+                .Where(e => e.nombre == "Eliminado" && e.ambito.nombre == "Usuarios")
+                .Select(e => (int?)e.idEstado)
+                .FirstOrDefault();
+
+            var idsVoluntariasConUsuario = db.USUARIO
+                .AsNoTracking()
+                .Where(u => idElUsu == null || u.idEstado == null || u.idEstado != idElUsu)
+                .Select(u => u.IdVoluntaria)
+                .Distinct();
+
+            var q = db.VOLUNTARIA
+                .Include(v => v.RolInfo)
+                .Where(v => !idsVoluntariasConUsuario.Contains(v.IdVoluntaria));
+
+            if (idElVol != null)
+                q = q.Where(v => v.IdEstado != idElVol);
+
+            return q
+                .OrderBy(v => v.Apellido)
+                .ThenBy(v => v.Nombre)
+                .ToList();
+        }
     }
 }
 
