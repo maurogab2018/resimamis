@@ -10,61 +10,57 @@ namespace ResimamisBackend.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<bool>(
-                name: "esUnica",
-                table: "TAREA",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
+            migrationBuilder.Sql(@"
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'TAREA' AND column_name = 'esUnica') THEN
+    ALTER TABLE ""TAREA"" ADD COLUMN ""esUnica"" BOOLEAN NOT NULL DEFAULT FALSE;
+  END IF;
+END $$;
+");
 
             migrationBuilder.Sql(@"
 UPDATE ""TAREA"" SET ""esUnica"" = TRUE
-WHERE LOWER(""nombre"") LIKE '%abrazo%kangaroo%' OR LOWER(""nombre"") LIKE '%abrazo kangaroo%';
+WHERE LOWER(""nombre"") LIKE '%abrazo%'
+  AND ""esUnica"" IS NOT TRUE;
 ");
 
-            migrationBuilder.AlterColumn<string>(
-                name: "observacion",
-                table: "MOVIMIENTOSTOCK",
-                type: "text",
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "text");
+            migrationBuilder.Sql(@"
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'MOVIMIENTOSTOCK'
+      AND column_name = 'observacion' AND is_nullable = 'NO') THEN
+    ALTER TABLE ""MOVIMIENTOSTOCK"" ALTER COLUMN ""observacion"" DROP NOT NULL;
+  END IF;
+END $$;
+");
 
-            migrationBuilder.AlterColumn<string>(
-                name: "esEntrada",
-                table: "MOVIMIENTOSTOCK",
-                type: "text",
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "text");
+            migrationBuilder.Sql(@"
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'MOVIMIENTOSTOCK'
+      AND column_name = 'esEntrada' AND is_nullable = 'NO') THEN
+    ALTER TABLE ""MOVIMIENTOSTOCK"" ALTER COLUMN ""esEntrada"" DROP NOT NULL;
+  END IF;
+END $$;
+");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "esUnica",
-                table: "TAREA");
-
-            migrationBuilder.AlterColumn<string>(
-                name: "observacion",
-                table: "MOVIMIENTOSTOCK",
-                type: "text",
-                nullable: false,
-                defaultValue: "",
-                oldClrType: typeof(string),
-                oldType: "text",
-                oldNullable: true);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "esEntrada",
-                table: "MOVIMIENTOSTOCK",
-                type: "text",
-                nullable: false,
-                defaultValue: "",
-                oldClrType: typeof(string),
-                oldType: "text",
-                oldNullable: true);
+            migrationBuilder.Sql(@"
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'TAREA' AND column_name = 'esUnica') THEN
+    ALTER TABLE ""TAREA"" DROP COLUMN ""esUnica"";
+  END IF;
+END $$;
+");
         }
     }
 }
