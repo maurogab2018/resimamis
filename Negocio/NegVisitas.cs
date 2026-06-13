@@ -1,0 +1,113 @@
+using ResimamisBackend.Datos;
+using ResimamisBackend.Entidades;
+using System.Text.RegularExpressions;
+
+namespace ResimamisBackend.Negocio
+{
+    public class NegVisitas
+    {
+        private readonly VisitaRepositorio visitaRepositorio;
+        private readonly BebeRepositorio bebeRepositorio;
+
+        public NegVisitas()
+        {
+            visitaRepositorio = new VisitaRepositorio();
+            bebeRepositorio = new BebeRepositorio();
+        }
+
+        private static void ValidarVisita(VISITA visita)
+        {
+            if (visita == null)
+                throw new ApplicationException("Visita inválida.");
+
+            if (visita.idBebe <= 0)
+                throw new ApplicationException("Debe indicar el bebé visitado.");
+
+            if (string.IsNullOrWhiteSpace(visita.nombreVisitante))
+                throw new ApplicationException("El nombre del visitante es obligatorio.");
+            visita.nombreVisitante = visita.nombreVisitante.Trim();
+            if (!ValidacionTextoPersona.EsNombreApellidoValido(visita.nombreVisitante))
+                throw new ApplicationException("El nombre del visitante solo permite letras, espacios y tildes.");
+            if (visita.nombreVisitante.Length > 100)
+                throw new ApplicationException("El nombre del visitante no permite más de 100 caracteres.");
+
+            if (string.IsNullOrWhiteSpace(visita.familiar))
+                throw new ApplicationException("El vínculo familiar es obligatorio.");
+            visita.familiar = visita.familiar.Trim();
+            if (visita.familiar.Length > 50)
+                throw new ApplicationException("El vínculo familiar no permite más de 50 caracteres.");
+
+            if (visita.fechaHoraVisita == default)
+                throw new ApplicationException("La fecha y hora de la visita es obligatoria.");
+
+            if (!string.IsNullOrWhiteSpace(visita.observacion) && visita.observacion.Length > 500)
+                throw new ApplicationException("La observación no permite más de 500 caracteres.");
+
+            if (visita.documentoVisitante.HasValue && visita.documentoVisitante.Value > 0)
+            {
+                if (!Regex.IsMatch(visita.documentoVisitante.Value.ToString(), @"^\d{7,8}$"))
+                    throw new ApplicationException("El documento del visitante debe tener entre 7 y 8 dígitos.");
+            }
+
+            if (visita.telefonoVisitante.HasValue && visita.telefonoVisitante.Value > 0)
+            {
+                var tel = visita.telefonoVisitante.Value.ToString();
+                if (!Regex.IsMatch(tel, @"^\d{10,13}$"))
+                    throw new ApplicationException("El teléfono del visitante debe tener entre 10 y 13 dígitos.");
+            }
+        }
+
+        private void AsegurarBebeValido(int idBebe)
+        {
+            bebeRepositorio.consultarBebe(idBebe);
+        }
+
+        public List<VisitaListado> listarVisitas()
+        {
+            return visitaRepositorio.listarVisitas();
+        }
+
+        public List<VisitaListado> listarVisitasPorBebe(int idBebe)
+        {
+            return visitaRepositorio.listarVisitasPorBebe(idBebe);
+        }
+
+        public VISITA consultarVisita(int idVisita)
+        {
+            var visita = visitaRepositorio.obtenerPorId(idVisita);
+            if (visita == null)
+                throw new ApplicationException("Visita inexistente o dada de baja.");
+            return visita;
+        }
+
+        public VISITA registrarVisita(VISITA visita)
+        {
+            ValidarVisita(visita);
+            AsegurarBebeValido(visita.idBebe);
+            visita.Activa = true;
+            if (visita.fechaRegistro == default)
+                visita.fechaRegistro = DateTime.UtcNow;
+            visita.observacion = string.IsNullOrWhiteSpace(visita.observacion)
+                ? null
+                : visita.observacion.Trim();
+            visitaRepositorio.registrarVisita(visita);
+            return visita;
+        }
+
+        public bool modificarVisita(int idVisita, VISITA visita)
+        {
+            ValidarVisita(visita);
+            AsegurarBebeValido(visita.idBebe);
+            visita.observacion = string.IsNullOrWhiteSpace(visita.observacion)
+                ? null
+                : visita.observacion.Trim();
+            var existente = visitaRepositorio.obtenerParaModificar(idVisita);
+            return visitaRepositorio.modificarVisita(visita, existente);
+        }
+
+        public bool eliminarVisita(int idVisita)
+        {
+            return visitaRepositorio.eliminarVisitaLogica(idVisita);
+        }
+    }
+}

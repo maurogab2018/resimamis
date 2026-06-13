@@ -55,6 +55,8 @@ namespace ResimamisBackend.Datos
 
         public DbSet<TAREA> TAREA { get; set; }
 
+        public DbSet<VISITA> VISITA { get; set; }
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -162,6 +164,13 @@ namespace ResimamisBackend.Datos
                 .HasOne(u => u.Estado)
                 .WithMany(e => e.Usuarios)
                 .HasForeignKey(u => u.idEstado);
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<VISITA>()
+                .HasOne(v => v.Bebe)
+                .WithMany(b => b.Visitas)
+                .HasForeignKey(v => v.idBebe)
+                .OnDelete(DeleteBehavior.Restrict);
             base.OnModelCreating(modelBuilder);
         }
     }

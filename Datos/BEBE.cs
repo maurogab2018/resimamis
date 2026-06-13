@@ -45,6 +45,9 @@ namespace ResimamisBackend.Datos
         [JsonIgnore]
         public List<ASIGNACION>? Asignaciones { get; set; }
 
+        [JsonIgnore]
+        public List<VISITA>? Visitas { get; set; }
+
         [NotMapped]
         public string? NombreSala
         {
