@@ -17,22 +17,6 @@ namespace ResimamisBackend.Datos
         private IQueryable<VISITA> QueryVisitasActivas() =>
             db.VISITA.AsNoTracking().Where(v => v.Activa);
 
-        private static VisitaListado MapearListado(VISITA v, BEBE? bebe) => new()
-        {
-            idVisita = v.idVisita,
-            idBebe = v.idBebe,
-            nombreBebe = bebe?.nombre,
-            apellidoBebe = bebe?.apellido,
-            nombreVisitante = v.nombreVisitante,
-            familiar = v.familiar,
-            fechaHoraVisita = v.fechaHoraVisita,
-            observacion = v.observacion,
-            documentoVisitante = v.documentoVisitante,
-            telefonoVisitante = v.telefonoVisitante,
-            activa = v.Activa,
-            fechaRegistro = v.fechaRegistro
-        };
-
         public List<VisitaListado> listarVisitas()
         {
             return QueryVisitasActivas()
@@ -40,7 +24,21 @@ namespace ResimamisBackend.Datos
                     db.BEBE.AsNoTracking(),
                     v => v.idBebe,
                     b => b.ID,
-                    (v, b) => MapearListado(v, b))
+                    (v, b) => new VisitaListado
+                    {
+                        idVisita           = v.idVisita,
+                        idBebe             = v.idBebe,
+                        nombreBebe         = b.nombre,
+                        apellidoBebe       = b.apellido,
+                        nombreVisitante    = v.nombreVisitante,
+                        familiar           = v.familiar,
+                        fechaHoraVisita    = v.fechaHoraVisita,
+                        observacion        = v.observacion,
+                        documentoVisitante = v.documentoVisitante,
+                        telefonoVisitante  = v.telefonoVisitante,
+                        activa             = v.Activa,
+                        fechaRegistro      = v.fechaRegistro
+                    })
                 .OrderByDescending(v => v.fechaHoraVisita)
                 .ToList();
         }
@@ -55,7 +53,21 @@ namespace ResimamisBackend.Datos
                     db.BEBE.AsNoTracking(),
                     v => v.idBebe,
                     b => b.ID,
-                    (v, b) => MapearListado(v, b))
+                    (v, b) => new VisitaListado
+                    {
+                        idVisita           = v.idVisita,
+                        idBebe             = v.idBebe,
+                        nombreBebe         = b.nombre,
+                        apellidoBebe       = b.apellido,
+                        nombreVisitante    = v.nombreVisitante,
+                        familiar           = v.familiar,
+                        fechaHoraVisita    = v.fechaHoraVisita,
+                        observacion        = v.observacion,
+                        documentoVisitante = v.documentoVisitante,
+                        telefonoVisitante  = v.telefonoVisitante,
+                        activa             = v.Activa,
+                        fechaRegistro      = v.fechaRegistro
+                    })
                 .OrderByDescending(v => v.fechaHoraVisita)
                 .ToList();
         }

@@ -16,6 +16,8 @@ namespace ResimamisBackend.Datos
         public int Dni { get; set; }
         public int Localidad { get; set; }
 
+        public virtual LOCALIDAD? LocalidadDetalle { get; set; }
+
         public int EstadoCivil { get; set; }
 
         public int CantidadHijos { get; set; }
@@ -30,7 +32,6 @@ namespace ResimamisBackend.Datos
         /// <summary>Estado operativo (tabla ESTADO, ámbito Madres), p. ej. Eliminado.</summary>
         public int? IdEstado { get; set; }
 
-        [JsonIgnore]
         public virtual ESTADO? EstadoDetalle { get; set; }
 
 

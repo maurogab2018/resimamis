@@ -48,7 +48,12 @@ namespace ResimamisBackend.Datos
 
         public MADRE consultarMadre(int Dni)
         {
-            var madre = db.MADRE.Include(m => m.Bebe).FirstOrDefault(m => m.IdMadre == Dni);
+            var madre = db.MADRE
+                .Include(m => m.Bebe).ThenInclude(b => b.Estado)
+                .Include(m => m.Bebe).ThenInclude(b => b.Sala)
+                .Include(m => m.EstadoDetalle)
+                .Include(m => m.LocalidadDetalle)
+                .FirstOrDefault(m => m.IdMadre == Dni);
             if (madre == null)
                 throw new NotFoundException("Madre no encontrada con ese Id.");
             return madre;
