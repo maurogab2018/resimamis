@@ -76,7 +76,7 @@ namespace ResimamisBackend.Negocio
         {
             var visita = visitaRepositorio.obtenerPorId(idVisita);
             if (visita == null)
-                throw new ApplicationException("Visita inexistente o dada de baja.");
+                throw new NotFoundException("Visita inexistente o dada de baja.");
             return visita;
         }
 

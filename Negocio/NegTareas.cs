@@ -1,4 +1,5 @@
 using ResimamisBackend.Datos;
+using ResimamisBackend.Entidades;
 
 namespace ResimamisBackend.Negocio
 {
@@ -35,7 +36,7 @@ namespace ResimamisBackend.Negocio
         {
             var tarea = tareaRepositorio.obtenerPorId(idTarea);
             if (tarea == null)
-                throw new ApplicationException("Tarea inexistente con ese id.");
+                throw new NotFoundException("Tarea inexistente con ese id.");
             return tarea;
         }
 
@@ -69,7 +70,7 @@ namespace ResimamisBackend.Negocio
         {
             var tarea = tareaRepositorio.obtenerPorId(idTarea);
             if (tarea == null)
-                throw new ApplicationException("Tarea no encontrada.");
+                throw new NotFoundException("Tarea no encontrada.");
             if (!tarea.Estado)
                 throw new ApplicationException("La tarea no está activa.");
             if (tarea.esUnica && tareaRepositorio.tareaUnicaOcupadaHoy(idTarea))

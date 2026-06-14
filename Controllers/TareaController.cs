@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
+using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Controllers
@@ -26,13 +27,17 @@ namespace ResimamisBackend.Controllers
                 var listado = negTareas.listarTareas();
                 return ApiResults.Success(new { listadoTareas = listado });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -45,13 +50,17 @@ namespace ResimamisBackend.Controllers
                 var listado = negTareas.listarTareasDisponiblesParaAsignar();
                 return ApiResults.Success(new { listadoTareasDisponibles = listado });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -63,13 +72,17 @@ namespace ResimamisBackend.Controllers
                 var tarea = negTareas.consultarTarea(idTarea);
                 return ApiResults.Success(new { tarea });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -81,13 +94,17 @@ namespace ResimamisBackend.Controllers
                 var ok = negTareas.registrarTarea(tarea);
                 return ApiResults.Success(new { respuesta = ok });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -99,13 +116,17 @@ namespace ResimamisBackend.Controllers
                 var ok = negTareas.modificarTarea(idTarea, tarea);
                 return ApiResults.Success(new { respuesta = ok });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -117,13 +138,17 @@ namespace ResimamisBackend.Controllers
                 var ok = negTareas.eliminarTarea(idTarea);
                 return ApiResults.Success(new { respuesta = ok });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
     }

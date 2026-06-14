@@ -29,7 +29,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
 
         }
@@ -48,7 +48,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
 
         }
@@ -66,7 +66,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
 
         }
@@ -85,7 +85,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
 
         }
@@ -104,7 +104,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
 
         }
@@ -124,7 +124,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
 
         }
@@ -142,7 +142,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
 
         }

@@ -139,7 +139,7 @@ namespace ResimamisBackend.Negocio
         {
             var u = usuarioRepositorio.ObtenerPorId(idUsuario, asNoTracking: true);
             if (u == null)
-                throw new ApplicationException("Usuario no existente con ese Id");
+                throw new NotFoundException("Usuario no existente con ese Id");
             if (UsuarioRepositorio.EsUsuarioEliminado(u))
                 throw new ApplicationException("Usuario no disponible.");
 
@@ -191,7 +191,7 @@ namespace ResimamisBackend.Negocio
 
             var existente = usuarioRepositorio.ObtenerPorId(idUsuario, asNoTracking: false);
             if (existente == null)
-                throw new ApplicationException("Usuario no existente con ese Id");
+                throw new NotFoundException("Usuario no existente con ese Id");
             if (UsuarioRepositorio.EsUsuarioEliminado(existente))
                 throw new ApplicationException("No se puede modificar un usuario dado de baja.");
 

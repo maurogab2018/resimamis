@@ -26,13 +26,17 @@ namespace ResimamisBackend.Controllers
                 var respuesta = negAsignacion.listarAsignacionesHoy();
                 return ApiResults.Success(new { listadoAsignaciones = respuesta });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -44,13 +48,17 @@ namespace ResimamisBackend.Controllers
                 var respuesta = negAsignacion.consultarAsignacionPorId(idAsignacion);
                 return ApiResults.Success(new { asignacion = respuesta });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -63,13 +71,17 @@ namespace ResimamisBackend.Controllers
                 var respuesta = negAsignacion.devolverEstadisticaCantidadAsignaciones(/*request.fechaInicio,request.fechaFin*/);
                 return ApiResults.Success(new { listadoAsignaciones = respuesta });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -83,13 +95,17 @@ namespace ResimamisBackend.Controllers
 
                 return ApiResults.Success(new { estadisticaDuraciones = respuesta });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -101,13 +117,17 @@ namespace ResimamisBackend.Controllers
                 var respuesta = negAsignacion.listarAsignacionesHoyVoluntaria(idVoluntaria);
                 return ApiResults.Success(new { listadoAsignaciones = respuesta });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -119,13 +139,17 @@ namespace ResimamisBackend.Controllers
                 var respuesta = negAsignacion.registrarDetalleAsignacion(request);
                 return ApiResults.Success(new { respuesta = respuesta });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -137,13 +161,17 @@ namespace ResimamisBackend.Controllers
                 var respuesta = negAsignacion.generarAsiganaciones();
                 return ApiResults.Success(new {listadoAsignaciones = respuesta});
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -156,13 +184,17 @@ namespace ResimamisBackend.Controllers
                 var respuesta = negAsignacion.generarAsiganacionTarea(request);
                 return ApiResults.Success(new { listadoAsignaciones = respuesta });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -174,13 +206,17 @@ namespace ResimamisBackend.Controllers
                 var respuesta = negAsignacion.generarAsiganacionTareas(request);
                 return ApiResults.Success(new { listadoAsignaciones = respuesta });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -192,13 +228,17 @@ namespace ResimamisBackend.Controllers
                 var respuesta = negAsignacion.registrarInicioAsignacionAbrazo(idAsignacion);
                 return ApiResults.Success(new { respuesta = respuesta });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -210,13 +250,17 @@ namespace ResimamisBackend.Controllers
                 var respuesta = negAsignacion.eliminarAsignacion(idAsignacion);
                 return ApiResults.Success(new { respuesta });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -228,13 +272,17 @@ namespace ResimamisBackend.Controllers
                 var respuesta = negAsignacion.modificarAsignacion(idAsignacion, datos);
                 return ApiResults.Success(new { respuesta });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -246,13 +294,17 @@ namespace ResimamisBackend.Controllers
                 var respuesta = negAsignacion.registrarFinAsignacionAbrazo(request.idAsignacion, request.comentario);
                 return ApiResults.Success(new { respuesta = respuesta });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -265,13 +317,17 @@ namespace ResimamisBackend.Controllers
                 var cantidad = negAsignacion.ResetearAbrazosBebeColgadosAntesDeHoy();
                 return ApiResults.Success(new { cantidad });
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 

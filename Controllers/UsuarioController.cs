@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
+using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 using System.Security.Claims;
 
@@ -37,13 +38,17 @@ namespace ResimamisBackend.Controllers
                 var registroUsuario = neg_Usuario.RegistrarUsuario(dni, Usuario);
                 return ApiResults.Success(new { respuesta = registroUsuario });
             }
+            catch (NotFoundException exApp)
+            {
+                return ApiResults.NotFound(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -55,13 +60,17 @@ namespace ResimamisBackend.Controllers
                 var respuestaLogin = neg_Usuario.Loguear(Usuario);
                 return ApiResults.Success(respuestaLogin);
             }
+            catch (NotFoundException exApp)
+            {
+                return ApiResults.NotFound(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -76,13 +85,17 @@ namespace ResimamisBackend.Controllers
                 var listado = neg_Usuario.ListarUsuarios(dni);
                 return ApiResults.Success(new { listadoUsuarios = listado });
             }
+            catch (NotFoundException exApp)
+            {
+                return ApiResults.NotFound(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -97,13 +110,17 @@ namespace ResimamisBackend.Controllers
                 var listado = neg_Usuario.ListarVoluntariasSinUsuario(dni);
                 return ApiResults.Success(new { listadoVoluntariasSinUsuario = listado });
             }
+            catch (NotFoundException exApp)
+            {
+                return ApiResults.NotFound(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -117,13 +134,17 @@ namespace ResimamisBackend.Controllers
                 var usuario = neg_Usuario.ConsultarUsuarioPorId(idUsuario, dni);
                 return ApiResults.Success(new { usuario });
             }
+            catch (NotFoundException exApp)
+            {
+                return ApiResults.NotFound(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -138,13 +159,17 @@ namespace ResimamisBackend.Controllers
                 var ok = neg_Usuario.CambiarContrasena(dni, datos);
                 return ApiResults.Success(new { respuesta = ok });
             }
+            catch (NotFoundException exApp)
+            {
+                return ApiResults.NotFound(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -159,13 +184,17 @@ namespace ResimamisBackend.Controllers
                 var ok = neg_Usuario.ModificarUsuario(dni, idUsuario, usuario);
                 return ApiResults.Success(new { respuesta = ok });
             }
+            catch (NotFoundException exApp)
+            {
+                return ApiResults.NotFound(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
 
@@ -180,13 +209,17 @@ namespace ResimamisBackend.Controllers
                 var ok = neg_Usuario.EliminarUsuario(dni, idUsuario);
                 return ApiResults.Success(new { respuesta = ok });
             }
+            catch (NotFoundException exApp)
+            {
+                return ApiResults.NotFound(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return ApiResults.InternalServerError(ex.Message);
+                return ApiResults.InternalServerError();
             }
         }
     }

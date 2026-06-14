@@ -4,6 +4,7 @@ using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
+using System.Text.Json;
 
 // Npgsql 6+: timestamptz solo acepta UTC por defecto; este switch tolera DateTime Local (p. ej. del cliente JSON).
 // Los repositorios usan UTC explicito + rango "hoy" Argentina donde hace falta.
@@ -76,10 +77,21 @@ if (builder.Configuration["RUN_MIGRATIONS_ON_STARTUP"]?.Equals("false", StringCo
 
 startup.Configure(app, app.Lifetime);
 
-if (app.Environment.IsDevelopment())
+app.UseExceptionHandler(errApp =>
 {
-    app.UseDeveloperExceptionPage();
-}
+    errApp.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync(JsonSerializer.Serialize(new ApiResponse
+        {
+            success = false,
+            data = null,
+            message = "Error interno del servidor.",
+            errors = new List<string> { "Error interno del servidor." }
+        }));
+    });
+});
 
 //app.UseHttpsRedirection();
 

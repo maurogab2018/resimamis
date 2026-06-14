@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using ResimamisBackend.Entidades;
 using System.Text;
+using System.Text.Json;
 
 namespace ResimamisBackend
 {
@@ -37,9 +39,37 @@ namespace ResimamisBackend
                     ValidateAudience = false,
                     //ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    //ValidIssuer = "your_issuer", // Reemplaza con tu emisor válido
-                    //    ValidAudience = "mipublicochoto", // Reemplaza con tu audiencia válida
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("b5c3a9d1e8f0d2c4b9e1f8a0d2c4b9e1f8a0d2c4b9e1f8a0d2c4b9e1f8a0d2c")) // Reemplaza con tu clave secreta
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("b5c3a9d1e8f0d2c4b9e1f8a0d2c4b9e1f8a0d2c4b9e1f8a0d2c4b9e1f8a0d2c"))
+                };
+                options.Events = new JwtBearerEvents
+                {
+                    OnChallenge = async context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.StatusCode = 401;
+                        context.Response.ContentType = "application/json";
+                        var body = JsonSerializer.Serialize(new ApiResponse
+                        {
+                            success = false,
+                            data = null,
+                            message = "No autenticado.",
+                            errors = new List<string> { "No autenticado." }
+                        });
+                        await context.Response.WriteAsync(body);
+                    },
+                    OnForbidden = async context =>
+                    {
+                        context.Response.StatusCode = 403;
+                        context.Response.ContentType = "application/json";
+                        var body = JsonSerializer.Serialize(new ApiResponse
+                        {
+                            success = false,
+                            data = null,
+                            message = "No autorizado.",
+                            errors = new List<string> { "No autorizado." }
+                        });
+                        await context.Response.WriteAsync(body);
+                    }
                 };
             });
 

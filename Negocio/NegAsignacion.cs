@@ -115,10 +115,10 @@ namespace ResimamisBackend.Negocio
         {
             var voluntaria = voluntariaRepositorio.consultarVoluntaria(requestAsignacion.idVoluntaria);
             if(voluntaria== null)
-                throw new ApplicationException("Voluntaria no encontrada");
+                throw new NotFoundException("Voluntaria no encontrada");
             var tarea = db.TAREA.FirstOrDefault(t=>t.idTarea==requestAsignacion.idTarea);
             if (tarea == null)
-                throw new ApplicationException("Tarea no encontrada");
+                throw new NotFoundException("Tarea no encontrada");
             negTareas.ValidarTareaDisponibleParaAsignar(tarea.idTarea);
             try
             {
@@ -586,7 +586,7 @@ namespace ResimamisBackend.Negocio
             {
                 var tarea = db.TAREA.FirstOrDefault(t => t.idTarea == datos.idTarea.Value);
                 if (tarea == null)
-                    throw new ApplicationException("Tarea no encontrada");
+                    throw new NotFoundException("Tarea no encontrada");
             }
 
             if (datos.idBebe.HasValue)
@@ -602,7 +602,7 @@ namespace ResimamisBackend.Negocio
                 .Include(x => x.bebe)
                 .FirstOrDefault(x => x.idAsignacion == idAsignacion);
             if (a == null)
-                throw new ApplicationException("Asignación con ese id inexistente");
+                throw new NotFoundException("Asignación con ese id inexistente");
 
             AsegurarAsignacionNoEliminada(a);
 
