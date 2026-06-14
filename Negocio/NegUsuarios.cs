@@ -64,18 +64,18 @@ namespace ResimamisBackend.Negocio
             var usuarioLoguear = usuarioRepositorio.ObtenerPorDni(usuario.Dni);
             if (usuarioLoguear == null)
             {
-                throw new UnauthorizedException("Contraseña o usuario incorrecto");
+                throw new ApplicationException("Contraseña o usuario incorrecto");
             }
 
             if (!UsuarioRepositorio.EsUsuarioOperativo(usuarioLoguear))
-                throw new UnauthorizedException("Usuario no disponible.");
+                throw new ApplicationException("Usuario no disponible.");
 
             var contrasenaEncriptada = usuarioLoguear.Contrasena;
             bool contrasenaValida = BCrypt.Net.BCrypt.Verify(usuario.Contrasena, contrasenaEncriptada);
 
             if (!contrasenaValida)
             {
-                throw new UnauthorizedException("Contraseña o usuario incorrecto");
+                throw new ApplicationException("Contraseña o usuario incorrecto");
             }
             var tokenDevolver = GenerateJwtToken(usuario);
             var voluntariaUsuario = db.VOLUNTARIA.Include(v => v.RolInfo).Single(v => v.IdVoluntaria == usuarioLoguear.IdVoluntaria);
@@ -175,7 +175,7 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("Usuario no disponible.");
 
             if (!BCrypt.Net.BCrypt.Verify(datos.ContrasenaActual, existente.Contrasena))
-                throw new UnauthorizedException("La contraseña actual es incorrecta.");
+                throw new ApplicationException("La contraseña actual es incorrecta.");
 
             existente.Contrasena = BCrypt.Net.BCrypt.HashPassword(datos.ContrasenaNueva);
             usuarioRepositorio.GuardarCambios();

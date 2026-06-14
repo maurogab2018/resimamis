@@ -21,7 +21,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listadoVoluntaria = negVoluntaria.listarVoluntarias();
-                return ApiResults.Success(new { listadoVoluntaria = listadoVoluntaria });
+                return ApiResults.Success(listadoVoluntaria);
             }
             catch (ApplicationException exa)
             {
@@ -40,7 +40,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listadoVoluntariasLibres = negVoluntaria.listarVoluntariasLibres1();
-                return ApiResults.Success(new { listadoVoluntariasLibres = listadoVoluntariasLibres });
+                return ApiResults.Success(listadoVoluntariasLibres);
             }
             catch (ApplicationException exa)
             {
@@ -58,7 +58,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listadoEstadosVoluntarias = negVoluntaria.devolverEstadosVoluntarias();
-                return ApiResults.Success(new { listadoEstadosVoluntarias = listadoEstadosVoluntarias.Select(e=> new {idEstado=e.idEstado,nombre=e.nombre,descripcion=e.descripcion,idAmbito=e.idAmbito}) });
+                return ApiResults.Success(listadoEstadosVoluntarias.Select(e=> new {idEstado=e.idEstado,nombre=e.nombre,descripcion=e.descripcion,idAmbito=e.idAmbito}));
             }
             catch (ApplicationException exa)
             {
@@ -77,7 +77,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var voluntariaDni = negVoluntaria.consultarVoluntaria(Id);
-                return ApiResults.Success(new { voluntaria = voluntariaDni });
+                return ApiResults.Success(voluntariaDni);
             }
             catch (ApplicationException exa)
             {
@@ -96,7 +96,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negVoluntaria.modificarVoluntaria(voluntaria,Id);
-                return ApiResults.Success(new{ respuesta = resultado });
+                return ApiResults.Success(resultado);
             }
             catch (ApplicationException exa)
             {
@@ -116,7 +116,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var registroVoluntaria = negVoluntaria.eliminarVoluntaria(idVoluntaria);
-                return ApiResults.Success(new { respuesta = registroVoluntaria });
+                return ApiResults.Success(registroVoluntaria);
             }
             catch (ApplicationException exa)
             {
@@ -134,7 +134,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var registroVoluntaria = negVoluntaria.registrarVoluntaria(voluntaria);
-                return ApiResults.Success(new { respuesta=registroVoluntaria });
+                return ApiResults.Success(registroVoluntaria);
             }
             catch (ApplicationException exa)
             {

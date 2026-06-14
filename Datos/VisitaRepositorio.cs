@@ -29,7 +29,7 @@ namespace ResimamisBackend.Datos
             observacion = v.observacion,
             documentoVisitante = v.documentoVisitante,
             telefonoVisitante = v.telefonoVisitante,
-            Activa = v.Activa,
+            activa = v.Activa,
             fechaRegistro = v.fechaRegistro
         };
 

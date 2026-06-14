@@ -25,7 +25,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listado = negVisitas.listarVisitas();
-                return ApiResults.Success(new { listadoVisitas = listado });
+                return ApiResults.Success(listado);
             }
             catch (NotFoundException ex)
             {
@@ -48,7 +48,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listado = negVisitas.listarVisitasPorBebe(idBebe);
-                return ApiResults.Success(new { listadoVisitas = listado, idBebe });
+                return ApiResults.Success(listado);
             }
             catch (NotFoundException ex)
             {
@@ -70,7 +70,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var visita = negVisitas.consultarVisita(idVisita);
-                return ApiResults.Success(new { visita });
+                return ApiResults.Success(visita);
             }
             catch (NotFoundException ex)
             {
@@ -92,7 +92,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var creada = negVisitas.registrarVisita(visita);
-                return ApiResults.Success(new { visita = creada });
+                return ApiResults.Success(creada);
             }
             catch (NotFoundException ex)
             {
@@ -114,7 +114,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negVisitas.modificarVisita(idVisita, visita);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (NotFoundException ex)
             {
@@ -136,7 +136,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negVisitas.eliminarVisita(idVisita);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (NotFoundException ex)
             {

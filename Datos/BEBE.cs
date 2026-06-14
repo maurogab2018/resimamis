@@ -7,6 +7,7 @@ namespace ResimamisBackend.Datos
     public class BEBE
     {       
         [Key]
+        [JsonPropertyName("id")]
         public int ID { get; set; }
         public int? Dni { get; set; }
         public string? nombre { get; set; }

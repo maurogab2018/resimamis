@@ -8,7 +8,7 @@ namespace ResimamisBackend.Entidades
         public string NombreVoluntaria { get; set; } = string.Empty;
         public string ApellidoVoluntaria { get; set; } = string.Empty;
         public DateTime FechaCreacion { get; set; }
-        public int? idEstado { get; set; }
+        public int? IdEstado { get; set; }
         public string? NombreEstado { get; set; }
     }
 }

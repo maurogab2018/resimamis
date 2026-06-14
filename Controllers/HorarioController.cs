@@ -22,7 +22,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negHorariosVoluntaria.obtenerDias();
-                return ApiResults.Success(new {listadoDias = respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (ApplicationException exa)
             {

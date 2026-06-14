@@ -20,14 +20,14 @@ namespace ResimamisBackend.Controllers
         public IActionResult Get()
         {
             var lista = neg_Bebes.listarBebes();
-            return ApiResults.Success(new { ListadoBebes = lista });
+            return ApiResults.Success(lista);
         }
 
         [HttpGet("listarSalas")]
         public IActionResult ListarSalas()
         {
             var lista = neg_Bebes.listarSalas();
-            return ApiResults.Success(new { ListadoSalas = lista });
+            return ApiResults.Success(lista);
         }
 
         [HttpGet("id/{Dni}")]
@@ -36,7 +36,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var bebeDni = neg_Bebes.consultarBebe(Dni);
-                return ApiResults.Success(new { bebe = bebeDni });
+                return ApiResults.Success(bebeDni);
 
             }
             catch (ApplicationException ex)
@@ -57,12 +57,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listado = neg_Bebes.listarBebesAbrazar();
-                return ApiResults.Success(new
-                {
-                    listadoBebesDisponiblesParaAbrazo = listado,
-                    cantidad = listado.Count,
-                    bebe = listado
-                });
+                return ApiResults.Success(listado);
             }
             catch (ApplicationException ex)
             {
@@ -80,7 +75,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = neg_Bebes.registrarBebe(bebe);
-                return ApiResults.Success(new { Respuesta = respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (ApplicationException ex)
             {
@@ -118,7 +113,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = neg_Bebes.eliminarBebe(idBebe);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (ApplicationException ex)
             {

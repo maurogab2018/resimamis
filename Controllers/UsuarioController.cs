@@ -36,7 +36,7 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var registroUsuario = neg_Usuario.RegistrarUsuario(dni, Usuario);
-                return ApiResults.Success(new { respuesta = registroUsuario });
+                return ApiResults.Success(registroUsuario);
             }
             catch (NotFoundException exApp)
             {
@@ -107,7 +107,7 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var listado = neg_Usuario.ListarUsuarios(dni);
-                return ApiResults.Success(new { listadoUsuarios = listado });
+                return ApiResults.Success(listado);
             }
             catch (NotFoundException exApp)
             {
@@ -144,7 +144,7 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var listado = neg_Usuario.ListarVoluntariasSinUsuario(dni);
-                return ApiResults.Success(new { listadoVoluntariasSinUsuario = listado });
+                return ApiResults.Success(listado);
             }
             catch (NotFoundException exApp)
             {
@@ -180,7 +180,7 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var usuario = neg_Usuario.ConsultarUsuarioPorId(idUsuario, dni);
-                return ApiResults.Success(new { usuario });
+                return ApiResults.Success(usuario);
             }
             catch (NotFoundException exApp)
             {
@@ -217,7 +217,7 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var ok = neg_Usuario.CambiarContrasena(dni, datos);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (NotFoundException exApp)
             {
@@ -254,7 +254,7 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var ok = neg_Usuario.ModificarUsuario(dni, idUsuario, usuario);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (NotFoundException exApp)
             {
@@ -291,7 +291,7 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var ok = neg_Usuario.EliminarUsuario(dni, idUsuario);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (NotFoundException exApp)
             {

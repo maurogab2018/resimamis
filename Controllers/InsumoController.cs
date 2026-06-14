@@ -24,7 +24,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negInsumos.obtenerInsumos();
-                return ApiResults.Success(new { resultado = resultado });
+                return ApiResults.Success(resultado);
             }
             catch (ApplicationException ex)
             {
@@ -44,7 +44,7 @@ namespace ResimamisBackend.Controllers
                 var insumo = negInsumos.obtenerInsumoPorId(idInsumo);
                 if (insumo == null)
                     return ApiResults.BadRequest("Insumo inexistente o no disponible para el ámbito Insumos.");
-                return ApiResults.Success(new { insumo });
+                return ApiResults.Success(insumo);
             }
             catch (ApplicationException ex)
             {
@@ -62,7 +62,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var creado = negInsumos.registrarInsumo(insumo);
-                return ApiResults.Success(new { insumo = creado });
+                return ApiResults.Success(creado);
             }
             catch (ApplicationException ex)
             {
@@ -80,7 +80,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negInsumos.modificarInsumo(idInsumo, insumo);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (ApplicationException ex)
             {
@@ -98,7 +98,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negInsumos.eliminarInsumo(idInsumo);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (ApplicationException ex)
             {
@@ -116,7 +116,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negInsumos.obtenerMovimientos(movimientoFiltro);
-                return ApiResults.Success(new { listadoMovimientos = resultado });
+                return ApiResults.Success(resultado);
             }
             catch (ApplicationException ex)
             {
@@ -136,7 +136,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negInsumos.obtenerProveedores();
-                return ApiResults.Success(new { listadoDeProveedores = resultado });
+                return ApiResults.Success(resultado);
             }
             catch (ApplicationException ex)
             {
@@ -155,7 +155,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado=negInsumos.obtenerEstadisticaInsumo();
-                return ApiResults.Success(new { listadoInsumo = resultado });
+                return ApiResults.Success(resultado);
             }
             catch (ApplicationException ex)
             {
@@ -173,7 +173,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negInsumos.registrarMovimientoInsumos(movimiento);
-                return ApiResults.Success(new { resultado = resultado });
+                return ApiResults.Success(resultado);
             }
             catch (ApplicationException ex)
             {

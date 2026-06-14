@@ -98,9 +98,9 @@ namespace ResimamisBackend.Negocio
                 {
                     idAsignacion = asignacion.idAsignacion,
                     idVoluntaria = seleccionada.IdVoluntaria,
-                    nombreVoluntaria = seleccionada.Nombre,
+                    nombreVoluntaria = $"{seleccionada.Nombre} {seleccionada.Apellido}",
                     fechaHoraAsignacion = fechaHoy,
-                    estadoAsignacion = asignacion.idEstado.ToString()
+                    estadoAsignacion = "Creada"
                 });
 
                 // Actualizamos las asignaciones de la voluntaria seleccionada
@@ -139,9 +139,9 @@ namespace ResimamisBackend.Negocio
                 {
                     idAsignacion = asignacion.idAsignacion,
                     idVoluntaria = voluntaria.IdVoluntaria,
-                    nombreVoluntaria =voluntaria.Nombre,
+                    nombreVoluntaria = $"{voluntaria.Nombre} {voluntaria.Apellido}",
                     fechaHoraAsignacion = fechaHoy,
-                    estadoAsignacion =asignacion.idEstado.ToString(),
+                    estadoAsignacion = "Creada",
                 };
 
                 return asignacionesRespuesta;
@@ -373,6 +373,7 @@ namespace ResimamisBackend.Negocio
                     .AsSplitQuery()
                     .Include(a => a.bebe)
                     .Include(a => a.voluntaria)
+                    .Include(a => a.estado)
                     .Where(a => idsCreados.Contains(a.idAsignacion))
                     .ToList();
 
@@ -386,7 +387,7 @@ namespace ResimamisBackend.Negocio
                     fechaHoraAsignacion = a.fechaHoraAsignacion,
                     fechaHoraFin = a.fechaHoraFin,
                     fechaHoraInicio = a.fechaHoraInicio,
-                    estadoAsignacion = a.idEstado.ToString(),
+                    estadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
                     sala = a.bebe != null ? a.bebe.IdSala : 0
                 }).ToList();
 
@@ -600,6 +601,7 @@ namespace ResimamisBackend.Negocio
             var a = db.ASIGNACION
                 .Include(x => x.voluntaria)
                 .Include(x => x.bebe)
+                .Include(x => x.estado)
                 .FirstOrDefault(x => x.idAsignacion == idAsignacion);
             if (a == null)
                 throw new NotFoundException("Asignación con ese id inexistente");
@@ -617,7 +619,7 @@ namespace ResimamisBackend.Negocio
                 fechaHoraAsignacion = a.fechaHoraAsignacion,
                 fechaHoraFin = a.fechaHoraFin,
                 fechaHoraInicio = a.fechaHoraInicio,
-                estadoAsignacion = a.idEstado.ToString(),
+                estadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
                 sala = a.bebe?.IdSala,
                 detalles = db.DETALLEASIGNACION.Where(d => d.idAsignacion == a.idAsignacion).Select(d => new DetalleAsignacionResumido
                 {
@@ -642,7 +644,7 @@ namespace ResimamisBackend.Negocio
                 fechaHoraAsignacion = a.fechaHoraAsignacion,
                 fechaHoraFin = a.fechaHoraFin,
                 fechaHoraInicio = a.fechaHoraInicio,
-                estadoAsignacion = a.idEstado.ToString(),
+                estadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
                 sala = a.bebe.IdSala,
                 detalles = db.DETALLEASIGNACION.Where(d=>d.idAsignacion==a.idAsignacion).Select(a => new DetalleAsignacionResumido()
                 {
@@ -676,7 +678,7 @@ namespace ResimamisBackend.Negocio
                 fechaHoraAsignacion = a.fechaHoraAsignacion,
                 fechaHoraFin = a.fechaHoraFin,
                 fechaHoraInicio = a.fechaHoraInicio,
-                estadoAsignacion = a.idEstado.ToString(),
+                estadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
                 sala=a.bebe.IdSala,
                 detalles = db.DETALLEASIGNACION.Where(d => d.idAsignacion == a.idAsignacion).Select(a => new DetalleAsignacionResumido()
                 {

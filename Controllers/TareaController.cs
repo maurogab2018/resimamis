@@ -25,7 +25,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listado = negTareas.listarTareas();
-                return ApiResults.Success(new { listadoTareas = listado });
+                return ApiResults.Success(listado);
             }
             catch (NotFoundException ex)
             {
@@ -52,7 +52,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listado = negTareas.listarTareasDisponiblesParaAsignar();
-                return ApiResults.Success(new { listadoTareasDisponibles = listado });
+                return ApiResults.Success(listado);
             }
             catch (NotFoundException ex)
             {
@@ -78,7 +78,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var tarea = negTareas.consultarTarea(idTarea);
-                return ApiResults.Success(new { tarea });
+                return ApiResults.Success(tarea);
             }
             catch (NotFoundException ex)
             {
@@ -104,7 +104,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negTareas.registrarTarea(tarea);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (NotFoundException ex)
             {
@@ -130,7 +130,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negTareas.modificarTarea(idTarea, tarea);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (NotFoundException ex)
             {
@@ -156,7 +156,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negTareas.eliminarTarea(idTarea);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (NotFoundException ex)
             {

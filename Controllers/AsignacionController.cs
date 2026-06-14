@@ -24,7 +24,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.listarAsignacionesHoy();
-                return ApiResults.Success(new { listadoAsignaciones = respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -50,7 +50,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.consultarAsignacionPorId(idAsignacion);
-                return ApiResults.Success(new { asignacion = respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -77,7 +77,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.devolverEstadisticaCantidadAsignaciones(/*request.fechaInicio,request.fechaFin*/);
-                return ApiResults.Success(new { listadoAsignaciones = respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -105,7 +105,7 @@ namespace ResimamisBackend.Controllers
             {
                 var respuesta = negAsignacion.devolverDuracionesAbrazos();
 
-                return ApiResults.Success(new { estadisticaDuraciones = respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -131,7 +131,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.listarAsignacionesHoyVoluntaria(idVoluntaria);
-                return ApiResults.Success(new { listadoAsignaciones = respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -157,7 +157,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.registrarDetalleAsignacion(request);
-                return ApiResults.Success(new { respuesta = respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -183,7 +183,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.generarAsiganaciones();
-                return ApiResults.Success(new {listadoAsignaciones = respuesta});
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -210,7 +210,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.generarAsiganacionTarea(request);
-                return ApiResults.Success(new { listadoAsignaciones = respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -236,7 +236,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.generarAsiganacionTareas(request);
-                return ApiResults.Success(new { listadoAsignaciones = respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -262,7 +262,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.registrarInicioAsignacionAbrazo(idAsignacion);
-                return ApiResults.Success(new { respuesta = respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -288,7 +288,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.eliminarAsignacion(idAsignacion);
-                return ApiResults.Success(new { respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -314,7 +314,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.modificarAsignacion(idAsignacion, datos);
-                return ApiResults.Success(new { respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -340,7 +340,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.registrarFinAsignacionAbrazo(request.idAsignacion, request.comentario);
-                return ApiResults.Success(new { respuesta = respuesta });
+                return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
             {
@@ -367,7 +367,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var cantidad = negAsignacion.ResetearAbrazosBebeColgadosAntesDeHoy();
-                return ApiResults.Success(new { cantidad });
+                return ApiResults.Success(cantidad);
             }
             catch (NotFoundException ex)
             {

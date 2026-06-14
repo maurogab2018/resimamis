@@ -12,7 +12,7 @@ namespace ResimamisBackend.Entidades
         public string? observacion { get; set; }
         public int? documentoVisitante { get; set; }
         public long? telefonoVisitante { get; set; }
-        public bool Activa { get; set; }
+        public bool activa { get; set; }
         public DateTime fechaRegistro { get; set; }
     }
 }

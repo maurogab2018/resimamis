@@ -25,7 +25,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listadoMadres = neg_Madres.listarMadres();
-                return ApiResults.Success(new { listadoMadres = listadoMadres });
+                return ApiResults.Success(listadoMadres);
             }
             catch (ApplicationException exa)
             {
@@ -44,7 +44,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = neg_Madres.devolverEstadisticasLocalidades();
-                return ApiResults.Success(new { resultado = resultado });
+                return ApiResults.Success(resultado);
             }
             catch (ApplicationException exa)
             {
@@ -63,7 +63,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var madreDni = neg_Madres.consultarMadre(Id);
-                return ApiResults.Success(new { madre = madreDni });
+                return ApiResults.Success(madreDni);
             }
             catch (ApplicationException exa)
             {
@@ -128,7 +128,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = neg_Madres.eliminarMadre(idMadre);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (ApplicationException exa)
             {
@@ -146,7 +146,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = neg_Madres.devolverEstadisticasEdadesMadres();
-                return ApiResults.Success(new { resultado = resultado });
+                return ApiResults.Success(resultado);
             }
             catch (ApplicationException exa)
             {

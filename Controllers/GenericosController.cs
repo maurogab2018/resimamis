@@ -21,7 +21,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var localidades= negGenericos.obtenerLocalidades();
-                return ApiResults.Success(new { localidades = localidades });
+                return ApiResults.Success(localidades);
             }
             catch (ApplicationException ex)
             {

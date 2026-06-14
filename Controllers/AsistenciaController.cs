@@ -24,7 +24,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado=negAsistencia.consultarAsistencia(IdVoluntaria);
-                return ApiResults.Success(new { resultado = resultado });
+                return ApiResults.Success(resultado);
             }
             catch (ApplicationException ex)
             {
@@ -97,7 +97,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta= negAsistencia.registrarAsistencia(IdVoluntaria);
-                return ApiResults.Success(new {respuesta= respuesta});
+                return ApiResults.Success(respuesta);
             }
             catch (ApplicationException ex)
             {
@@ -134,7 +134,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negAsistencia.eliminarAsistencia(idAsistencia);
-                return ApiResults.Success(new { respuesta = ok });
+                return ApiResults.Success(ok);
             }
             catch (ApplicationException ex)
             {
