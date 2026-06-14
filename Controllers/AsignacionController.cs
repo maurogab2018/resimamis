@@ -24,15 +24,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.listarAsignacionesHoy();
-                return Ok(new { listadoAsignaciones = respuesta });
+                return ApiResults.Success(new { listadoAsignaciones = respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -42,15 +42,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.consultarAsignacionPorId(idAsignacion);
-                return Ok(new { asignacion = respuesta });
+                return ApiResults.Success(new { asignacion = respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -61,15 +61,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.devolverEstadisticaCantidadAsignaciones(/*request.fechaInicio,request.fechaFin*/);
-                return Ok(new { listadoAsignaciones = respuesta });
+                return ApiResults.Success(new { listadoAsignaciones = respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -81,15 +81,15 @@ namespace ResimamisBackend.Controllers
             {
                 var respuesta = negAsignacion.devolverDuracionesAbrazos();
 
-                return Ok(new { estadisticaDuraciones = respuesta });
+                return ApiResults.Success(new { estadisticaDuraciones = respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -99,15 +99,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.listarAsignacionesHoyVoluntaria(idVoluntaria);
-                return Ok(new { listadoAsignaciones = respuesta });
+                return ApiResults.Success(new { listadoAsignaciones = respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -117,15 +117,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.registrarDetalleAsignacion(request);
-                return Ok(new { respuesta = respuesta });
+                return ApiResults.Success(new { respuesta = respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -135,15 +135,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.generarAsiganaciones();
-                return Ok(new {listadoAsignaciones = respuesta});
+                return ApiResults.Success(new {listadoAsignaciones = respuesta});
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(new{ mensaje = ex.Message });
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500,new { mensaje = ex.Message });
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -154,15 +154,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.generarAsiganacionTarea(request);
-                return Ok(new { listadoAsignaciones = respuesta });
+                return ApiResults.Success(new { listadoAsignaciones = respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(new { mensaje = ex.Message });
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { mensaje = ex.Message });
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -172,15 +172,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.generarAsiganacionTareas(request);
-                return Ok(new { listadoAsignaciones = respuesta });
+                return ApiResults.Success(new { listadoAsignaciones = respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(new { mensaje = ex.Message });
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { mensaje = ex.Message });
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -190,15 +190,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.registrarInicioAsignacionAbrazo(idAsignacion);
-                return Ok(new { respuesta = respuesta });
+                return ApiResults.Success(new { respuesta = respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -208,15 +208,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.eliminarAsignacion(idAsignacion);
-                return Ok(new { respuesta });
+                return ApiResults.Success(new { respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -226,15 +226,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.modificarAsignacion(idAsignacion, datos);
-                return Ok(new { respuesta });
+                return ApiResults.Success(new { respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -244,15 +244,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.registrarFinAsignacionAbrazo(request.idAsignacion, request.comentario);
-                return Ok(new { respuesta = respuesta });
+                return ApiResults.Success(new { respuesta = respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -263,15 +263,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var cantidad = negAsignacion.ResetearAbrazosBebeColgadosAntesDeHoy();
-                return Ok(new { cantidad });
+                return ApiResults.Success(new { cantidad });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(new { mensaje = ex.Message });
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { mensaje = ex.Message });
+                return ApiResults.ServerError(ex.Message);
             }
         }
 

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Negocio;
@@ -24,15 +24,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listado = negTareas.listarTareas();
-                return Ok(new { listadoTareas = listado });
+                return ApiResults.Success(new { listadoTareas = listado });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -43,15 +43,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listado = negTareas.listarTareasDisponiblesParaAsignar();
-                return Ok(new { listadoTareasDisponibles = listado });
+                return ApiResults.Success(new { listadoTareasDisponibles = listado });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -61,15 +61,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var tarea = negTareas.consultarTarea(idTarea);
-                return Ok(new { tarea });
+                return ApiResults.Success(new { tarea });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -79,15 +79,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negTareas.registrarTarea(tarea);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -97,15 +97,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negTareas.modificarTarea(idTarea, tarea);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -115,15 +115,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negTareas.eliminarTarea(idTarea);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
     }

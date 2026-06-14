@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
@@ -25,15 +25,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listadoMadres = neg_Madres.listarMadres();
-                return Ok(new { listadoMadres = listadoMadres });
+                return ApiResults.Success(new { listadoMadres = listadoMadres });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
 
         }
@@ -44,15 +44,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = neg_Madres.devolverEstadisticasLocalidades();
-                return Ok(new { resultado = resultado });
+                return ApiResults.Success(new { resultado = resultado });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
 
         }
@@ -63,15 +63,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var madreDni = neg_Madres.consultarMadre(Id);
-                return Ok(new { madre = madreDni });
+                return ApiResults.Success(new { madre = madreDni });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
 
         }
@@ -84,17 +84,17 @@ namespace ResimamisBackend.Controllers
                 var resultado = neg_Madres.registrarMadre(Madre);
 
                 if (resultado.Exito)
-                    return Ok(true);
+                    return ApiResults.Success(true);
 
-                return StatusCode(500, resultado.Errores);
+                return ApiResults.ValidationError(resultado.Errores);
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
 
         }
@@ -107,17 +107,17 @@ namespace ResimamisBackend.Controllers
                 var resultado = neg_Madres.modificarMadre(madre, Id, out var madreActualizada);
 
                 if (!resultado.Exito)
-                    return StatusCode(500, resultado.Errores);
+                    return ApiResults.ValidationError(resultado.Errores);
 
-                return Ok(madreActualizada);
+                return ApiResults.Success(madreActualizada);
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
 
         }
@@ -128,15 +128,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = neg_Madres.eliminarMadre(idMadre);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
         }
 
@@ -146,15 +146,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = neg_Madres.devolverEstadisticasEdadesMadres();
-                return Ok(new { resultado = resultado });
+                return ApiResults.Success(new { resultado = resultado });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
 
         }

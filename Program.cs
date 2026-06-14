@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using ResimamisBackend;
 using ResimamisBackend.Datos;
+using ResimamisBackend.Entidades;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 
 // Npgsql 6+: timestamptz solo acepta UTC por defecto; este switch tolera DateTime Local (p. ej. del cliente JSON).
@@ -34,15 +36,37 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState
+                .Where(e => e.Value?.Errors.Count > 0)
+                .SelectMany(e => e.Value!.Errors.Select(err =>
+                    string.IsNullOrWhiteSpace(err.ErrorMessage)
+                        ? err.Exception?.Message ?? "Error de validaciÛn"
+                        : err.ErrorMessage))
+                .Where(msg => !string.IsNullOrWhiteSpace(msg))
+                .ToList();
+
+            return new BadRequestObjectResult(new ApiResponse
+            {
+                success = false,
+                data = null,
+                message = "Error de validaciÛn",
+                errors = errors
+            });
+        };
+    });
 
 // Pasar la config de los servicios
 startup.ConfigureServicies(builder.Services);
 
 var app = builder.Build();
 
-// Aplica migraciones automùticamente al arrancar (ùtil para deploy en Render).
-// Si no querùs que se ejecute en todos los entornos, seteù RUN_MIGRATIONS_ON_STARTUP=false.
+// Aplica migraciones autom?ticamente al arrancar (?til para deploy en Render).
+// Si no quer?s que se ejecute en todos los entornos, sete? RUN_MIGRATIONS_ON_STARTUP=false.
 if (builder.Configuration["RUN_MIGRATIONS_ON_STARTUP"]?.Equals("false", StringComparison.OrdinalIgnoreCase) != true)
 {
     using var scope = app.Services.CreateScope();
@@ -66,7 +90,7 @@ app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
-    c.RoutePrefix = string.Empty; // Para que se cargue en la raùz del sitio
+    c.RoutePrefix = string.Empty; // Para que se cargue en la ra?z del sitio
 });
 
 // AGREGAR ESTO PARA ENRUTAR

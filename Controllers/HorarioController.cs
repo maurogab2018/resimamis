@@ -22,15 +22,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negHorariosVoluntaria.obtenerDias();
-                return Ok(new {listadoDias = respuesta });
+                return ApiResults.Success(new {listadoDias = respuesta });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -40,15 +40,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negHorariosVoluntaria.registrarHoraraioVoluntaria(horarioVoluntarias);
-                return Ok(respuesta);
+                return ApiResults.Success(respuesta);
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
             
         }

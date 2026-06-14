@@ -21,15 +21,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listadoVoluntaria = negVoluntaria.listarVoluntarias();
-                return Ok(new { listadoVoluntaria = listadoVoluntaria });
+                return ApiResults.Success(new { listadoVoluntaria = listadoVoluntaria });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
 
         }
@@ -40,15 +40,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listadoVoluntariasLibres = negVoluntaria.listarVoluntariasLibres1();
-                return Ok(new { listadoVoluntariasLibres = listadoVoluntariasLibres });
+                return ApiResults.Success(new { listadoVoluntariasLibres = listadoVoluntariasLibres });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
 
         }
@@ -58,15 +58,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listadoEstadosVoluntarias = negVoluntaria.devolverEstadosVoluntarias();
-                return Ok(new { listadoEstadosVoluntarias = listadoEstadosVoluntarias.Select(e=> new {idEstado=e.idEstado,nombre=e.nombre,descripcion=e.descripcion,idAmbito=e.idAmbito}) });
+                return ApiResults.Success(new { listadoEstadosVoluntarias = listadoEstadosVoluntarias.Select(e=> new {idEstado=e.idEstado,nombre=e.nombre,descripcion=e.descripcion,idAmbito=e.idAmbito}) });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
 
         }
@@ -77,15 +77,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var voluntariaDni = negVoluntaria.consultarVoluntaria(Id);
-                return Ok(new { voluntaria = voluntariaDni });
+                return ApiResults.Success(new { voluntaria = voluntariaDni });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
 
         }
@@ -96,15 +96,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negVoluntaria.modificarVoluntaria(voluntaria,Id);
-                return Ok (new{ respuesta = resultado });
+                return ApiResults.Success(new{ respuesta = resultado });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
 
         }
@@ -116,15 +116,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var registroVoluntaria = negVoluntaria.eliminarVoluntaria(idVoluntaria);
-                return Ok(new { respuesta = registroVoluntaria });
+                return ApiResults.Success(new { respuesta = registroVoluntaria });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
 
         }
@@ -134,15 +134,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var registroVoluntaria = negVoluntaria.registrarVoluntaria(voluntaria);
-                return Ok(new { respuesta=registroVoluntaria });
+                return ApiResults.Success(new { respuesta=registroVoluntaria });
             }
             catch (ApplicationException exa)
             {
-                return BadRequest(exa.Message);
+                return ApiResults.BadRequest(exa.Message);
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
 
         }

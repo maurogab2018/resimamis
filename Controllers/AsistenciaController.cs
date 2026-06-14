@@ -24,15 +24,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado=negAsistencia.consultarAsistencia(IdVoluntaria);
-                return Ok(new { resultado = resultado });
+                return ApiResults.Success(new { resultado = resultado });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);  
+                return ApiResults.BadRequest(ex.Message);  
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }    
         }
 
@@ -43,15 +43,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 ReporteAsistenciaPeriodoRespuesta reporte = negAsistencia.ReporteAsistenciaPorPeriodo(fechaInicio, fechaFin);
-                return Ok(reporte);
+                return ApiResults.Success(reporte);
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(new { mensaje = ex.Message });
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { mensaje = ex.Message });
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -61,15 +61,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negAsistencia.consultarAsistenciasFechahoy();
-                return Ok(resultado);
+                return ApiResults.Success(resultado);
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -79,15 +79,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negAsistencia.consultarAsistenciasVoluntaria(IdVoluntaria);
-                return Ok(resultado);
+                return ApiResults.Success(resultado);
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -97,15 +97,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta= negAsistencia.registrarAsistencia(IdVoluntaria);
-                return Ok(new {respuesta= respuesta});
+                return ApiResults.Success(new {respuesta= respuesta});
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -115,15 +115,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negAsistencia.registrarAsistenciaSalida(IdVoluntaria);
-                return Ok(resultado);
+                return ApiResults.Success(resultado);
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -134,15 +134,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negAsistencia.eliminarAsistencia(idAsistencia);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
     }

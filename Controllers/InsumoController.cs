@@ -24,15 +24,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negInsumos.obtenerInsumos();
-                return Ok(new { resultado = resultado });
+                return ApiResults.Success(new { resultado = resultado });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -43,16 +43,16 @@ namespace ResimamisBackend.Controllers
             {
                 var insumo = negInsumos.obtenerInsumoPorId(idInsumo);
                 if (insumo == null)
-                    return BadRequest("Insumo inexistente o no disponible para el ámbito Insumos.");
-                return Ok(new { insumo });
+                    return ApiResults.BadRequest("Insumo inexistente o no disponible para el ámbito Insumos.");
+                return ApiResults.Success(new { insumo });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -62,15 +62,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var creado = negInsumos.registrarInsumo(insumo);
-                return Ok(new { insumo = creado });
+                return ApiResults.Success(new { insumo = creado });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -80,15 +80,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negInsumos.modificarInsumo(idInsumo, insumo);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -98,15 +98,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negInsumos.eliminarInsumo(idInsumo);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -116,15 +116,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negInsumos.obtenerMovimientos(movimientoFiltro);
-                return Ok(new { listadoMovimientos = resultado });
+                return ApiResults.Success(new { listadoMovimientos = resultado });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -136,15 +136,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negInsumos.obtenerProveedores();
-                return Ok(new { listadoDeProveedores = resultado });
+                return ApiResults.Success(new { listadoDeProveedores = resultado });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -155,15 +155,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado=negInsumos.obtenerEstadisticaInsumo();
-                return Ok(new { listadoInsumo = resultado });
+                return ApiResults.Success(new { listadoInsumo = resultado });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -173,15 +173,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var resultado = negInsumos.registrarMovimientoInsumos(movimiento);
-                return Ok(new { resultado = resultado });
+                return ApiResults.Success(new { resultado = resultado });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 

@@ -35,15 +35,15 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var registroUsuario = neg_Usuario.RegistrarUsuario(dni, Usuario);
-                return Ok(new { respuesta = registroUsuario });
+                return ApiResults.Success(new { respuesta = registroUsuario });
             }
             catch (ApplicationException exApp)
             {
-                return BadRequest(exApp.Message);
+                return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -53,15 +53,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuestaLogin = neg_Usuario.Loguear(Usuario);
-                return Ok(respuestaLogin);
+                return ApiResults.Success(respuestaLogin);
             }
             catch (ApplicationException exApp)
             {
-                return BadRequest(new { message = exApp.Message });
+                return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -74,15 +74,15 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var listado = neg_Usuario.ListarUsuarios(dni);
-                return Ok(new { listadoUsuarios = listado });
+                return ApiResults.Success(new { listadoUsuarios = listado });
             }
             catch (ApplicationException exApp)
             {
-                return BadRequest(exApp.Message);
+                return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -95,15 +95,15 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var listado = neg_Usuario.ListarVoluntariasSinUsuario(dni);
-                return Ok(new { listadoVoluntariasSinUsuario = listado });
+                return ApiResults.Success(new { listadoVoluntariasSinUsuario = listado });
             }
             catch (ApplicationException exApp)
             {
-                return BadRequest(exApp.Message);
+                return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -115,15 +115,15 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var usuario = neg_Usuario.ConsultarUsuarioPorId(idUsuario, dni);
-                return Ok(new { usuario });
+                return ApiResults.Success(new { usuario });
             }
             catch (ApplicationException exApp)
             {
-                return BadRequest(exApp.Message);
+                return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -136,15 +136,15 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var ok = neg_Usuario.CambiarContrasena(dni, datos);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException exApp)
             {
-                return BadRequest(exApp.Message);
+                return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -157,15 +157,15 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var ok = neg_Usuario.ModificarUsuario(dni, idUsuario, usuario);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException exApp)
             {
-                return BadRequest(exApp.Message);
+                return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -178,15 +178,15 @@ namespace ResimamisBackend.Controllers
             {
                 var dni = ObtenerDniAutenticado();
                 var ok = neg_Usuario.EliminarUsuario(dni, idUsuario);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException exApp)
             {
-                return BadRequest(exApp.Message);
+                return ApiResults.BadRequest(exApp.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
     }

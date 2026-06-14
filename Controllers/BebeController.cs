@@ -20,14 +20,14 @@ namespace ResimamisBackend.Controllers
         public IActionResult Get()
         {
             var lista = neg_Bebes.listarBebes();
-            return Ok(new { ListadoBebes = lista });
+            return ApiResults.Success(new { ListadoBebes = lista });
         }
 
         [HttpGet("listarSalas")]
         public IActionResult ListarSalas()
         {
             var lista = neg_Bebes.listarSalas();
-            return Ok(new { ListadoSalas = lista });
+            return ApiResults.Success(new { ListadoSalas = lista });
         }
 
         [HttpGet("id/{Dni}")]
@@ -36,16 +36,16 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var bebeDni = neg_Bebes.consultarBebe(Dni);
-                return Ok(new { bebe = bebeDni });
+                return ApiResults.Success(new { bebe = bebeDni });
 
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -57,7 +57,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listado = neg_Bebes.listarBebesAbrazar();
-                return Ok(new
+                return ApiResults.Success(new
                 {
                     listadoBebesDisponiblesParaAbrazo = listado,
                     cantidad = listado.Count,
@@ -66,11 +66,11 @@ namespace ResimamisBackend.Controllers
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -80,15 +80,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = neg_Bebes.registrarBebe(bebe);
-                return Ok(new { Respuesta = respuesta });
+                return ApiResults.Success(new { Respuesta = respuesta });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -99,15 +99,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta=neg_Bebes.modificarBebe(bebe);
-                return Ok(respuesta);    
+                return ApiResults.Success(respuesta);    
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
 
         }
@@ -118,15 +118,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = neg_Bebes.eliminarBebe(idBebe);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 

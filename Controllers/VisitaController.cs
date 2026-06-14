@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Negocio;
@@ -24,15 +24,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listado = negVisitas.listarVisitas();
-                return Ok(new { listadoVisitas = listado });
+                return ApiResults.Success(new { listadoVisitas = listado });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -43,15 +43,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listado = negVisitas.listarVisitasPorBebe(idBebe);
-                return Ok(new { listadoVisitas = listado, idBebe });
+                return ApiResults.Success(new { listadoVisitas = listado, idBebe });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -61,15 +61,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var visita = negVisitas.consultarVisita(idVisita);
-                return Ok(new { visita });
+                return ApiResults.Success(new { visita });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -79,15 +79,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var creada = negVisitas.registrarVisita(visita);
-                return Ok(new { visita = creada });
+                return ApiResults.Success(new { visita = creada });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -97,15 +97,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negVisitas.modificarVisita(idVisita, visita);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
 
@@ -115,15 +115,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var ok = negVisitas.eliminarVisita(idVisita);
-                return Ok(new { respuesta = ok });
+                return ApiResults.Success(new { respuesta = ok });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
     }

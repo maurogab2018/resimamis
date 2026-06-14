@@ -21,15 +21,15 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var localidades= negGenericos.obtenerLocalidades();
-                return Ok(new { localidades = localidades });
+                return ApiResults.Success(new { localidades = localidades });
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.Message);
+                return ApiResults.ServerError(ex.Message);
             }
         }
     }
