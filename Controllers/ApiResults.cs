@@ -9,9 +9,25 @@ namespace ResimamisBackend.Controllers
         public static IActionResult Success(object? data, string? message = null) =>
             new OkObjectResult(Build(true, data, message, Array.Empty<string>()));
 
-        /// <summary>Error de negocio/validación. HTTP 200 con success=false.</summary>
+        /// <summary>Recurso creado. HTTP 201.</summary>
+        public static IActionResult Created(object? data, string? message = null) =>
+            new ObjectResult(Build(true, data, message, Array.Empty<string>())) { StatusCode = 201 };
+
+        /// <summary>Error de negocio/validación del cliente. HTTP 400.</summary>
         public static IActionResult BadRequest(string message, IEnumerable<string>? errors = null) =>
-            new OkObjectResult(Build(false, null, message, NormalizeErrors(message, errors)));
+            new BadRequestObjectResult(Build(false, null, message, NormalizeErrors(message, errors)));
+
+        /// <summary>Recurso no encontrado. HTTP 404.</summary>
+        public static IActionResult NotFound(string message) =>
+            new NotFoundObjectResult(Build(false, null, message, NormalizeErrors(message, null)));
+
+        /// <summary>No autenticado. HTTP 401.</summary>
+        public static IActionResult Unauthorized(string message = "No autenticado.") =>
+            new UnauthorizedObjectResult(Build(false, null, message, NormalizeErrors(message, null)));
+
+        /// <summary>Error interno del servidor. HTTP 500.</summary>
+        public static IActionResult InternalServerError(string message = "Error interno del servidor.") =>
+            new ObjectResult(Build(false, null, message, NormalizeErrors(message, null))) { StatusCode = 500 };
 
         public static IActionResult ValidationError(IEnumerable<string> errors)
         {

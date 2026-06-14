@@ -45,16 +45,16 @@ builder.Services.AddControllers()
                 .Where(e => e.Value?.Errors.Count > 0)
                 .SelectMany(e => e.Value!.Errors.Select(err =>
                     string.IsNullOrWhiteSpace(err.ErrorMessage)
-                        ? err.Exception?.Message ?? "Error de validaciÛn"
+                        ? err.Exception?.Message ?? "Error de validaciÔøΩn"
                         : err.ErrorMessage))
                 .Where(msg => !string.IsNullOrWhiteSpace(msg))
                 .ToList();
 
-            return new OkObjectResult(new ApiResponse
+            return new BadRequestObjectResult(new ApiResponse
             {
                 success = false,
                 data = null,
-                message = "Error de validaci?n",
+                message = "Error de validaci√≥n",
                 errors = errors
             });
         };
