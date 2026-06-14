@@ -42,6 +42,18 @@ namespace ResimamisBackend.Controllers
             {
                 return ApiResults.NotFound(exApp.Message);
             }
+            catch (UnauthorizedException exApp)
+            {
+                return ApiResults.Unauthorized(exApp.Message);
+            }
+            catch (ForbiddenException exApp)
+            {
+                return ApiResults.Forbidden(exApp.Message);
+            }
+            catch (ConflictException exApp)
+            {
+                return ApiResults.Conflict(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
@@ -63,6 +75,18 @@ namespace ResimamisBackend.Controllers
             catch (NotFoundException exApp)
             {
                 return ApiResults.NotFound(exApp.Message);
+            }
+            catch (UnauthorizedException exApp)
+            {
+                return ApiResults.Unauthorized(exApp.Message);
+            }
+            catch (ForbiddenException exApp)
+            {
+                return ApiResults.Forbidden(exApp.Message);
+            }
+            catch (ConflictException exApp)
+            {
+                return ApiResults.Conflict(exApp.Message);
             }
             catch (ApplicationException exApp)
             {
@@ -89,6 +113,18 @@ namespace ResimamisBackend.Controllers
             {
                 return ApiResults.NotFound(exApp.Message);
             }
+            catch (UnauthorizedException exApp)
+            {
+                return ApiResults.Unauthorized(exApp.Message);
+            }
+            catch (ForbiddenException exApp)
+            {
+                return ApiResults.Forbidden(exApp.Message);
+            }
+            catch (ConflictException exApp)
+            {
+                return ApiResults.Conflict(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
@@ -114,6 +150,18 @@ namespace ResimamisBackend.Controllers
             {
                 return ApiResults.NotFound(exApp.Message);
             }
+            catch (UnauthorizedException exApp)
+            {
+                return ApiResults.Unauthorized(exApp.Message);
+            }
+            catch (ForbiddenException exApp)
+            {
+                return ApiResults.Forbidden(exApp.Message);
+            }
+            catch (ConflictException exApp)
+            {
+                return ApiResults.Conflict(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
@@ -137,6 +185,18 @@ namespace ResimamisBackend.Controllers
             catch (NotFoundException exApp)
             {
                 return ApiResults.NotFound(exApp.Message);
+            }
+            catch (UnauthorizedException exApp)
+            {
+                return ApiResults.Unauthorized(exApp.Message);
+            }
+            catch (ForbiddenException exApp)
+            {
+                return ApiResults.Forbidden(exApp.Message);
+            }
+            catch (ConflictException exApp)
+            {
+                return ApiResults.Conflict(exApp.Message);
             }
             catch (ApplicationException exApp)
             {
@@ -163,6 +223,18 @@ namespace ResimamisBackend.Controllers
             {
                 return ApiResults.NotFound(exApp.Message);
             }
+            catch (UnauthorizedException exApp)
+            {
+                return ApiResults.Unauthorized(exApp.Message);
+            }
+            catch (ForbiddenException exApp)
+            {
+                return ApiResults.Forbidden(exApp.Message);
+            }
+            catch (ConflictException exApp)
+            {
+                return ApiResults.Conflict(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
@@ -188,6 +260,18 @@ namespace ResimamisBackend.Controllers
             {
                 return ApiResults.NotFound(exApp.Message);
             }
+            catch (UnauthorizedException exApp)
+            {
+                return ApiResults.Unauthorized(exApp.Message);
+            }
+            catch (ForbiddenException exApp)
+            {
+                return ApiResults.Forbidden(exApp.Message);
+            }
+            catch (ConflictException exApp)
+            {
+                return ApiResults.Conflict(exApp.Message);
+            }
             catch (ApplicationException exApp)
             {
                 return ApiResults.BadRequest(exApp.Message);
@@ -212,6 +296,18 @@ namespace ResimamisBackend.Controllers
             catch (NotFoundException exApp)
             {
                 return ApiResults.NotFound(exApp.Message);
+            }
+            catch (UnauthorizedException exApp)
+            {
+                return ApiResults.Unauthorized(exApp.Message);
+            }
+            catch (ForbiddenException exApp)
+            {
+                return ApiResults.Forbidden(exApp.Message);
+            }
+            catch (ConflictException exApp)
+            {
+                return ApiResults.Conflict(exApp.Message);
             }
             catch (ApplicationException exApp)
             {

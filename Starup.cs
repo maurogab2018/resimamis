@@ -50,8 +50,6 @@ namespace ResimamisBackend
                         context.Response.ContentType = "application/json";
                         var body = JsonSerializer.Serialize(new ApiResponse
                         {
-                            success = false,
-                            data = null,
                             message = "No autenticado.",
                             errors = new List<string> { "No autenticado." }
                         });
@@ -63,8 +61,6 @@ namespace ResimamisBackend
                         context.Response.ContentType = "application/json";
                         var body = JsonSerializer.Serialize(new ApiResponse
                         {
-                            success = false,
-                            data = null,
                             message = "No autorizado.",
                             errors = new List<string> { "No autorizado." }
                         });

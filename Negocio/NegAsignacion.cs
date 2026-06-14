@@ -437,13 +437,13 @@ namespace ResimamisBackend.Negocio
             var asignacion = asignacionRepositorio.consultarAsignacion(idAsignacion);
             AsegurarAsignacionNoEliminada(asignacion);
             if (asignacion.fechaHoraInicio != null)
-                throw new ApplicationException("Abrazo ya inicializado");
+                throw new ConflictException("Abrazo ya inicializado");
 
             var nombreEstadoVoluntaria = asignacion.idBebe.HasValue ? "Abrazando" : "Ayudando";
 
             var estado = db.ESTADO.FirstOrDefault(e => e.nombre == nombreEstadoVoluntaria && e.ambito.nombre == "Voluntarias");
             if (estado == null)
-                throw new ApplicationException("Estado no existente");
+                throw new Exception($"Estado '{nombreEstadoVoluntaria}' (Voluntarias) no configurado en la base de datos.");
 
             var voluntariaAsignacion = voluntariaRepositorio.consultarVoluntaria(asignacion.idVoluntaria);
             voluntariaAsignacion.IdEstado = estado.idEstado;
@@ -453,7 +453,7 @@ namespace ResimamisBackend.Negocio
             {
                 var estadoBebe = db.ESTADO.FirstOrDefault(e => e.nombre == "Abrazado" && e.ambito.nombre == "Bebes");
                 if (estadoBebe == null)
-                    throw new ApplicationException("Estado no existente");
+                    throw new Exception("Estado 'Abrazado' (Bebes) no configurado en la base de datos.");
 
                 var bebeAbrazado = bebeRepositorio.consultarBebe(asignacion.idBebe.Value);
                 bebeAbrazado.IdEstado = estadoBebe.idEstado;
@@ -474,11 +474,11 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("Abrazo nunca fue inicializado");
 
             if (asignacion.fechaHoraFin != null)
-                throw new ApplicationException("Abrazo ya fue finalizado");
+                throw new ConflictException("Abrazo ya fue finalizado");
 
             var estado = db.ESTADO.FirstOrDefault(e => e.nombre == "Activa" && e.ambito.nombre == "Voluntarias");
             if (estado == null)
-                throw new ApplicationException("Estado no existente");
+                throw new Exception("Estado 'Activa' (Voluntarias) no configurado en la base de datos.");
 
             var voluntariaAsignacion = voluntariaRepositorio.consultarVoluntaria(asignacion.idVoluntaria);
             voluntariaAsignacion.IdEstado = estado.idEstado;
@@ -489,7 +489,7 @@ namespace ResimamisBackend.Negocio
                 // El bebé es seteado a "Sin abrazar" al finalizar el turno
                 var estadoBebe = db.ESTADO.FirstOrDefault(e => e.nombre == "Sin abrazar" && e.ambito.nombre == "Bebes");
                 if (estadoBebe == null)
-                    throw new ApplicationException("Estado no existente");
+                    throw new Exception("Estado 'Sin abrazar' (Bebes) no configurado en la base de datos.");
 
                 var bebeAbrazado = bebeRepositorio.consultarBebe(asignacion.idBebe.Value);
                 bebeAbrazado.IdEstado = estadoBebe.idEstado;
@@ -529,9 +529,9 @@ namespace ResimamisBackend.Negocio
                 return 0;
 
             var estadoVolActiva = db.ESTADO.FirstOrDefault(e => e.nombre == "Activa" && e.ambito.nombre == "Voluntarias")
-                ?? throw new ApplicationException("Estado Activa (Voluntarias) no existente.");
+                ?? throw new Exception("Estado 'Activa' (Voluntarias) no configurado en la base de datos.");
             var estadoBebeSinAbrazar = db.ESTADO.FirstOrDefault(e => e.nombre == "Sin abrazar" && e.ambito.nombre == "Bebes")
-                ?? throw new ApplicationException("Estado Sin abrazar (Bebes) no existente.");
+                ?? throw new Exception("Estado 'Sin abrazar' (Bebes) no configurado en la base de datos.");
 
             const string comentarioAuto = "Cierre automático: abrazo iniciado en día anterior sin finalizar.";
             var ahora = NegConversorFecha.ObtenerFechaArgentina();

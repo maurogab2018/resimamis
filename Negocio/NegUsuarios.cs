@@ -44,7 +44,7 @@ namespace ResimamisBackend.Negocio
         private void RequiereAdministrativa(int dniSolicitante)
         {
             if (!EsAdministrativaPorDni(dniSolicitante))
-                throw new ApplicationException("No tiene permisos para esta operación.");
+                throw new ForbiddenException("No tiene permisos para esta operación.");
         }
 
         private static void ValidarContrasenaNueva(string? contrasena)
@@ -64,18 +64,18 @@ namespace ResimamisBackend.Negocio
             var usuarioLoguear = usuarioRepositorio.ObtenerPorDni(usuario.Dni);
             if (usuarioLoguear == null)
             {
-                throw new ApplicationException("Contraseña o usuario incorrecto");
+                throw new UnauthorizedException("Contraseña o usuario incorrecto");
             }
 
             if (!UsuarioRepositorio.EsUsuarioOperativo(usuarioLoguear))
-                throw new ApplicationException("Usuario no disponible.");
+                throw new UnauthorizedException("Usuario no disponible.");
 
             var contrasenaEncriptada = usuarioLoguear.Contrasena;
             bool contrasenaValida = BCrypt.Net.BCrypt.Verify(usuario.Contrasena, contrasenaEncriptada);
 
             if (!contrasenaValida)
             {
-                throw new ApplicationException("Contraseña o usuario incorrecto");
+                throw new UnauthorizedException("Contraseña o usuario incorrecto");
             }
             var tokenDevolver = GenerateJwtToken(usuario);
             var voluntariaUsuario = db.VOLUNTARIA.Include(v => v.RolInfo).Single(v => v.IdVoluntaria == usuarioLoguear.IdVoluntaria);
@@ -107,10 +107,10 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("Voluntaria inexistente con ese IdVoluntaria.");
 
             if (usuarioRepositorio.VoluntariaTieneUsuarioActivo(usuario.IdVoluntaria))
-                throw new ApplicationException("La voluntaria ya tiene un usuario asociado.");
+                throw new ConflictException("La voluntaria ya tiene un usuario asociado.");
 
             if (usuarioRepositorio.ExisteUsuarioOperativoConDni(usuario.Dni))
-                throw new ApplicationException("Usuario con ese Dni ya creado");
+                throw new ConflictException("Usuario con ese Dni ya creado");
 
             usuario.Contrasena = BCrypt.Net.BCrypt.HashPassword(usuario.Contrasena);
             if (usuario.FechaCreacion == default)
@@ -146,7 +146,7 @@ namespace ResimamisBackend.Negocio
             var esAdmin = EsAdministrativaPorDni(dniSolicitante);
             var propio = u.Dni == dniSolicitante;
             if (!esAdmin && !propio)
-                throw new ApplicationException("No tiene permisos para consultar este usuario.");
+                throw new ForbiddenException("No tiene permisos para consultar este usuario.");
 
             return new
             {
@@ -175,7 +175,7 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("Usuario no disponible.");
 
             if (!BCrypt.Net.BCrypt.Verify(datos.ContrasenaActual, existente.Contrasena))
-                throw new ApplicationException("La contraseña actual es incorrecta.");
+                throw new UnauthorizedException("La contraseña actual es incorrecta.");
 
             existente.Contrasena = BCrypt.Net.BCrypt.HashPassword(datos.ContrasenaNueva);
             usuarioRepositorio.GuardarCambios();
@@ -196,14 +196,14 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("No se puede modificar un usuario dado de baja.");
 
             if (datos.Dni != existente.Dni && usuarioRepositorio.ExisteUsuarioOperativoConDni(datos.Dni, idUsuario))
-                throw new ApplicationException("Ya existe otro usuario con ese Dni.");
+                throw new ConflictException("Ya existe otro usuario con ese Dni.");
 
             if (datos.IdVoluntaria != existente.IdVoluntaria)
             {
                 if (!db.VOLUNTARIA.AsNoTracking().Any(v => v.IdVoluntaria == datos.IdVoluntaria))
                     throw new ApplicationException("Voluntaria inexistente con ese IdVoluntaria.");
                 if (usuarioRepositorio.VoluntariaTieneUsuarioActivo(datos.IdVoluntaria, idUsuario))
-                    throw new ApplicationException("La voluntaria ya tiene un usuario asociado.");
+                    throw new ConflictException("La voluntaria ya tiene un usuario asociado.");
             }
 
             existente.Dni = datos.Dni;

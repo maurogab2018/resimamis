@@ -45,7 +45,7 @@ namespace ResimamisBackend.Negocio
             ValidarTarea(tarea);
             tarea.nombre = tarea.nombre.Trim();
             if (tareaRepositorio.existeOtraTareaConNombre(tarea.nombre))
-                throw new ApplicationException("Ya existe una tarea con ese nombre.");
+                throw new ConflictException("Ya existe una tarea con ese nombre.");
             return tareaRepositorio.registrarTarea(tarea);
         }
 
@@ -55,7 +55,7 @@ namespace ResimamisBackend.Negocio
             tarea.nombre = tarea.nombre.Trim();
             var existente = tareaRepositorio.obtenerParaModificar(idTarea);
             if (tareaRepositorio.existeOtraTareaConNombre(tarea.nombre, idTarea))
-                throw new ApplicationException("Ya existe otra tarea con ese nombre.");
+                throw new ConflictException("Ya existe otra tarea con ese nombre.");
             return tareaRepositorio.modificarTarea(tarea, existente);
         }
 
@@ -74,7 +74,7 @@ namespace ResimamisBackend.Negocio
             if (!tarea.Estado)
                 throw new ApplicationException("La tarea no está activa.");
             if (tarea.esUnica && tareaRepositorio.tareaUnicaOcupadaHoy(idTarea))
-                throw new ApplicationException($"La tarea '{tarea.nombre}' ya está asignada y aún no finalizó.");
+                throw new ConflictException($"La tarea '{tarea.nombre}' ya está asignada y aún no finalizó.");
         }
     }
 }

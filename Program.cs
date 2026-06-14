@@ -53,10 +53,8 @@ builder.Services.AddControllers()
 
             return new BadRequestObjectResult(new ApiResponse
             {
-                success = false,
-                data = null,
                 message = "Error de validación",
-                errors = errors
+                errors = errors.Count > 0 ? errors : new List<string> { "Error de validación" }
             });
         };
     });
@@ -85,8 +83,6 @@ app.UseExceptionHandler(errApp =>
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync(JsonSerializer.Serialize(new ApiResponse
         {
-            success = false,
-            data = null,
             message = "Error interno del servidor.",
             errors = new List<string> { "Error interno del servidor." }
         }));

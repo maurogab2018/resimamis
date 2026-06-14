@@ -102,7 +102,7 @@ namespace ResimamisBackend.Datos
                 }
             }
 
-            db.SaveChangesAsync();
+            db.SaveChanges();
             return madre;
 
         }

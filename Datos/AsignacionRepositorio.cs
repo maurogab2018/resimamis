@@ -104,7 +104,7 @@ namespace ResimamisBackend.Datos
         }
         public void registrarCambioaAsignacion()
         {
-            db.SaveChangesAsync();
+            db.SaveChanges();
         }
 
         public bool registrarDetalleAsignacion(List<RequestDetalleAsignacion> request)

@@ -109,7 +109,7 @@ namespace ResimamisBackend.Datos
             voluntariaModificar.Mail = voluntaria.Mail;
             voluntariaModificar.Dni = voluntaria.Dni;
             voluntariaModificar.IdEstado=voluntaria.IdEstado;
-            db.SaveChangesAsync();
+            db.SaveChanges();
             return true;
         }
         public List<VOLUNTARIA> obtenerVoluntariasLibres()
