@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
+using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Controllers
@@ -27,6 +28,10 @@ namespace ResimamisBackend.Controllers
                 var listadoMadres = neg_Madres.listarMadres();
                 return ApiResults.Success(listadoMadres);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException exa)
             {
                 return ApiResults.BadRequest(exa.Message);
@@ -46,6 +51,10 @@ namespace ResimamisBackend.Controllers
                 var resultado = neg_Madres.devolverEstadisticasLocalidades();
                 return ApiResults.Success(resultado);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException exa)
             {
                 return ApiResults.BadRequest(exa.Message);
@@ -64,6 +73,10 @@ namespace ResimamisBackend.Controllers
             {
                 var madreDni = neg_Madres.consultarMadre(Id);
                 return ApiResults.Success(madreDni);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException exa)
             {
@@ -88,6 +101,10 @@ namespace ResimamisBackend.Controllers
 
                 return ApiResults.ValidationError(resultado.Errores);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException exa)
             {
                 return ApiResults.BadRequest(exa.Message);
@@ -111,6 +128,10 @@ namespace ResimamisBackend.Controllers
 
                 return ApiResults.Success(madreActualizada);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException exa)
             {
                 return ApiResults.BadRequest(exa.Message);
@@ -130,6 +151,10 @@ namespace ResimamisBackend.Controllers
                 var ok = neg_Madres.eliminarMadre(idMadre);
                 return ApiResults.Success(ok);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException exa)
             {
                 return ApiResults.BadRequest(exa.Message);
@@ -147,6 +172,10 @@ namespace ResimamisBackend.Controllers
             {
                 var resultado = neg_Madres.devolverEstadisticasEdadesMadres();
                 return ApiResults.Success(resultado);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException exa)
             {

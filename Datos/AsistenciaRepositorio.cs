@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
@@ -139,7 +140,7 @@ namespace ResimamisBackend.Datos
                 .ThenInclude(e => e!.ambito)
                 .FirstOrDefault(a => a.IdAsistencia == idAsistencia);
             if (row == null)
-                throw new ApplicationException("Asistencia no existente con ese Id");
+                throw new NotFoundException("Asistencia no encontrada con ese Id.");
             if (EsAsistenciaEliminada(row))
                 return true;
             row.idEstado = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");

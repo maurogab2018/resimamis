@@ -26,6 +26,10 @@ namespace ResimamisBackend.Controllers
                 var resultado = negInsumos.obtenerInsumos();
                 return ApiResults.Success(resultado);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
@@ -43,8 +47,12 @@ namespace ResimamisBackend.Controllers
             {
                 var insumo = negInsumos.obtenerInsumoPorId(idInsumo);
                 if (insumo == null)
-                    return ApiResults.BadRequest("Insumo inexistente o no disponible para el ámbito Insumos.");
+                    return ApiResults.NotFound("Insumo inexistente o no disponible.");
                 return ApiResults.Success(insumo);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException ex)
             {
@@ -64,6 +72,10 @@ namespace ResimamisBackend.Controllers
                 var creado = negInsumos.registrarInsumo(insumo);
                 return ApiResults.Success(creado);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
@@ -81,6 +93,10 @@ namespace ResimamisBackend.Controllers
             {
                 var ok = negInsumos.modificarInsumo(idInsumo, insumo);
                 return ApiResults.Success(ok);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException ex)
             {
@@ -100,6 +116,10 @@ namespace ResimamisBackend.Controllers
                 var ok = negInsumos.eliminarInsumo(idInsumo);
                 return ApiResults.Success(ok);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
@@ -117,6 +137,10 @@ namespace ResimamisBackend.Controllers
             {
                 var resultado = negInsumos.obtenerMovimientos(movimientoFiltro);
                 return ApiResults.Success(resultado);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException ex)
             {
@@ -138,6 +162,10 @@ namespace ResimamisBackend.Controllers
                 var resultado = negInsumos.obtenerProveedores();
                 return ApiResults.Success(resultado);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
@@ -157,6 +185,10 @@ namespace ResimamisBackend.Controllers
                 var resultado=negInsumos.obtenerEstadisticaInsumo();
                 return ApiResults.Success(resultado);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
@@ -174,6 +206,10 @@ namespace ResimamisBackend.Controllers
             {
                 var resultado = negInsumos.registrarMovimientoInsumos(movimiento);
                 return ApiResults.Success(resultado);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException ex)
             {

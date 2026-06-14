@@ -26,14 +26,18 @@ namespace ResimamisBackend.Controllers
                 var resultado=negAsistencia.consultarAsistencia(IdVoluntaria);
                 return ApiResults.Success(resultado);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
-                return ApiResults.BadRequest(ex.Message);  
+                return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
                 return ApiResults.InternalServerError();
-            }    
+            }
         }
 
         /// <summary>Reporte de asistencias por período (días inclusive, zona Argentina). Query: fechaInicio, fechaFin (ej. 2026-01-01).</summary>
@@ -44,6 +48,10 @@ namespace ResimamisBackend.Controllers
             {
                 ReporteAsistenciaPeriodoRespuesta reporte = negAsistencia.ReporteAsistenciaPorPeriodo(fechaInicio, fechaFin);
                 return ApiResults.Success(reporte);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException ex)
             {
@@ -63,6 +71,10 @@ namespace ResimamisBackend.Controllers
                 var resultado = negAsistencia.consultarAsistenciasFechahoy();
                 return ApiResults.Success(resultado);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
@@ -80,6 +92,10 @@ namespace ResimamisBackend.Controllers
             {
                 var resultado = negAsistencia.consultarAsistenciasVoluntaria(IdVoluntaria);
                 return ApiResults.Success(resultado);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException ex)
             {
@@ -99,6 +115,10 @@ namespace ResimamisBackend.Controllers
                 var respuesta= negAsistencia.registrarAsistencia(IdVoluntaria);
                 return ApiResults.Success(respuesta);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
@@ -116,6 +136,10 @@ namespace ResimamisBackend.Controllers
             {
                 var resultado = negAsistencia.registrarAsistenciaSalida(IdVoluntaria);
                 return ApiResults.Success(resultado);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException ex)
             {
@@ -135,6 +159,10 @@ namespace ResimamisBackend.Controllers
             {
                 var ok = negAsistencia.eliminarAsistencia(idAsistencia);
                 return ApiResults.Success(ok);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException ex)
             {

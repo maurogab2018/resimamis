@@ -429,7 +429,8 @@ namespace ResimamisBackend.Negocio
                             && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null)
                             && v.Estado.nombre != "Inactiva"
                             && v.Estado.nombre != "Licencia"
-                            && v.Estado.nombre != "Carpeta médica")
+                            && v.Estado.nombre != "Carpeta médica"
+                            && v.Estado.nombre != "Creada")
                 .ToList();
         }
         

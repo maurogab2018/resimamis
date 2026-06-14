@@ -50,7 +50,7 @@ namespace ResimamisBackend.Datos
         {
             var madre = db.MADRE.Include(m => m.Bebe).FirstOrDefault(m => m.IdMadre == Dni);
             if (madre == null)
-                throw new ApplicationException("Madre no existente con ese Id");
+                throw new NotFoundException("Madre no encontrada con ese Id.");
             return madre;
         }
         public MADRE modificarMadre(MADRE madre, MADRE madreModificar)
@@ -148,7 +148,7 @@ namespace ResimamisBackend.Datos
         {
             var madre = db.MADRE.FirstOrDefault(m => m.IdMadre == idMadre);
             if (madre == null)
-                throw new ApplicationException("Madre no existente con ese Id");
+                throw new NotFoundException("Madre no encontrada con ese Id.");
 
             var idEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Madres");
             madre.IdEstado = idEliminado;

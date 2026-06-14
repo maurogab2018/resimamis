@@ -106,7 +106,7 @@ namespace ResimamisBackend.Datos
                 .ThenInclude(e => e!.ambito)
                 .FirstOrDefault(u => u.IdUsuario == idUsuario);
             if (usuario == null)
-                throw new ApplicationException("Usuario no existente con ese Id");
+                throw new NotFoundException("Usuario no encontrado con ese Id.");
             if (EsUsuarioEliminado(usuario))
                 return true;
             usuario.idEstado = estadoRepositorio.ObtenerIdEstadoEliminado("Usuarios");

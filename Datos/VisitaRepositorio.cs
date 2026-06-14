@@ -72,7 +72,7 @@ namespace ResimamisBackend.Datos
         {
             var visita = db.VISITA.FirstOrDefault(v => v.idVisita == idVisita && v.Activa);
             if (visita == null)
-                throw new ApplicationException("Visita inexistente o dada de baja.");
+                throw new NotFoundException("Visita no encontrada o dada de baja.");
             return visita;
         }
 
@@ -100,7 +100,7 @@ namespace ResimamisBackend.Datos
         {
             var visita = db.VISITA.FirstOrDefault(v => v.idVisita == idVisita);
             if (visita == null)
-                throw new ApplicationException("Visita inexistente con ese id.");
+                throw new NotFoundException("Visita no encontrada con ese id.");
             if (!visita.Activa)
                 return true;
             visita.Activa = false;

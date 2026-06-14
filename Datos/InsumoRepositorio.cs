@@ -86,7 +86,7 @@ namespace ResimamisBackend.Datos
                 .ThenInclude(e => e!.ambito)
                 .FirstOrDefault(i => i.idInsumo == idInsumo);
             if (insumo == null)
-                throw new ApplicationException("Insumo con ese id inexistente");
+                throw new NotFoundException("Insumo no encontrado con ese id.");
             if (!EsInsumoVisibleLista(insumo))
                 throw new ApplicationException("Insumo no disponible o dado de baja.");
             return insumo;
@@ -99,7 +99,7 @@ namespace ResimamisBackend.Datos
                 .ThenInclude(e => e!.ambito)
                 .FirstOrDefault(i => i.idInsumo == idInsumo);
             if (insumo == null)
-                throw new ApplicationException("Insumo con ese id inexistente");
+                throw new NotFoundException("Insumo no encontrado con ese id.");
             if (insumo.Estado != null && insumo.Estado.ambito?.nombre == "Insumos" && insumo.Estado.nombre == "Eliminado")
                 throw new ApplicationException("No se puede modificar un insumo dado de baja.");
             return insumo;
@@ -140,7 +140,7 @@ namespace ResimamisBackend.Datos
         {
             var insumo = db.INSUMO.FirstOrDefault(i => i.idInsumo == idInsumo);
             if (insumo == null)
-                throw new ApplicationException("Insumo con ese id inexistente");
+                throw new NotFoundException("Insumo no encontrado con ese id.");
             insumo.idEstado = estadoRepositorio.ObtenerIdEstadoEliminado("Insumos");
             db.SaveChanges();
             return true;

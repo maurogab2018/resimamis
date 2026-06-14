@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
+using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Controllers
@@ -23,6 +24,10 @@ namespace ResimamisBackend.Controllers
                 var listadoVoluntaria = negVoluntaria.listarVoluntarias();
                 return ApiResults.Success(listadoVoluntaria);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException exa)
             {
                 return ApiResults.BadRequest(exa.Message);
@@ -42,6 +47,10 @@ namespace ResimamisBackend.Controllers
                 var listadoVoluntariasLibres = negVoluntaria.listarVoluntariasLibres1();
                 return ApiResults.Success(listadoVoluntariasLibres);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException exa)
             {
                 return ApiResults.BadRequest(exa.Message);
@@ -58,7 +67,11 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var listadoEstadosVoluntarias = negVoluntaria.devolverEstadosVoluntarias();
-                return ApiResults.Success(listadoEstadosVoluntarias.Select(e=> new {idEstado=e.idEstado,nombre=e.nombre,descripcion=e.descripcion,idAmbito=e.idAmbito}));
+                return ApiResults.Success(listadoEstadosVoluntarias.Select(e=> new {idEstado=e.idEstado,nombre=e.nombre,descripcion=e.descripcion,idAmbito=e.idAmbito}).ToList());
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException exa)
             {
@@ -79,6 +92,10 @@ namespace ResimamisBackend.Controllers
                 var voluntariaDni = negVoluntaria.consultarVoluntaria(Id);
                 return ApiResults.Success(voluntariaDni);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException exa)
             {
                 return ApiResults.BadRequest(exa.Message);
@@ -97,6 +114,10 @@ namespace ResimamisBackend.Controllers
             {
                 var resultado = negVoluntaria.modificarVoluntaria(voluntaria,Id);
                 return ApiResults.Success(resultado);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException exa)
             {
@@ -118,6 +139,10 @@ namespace ResimamisBackend.Controllers
                 var registroVoluntaria = negVoluntaria.eliminarVoluntaria(idVoluntaria);
                 return ApiResults.Success(registroVoluntaria);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException exa)
             {
                 return ApiResults.BadRequest(exa.Message);
@@ -135,6 +160,10 @@ namespace ResimamisBackend.Controllers
             {
                 var registroVoluntaria = negVoluntaria.registrarVoluntaria(voluntaria);
                 return ApiResults.Success(registroVoluntaria);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException exa)
             {

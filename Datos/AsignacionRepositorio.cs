@@ -25,7 +25,7 @@ namespace ResimamisBackend.Datos
         {
             var asignacion = db.ASIGNACION.FirstOrDefault(a => a.idAsignacion == idAsignacion);
             if (asignacion == null)
-                throw new ApplicationException("Asignación con ese id inexistente");
+                throw new NotFoundException("Asignación no encontrada con ese id.");
             return asignacion;
         }
 

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
@@ -31,7 +32,7 @@ namespace ResimamisBackend.Datos
             return db.ESTADO
                 .AsNoTracking()
                 .Include(e => e.ambito)
-                .Where(e => e.nombre == "Eliminado" && e.ambito.nombre == "Asistencias")
+                .Where(e => e.nombre == "Eliminado" && e.ambito.nombre == "Asignaciones")
                 .Select(e => (int?)e.idEstado)
                 .FirstOrDefault();
         }
@@ -50,9 +51,13 @@ namespace ResimamisBackend.Datos
             return db.SALA.ToList();
         }
         public bool registrarBebe(BEBE bebe) {
-            var existeBebe = db.BEBE.FirstOrDefault(b => b.Dni == bebe.Dni);
-            if(existeBebe!=null)
-                throw new ApplicationException("Bebe existente con ese Dni");
+            if (bebe.Dni.HasValue)
+            {
+                var existeBebe = db.BEBE.FirstOrDefault(b => b.Dni == bebe.Dni);
+                if (existeBebe != null)
+                    throw new ApplicationException("Bebe existente con ese Dni");
+            }
+            bebe.IdEstado = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Sin abrazar", "Bebes");
             db.BEBE.Add(bebe);
             db.SaveChanges();
             return true;
@@ -61,7 +66,7 @@ namespace ResimamisBackend.Datos
         {
             var bebe = db.BEBE.FirstOrDefault(b => b.ID == id);
             if (bebe == null)
-                throw new ApplicationException("Bebe no existente con ese Id");
+                throw new NotFoundException("Bebé no encontrado con ese Id.");
             return bebe;
         }
 
@@ -90,7 +95,7 @@ namespace ResimamisBackend.Datos
         {
             var bebe = db.BEBE.FirstOrDefault(b => b.ID == idBebe);
             if (bebe == null)
-                throw new ApplicationException("Bebe no existente con ese Id");
+                throw new NotFoundException("Bebé no encontrado con ese Id.");
 
             var idEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Bebes");
             bebe.IdEstado = idEliminado;

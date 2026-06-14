@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
+using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Controllers
@@ -19,15 +20,37 @@ namespace ResimamisBackend.Controllers
         [HttpGet]
         public IActionResult Get()
         {
-            var lista = neg_Bebes.listarBebes();
-            return ApiResults.Success(lista);
+            try
+            {
+                var lista = neg_Bebes.listarBebes();
+                return ApiResults.Success(lista);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError();
+            }
         }
 
         [HttpGet("listarSalas")]
         public IActionResult ListarSalas()
         {
-            var lista = neg_Bebes.listarSalas();
-            return ApiResults.Success(lista);
+            try
+            {
+                var lista = neg_Bebes.listarSalas();
+                return ApiResults.Success(lista);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError();
+            }
         }
 
         [HttpGet("id/{Dni}")]
@@ -37,7 +60,10 @@ namespace ResimamisBackend.Controllers
             {
                 var bebeDni = neg_Bebes.consultarBebe(Dni);
                 return ApiResults.Success(bebeDni);
-
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException ex)
             {
@@ -77,6 +103,10 @@ namespace ResimamisBackend.Controllers
                 var respuesta = neg_Bebes.registrarBebe(bebe);
                 return ApiResults.Success(respuesta);
             }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
@@ -94,7 +124,11 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta=neg_Bebes.modificarBebe(bebe);
-                return ApiResults.Success(respuesta);    
+                return ApiResults.Success(respuesta);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException ex)
             {
@@ -104,7 +138,6 @@ namespace ResimamisBackend.Controllers
             {
                 return ApiResults.InternalServerError();
             }
-
         }
 
         [HttpPost("delete")]
@@ -114,6 +147,10 @@ namespace ResimamisBackend.Controllers
             {
                 var ok = neg_Bebes.eliminarBebe(idBebe);
                 return ApiResults.Success(ok);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException ex)
             {

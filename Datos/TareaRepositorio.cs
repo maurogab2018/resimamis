@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
@@ -92,7 +93,7 @@ namespace ResimamisBackend.Datos
         {
             var tarea = db.TAREA.FirstOrDefault(t => t.idTarea == idTarea);
             if (tarea == null)
-                throw new ApplicationException("Tarea inexistente con ese id.");
+                throw new NotFoundException("Tarea no encontrada con ese id.");
             return tarea;
         }
 

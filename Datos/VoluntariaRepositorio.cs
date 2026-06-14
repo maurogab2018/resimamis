@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
@@ -65,7 +66,7 @@ namespace ResimamisBackend.Datos
                 .FirstOrDefault(m => m.IdVoluntaria == Dni);
             //voluntaria.rol = voluntaria.RolInfo.Nombre;
             if (voluntaria == null)
-                throw new ApplicationException("Voluntaria no existente con ese Id");
+                throw new NotFoundException("Voluntaria no encontrada con ese Id.");
             //var estado = db.ESTADO.SingleOrDefault(e => e.idEstado == voluntaria.IdEstado).nombre;
             //if (estado != null)
             //    voluntaria.estadoVoluntaria = estado;
@@ -93,7 +94,7 @@ namespace ResimamisBackend.Datos
             var voluntaria = db.VOLUNTARIA.FirstOrDefault(m => m.IdVoluntaria == dni);
 
             if (voluntaria == null)
-                throw new ApplicationException("Voluntaria no existente con ese Id");
+                throw new NotFoundException("Voluntaria no encontrada con ese Id.");
             voluntaria.IdEstado = estadoRepositorio.ObtenerIdEstadoEliminado("Voluntarias");
             db.SaveChanges();
             return true;
@@ -119,7 +120,7 @@ namespace ResimamisBackend.Datos
             var idElimAsist = IdEstadoEliminadoAsistencias();
             var voluntariasLibres = db.VOLUNTARIA.Include(v => v.RolInfo).Include(v => v.Estado).Where(v =>
                 (idEl == null || v.IdEstado != idEl)
-                && v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null && (idElimAsist == null || a.idEstado != idElimAsist)) && v.Estado != null && v.Estado.nombre != "Eliminado" && v.Estado.nombre!="Inactiva" && v.Estado.nombre != "Licencia" && v.Estado.nombre != "Carpeta médica").Select(v=> new VOLUNTARIA()
+                && v.Asistencias != null && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null && (idElimAsist == null || a.idEstado != idElimAsist)) && v.Estado != null && v.Estado.nombre != "Eliminado" && v.Estado.nombre != "Inactiva" && v.Estado.nombre != "Licencia" && v.Estado.nombre != "Carpeta médica" && v.Estado.nombre != "Creada").Select(v=> new VOLUNTARIA()
             {
                 IdVoluntaria= v.IdVoluntaria,
                 Dni= v.Dni,
