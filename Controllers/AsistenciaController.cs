@@ -51,7 +51,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.ServerError(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
         }
 
@@ -69,7 +69,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.ServerError(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
         }
 
@@ -87,7 +87,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.ServerError(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
         }
 
@@ -105,7 +105,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.ServerError(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
         }
 
@@ -123,7 +123,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.ServerError(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
         }
 
@@ -142,7 +142,7 @@ namespace ResimamisBackend.Controllers
             }
             catch (Exception ex)
             {
-                return ApiResults.ServerError(ex.Message);
+                return ApiResults.BadRequest(ex.Message);
             }
         }
     }

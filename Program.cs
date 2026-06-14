@@ -50,11 +50,11 @@ builder.Services.AddControllers()
                 .Where(msg => !string.IsNullOrWhiteSpace(msg))
                 .ToList();
 
-            return new BadRequestObjectResult(new ApiResponse
+            return new OkObjectResult(new ApiResponse
             {
                 success = false,
                 data = null,
-                message = "Error de validación",
+                message = "Error de validaci?n",
                 errors = errors
             });
         };

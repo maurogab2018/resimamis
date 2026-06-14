@@ -5,26 +5,19 @@ namespace ResimamisBackend.Controllers
 {
     public static class ApiResults
     {
+        /// <summary>Respuesta exitosa. HTTP 200.</summary>
         public static IActionResult Success(object? data, string? message = null) =>
             new OkObjectResult(Build(true, data, message, Array.Empty<string>()));
 
+        /// <summary>Error de negocio/validación. HTTP 200 con success=false.</summary>
         public static IActionResult BadRequest(string message, IEnumerable<string>? errors = null) =>
-            new BadRequestObjectResult(Build(false, null, message, NormalizeErrors(message, errors)));
-
-        public static IActionResult Error(int statusCode, string message, IEnumerable<string>? errors = null) =>
-            new ObjectResult(Build(false, null, message, NormalizeErrors(message, errors)))
-            {
-                StatusCode = statusCode
-            };
-
-        public static IActionResult ServerError(string message) =>
-            Error(500, message);
+            new OkObjectResult(Build(false, null, message, NormalizeErrors(message, errors)));
 
         public static IActionResult ValidationError(IEnumerable<string> errors)
         {
             var list = errors?.Where(e => !string.IsNullOrWhiteSpace(e)).ToList() ?? new List<string>();
             var message = list.FirstOrDefault() ?? "Error de validación";
-            return Error(500, message, list);
+            return BadRequest(message, list);
         }
 
         private static ApiResponse Build(bool success, object? data, string? message, IEnumerable<string> errors) =>
