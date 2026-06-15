@@ -623,6 +623,7 @@ namespace ResimamisBackend.Negocio
             var a = db.ASIGNACION
                 .Include(x => x.voluntaria)
                 .Include(x => x.bebe)
+                .Include(x => x.tarea)
                 .Include(x => x.estado)
                 .FirstOrDefault(x => x.idAsignacion == idAsignacion);
             if (a == null)
