@@ -29,6 +29,39 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("La asignación fue eliminada.");
         }
 
+        private static string NombreCompletoVoluntaria(VOLUNTARIA? voluntaria) =>
+            voluntaria == null ? string.Empty : $"{voluntaria.Nombre} {voluntaria.Apellido}".Trim();
+
+        private List<DetalleAsignacionResumido> ObtenerDetallesResumidos(int idAsignacion) =>
+            db.DETALLEASIGNACION
+                .Where(d => d.idAsignacion == idAsignacion)
+                .Select(d => new DetalleAsignacionResumido
+                {
+                    cantidad = d.cantidad,
+                    idInsumo = d.idInsumo,
+                    nombreInsumo = d.nombreInsumo ?? string.Empty,
+                    fechaEntrega = d.fechaEntrega
+                })
+                .ToList();
+
+        private RespuestaAsignaciones MapearRespuestaAsignacion(ASIGNACION a) =>
+            new()
+            {
+                idAsignacion = a.idAsignacion,
+                idTarea = a.idTarea,
+                idBebe = a.idBebe,
+                idVoluntaria = a.idVoluntaria,
+                nombreBebe = a.bebe?.nombre,
+                nombreTarea = a.tarea?.nombre,
+                nombreVoluntaria = NombreCompletoVoluntaria(a.voluntaria),
+                fechaHoraAsignacion = a.fechaHoraAsignacion,
+                fechaHoraFin = a.fechaHoraFin,
+                fechaHoraInicio = a.fechaHoraInicio,
+                estadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
+                sala = a.bebe?.IdSala,
+                detalles = ObtenerDetallesResumidos(a.idAsignacion)
+            };
+
 
         public List<RespuestaAsignaciones> generarAsiganacionTareas(RequestAsignacionTareas requestAsignacion)
         {
@@ -441,25 +474,20 @@ namespace ResimamisBackend.Negocio
             if (asignacion.fechaHoraInicio != null)
                 throw new ConflictException("Abrazo ya inicializado");
 
-            var nombreEstadoVoluntaria = asignacion.idBebe.HasValue ? "Abrazando" : "Ayudando";
-
-            var estado = db.ESTADO.FirstOrDefault(e => e.nombre == nombreEstadoVoluntaria && e.ambito.nombre == "Voluntarias");
-            if (estado == null)
-                throw new Exception($"Estado '{nombreEstadoVoluntaria}' (Voluntarias) no configurado en la base de datos.");
+            var idEstadoVoluntaria = asignacion.idBebe.HasValue
+                ? estadoRepositorio.ObtenerIdVoluntariaAbrazando()
+                : estadoRepositorio.ObtenerIdVoluntariaEnTarea();
 
             var voluntariaAsignacion = voluntariaRepositorio.consultarVoluntaria(asignacion.idVoluntaria);
-            voluntariaAsignacion.IdEstado = estado.idEstado;
+            voluntariaAsignacion.IdEstado = idEstadoVoluntaria;
             voluntariaRepositorio.cambioEstadoVoluntaria(voluntariaAsignacion);
 
             if (asignacion.idBebe.HasValue)
             {
-                var estadoBebe = db.ESTADO.FirstOrDefault(e => e.nombre == "Abrazado" && e.ambito.nombre == "Bebes");
-                if (estadoBebe == null)
-                    throw new Exception("Estado 'Abrazado' (Bebes) no configurado en la base de datos.");
-
+                var idEstadoBebeAbrazado = estadoRepositorio.ObtenerIdBebeAbrazado();
                 var bebeAbrazado = bebeRepositorio.consultarBebe(asignacion.idBebe.Value);
-                bebeAbrazado.IdEstado = estadoBebe.idEstado;
-                bebeRepositorio.cambioEstadoBebe(bebeAbrazado, estadoBebe.idEstado);
+                bebeAbrazado.IdEstado = idEstadoBebeAbrazado;
+                bebeRepositorio.cambioEstadoBebe(bebeAbrazado, idEstadoBebeAbrazado);
             }
 
             asignacion.fechaHoraInicio = NegConversorFecha.ObtenerFechaArgentina();
@@ -478,24 +506,18 @@ namespace ResimamisBackend.Negocio
             if (asignacion.fechaHoraFin != null)
                 throw new ConflictException("Abrazo ya fue finalizado");
 
-            var estado = db.ESTADO.FirstOrDefault(e => e.nombre == "Activa" && e.ambito.nombre == "Voluntarias");
-            if (estado == null)
-                throw new Exception("Estado 'Activa' (Voluntarias) no configurado en la base de datos.");
+            var idVolDisponible = estadoRepositorio.ObtenerIdVoluntariaDisponible();
 
             var voluntariaAsignacion = voluntariaRepositorio.consultarVoluntaria(asignacion.idVoluntaria);
-            voluntariaAsignacion.IdEstado = estado.idEstado;
+            voluntariaAsignacion.IdEstado = idVolDisponible;
             voluntariaRepositorio.cambioEstadoVoluntaria(voluntariaAsignacion);
 
             if (asignacion.idBebe.HasValue)
             {
-                // El bebé es seteado a "Sin abrazar" al finalizar el turno
-                var estadoBebe = db.ESTADO.FirstOrDefault(e => e.nombre == "Sin abrazar" && e.ambito.nombre == "Bebes");
-                if (estadoBebe == null)
-                    throw new Exception("Estado 'Sin abrazar' (Bebes) no configurado en la base de datos.");
-
+                var idBebeSinAbrazar = estadoRepositorio.ObtenerIdBebeSinAbrazar();
                 var bebeAbrazado = bebeRepositorio.consultarBebe(asignacion.idBebe.Value);
-                bebeAbrazado.IdEstado = estadoBebe.idEstado;
-                bebeRepositorio.cambioEstadoBebe(bebeAbrazado, estadoBebe.idEstado);
+                bebeAbrazado.IdEstado = idBebeSinAbrazar;
+                bebeRepositorio.cambioEstadoBebe(bebeAbrazado, idBebeSinAbrazar);
             }
 
             asignacion.fechaHoraFin = NegConversorFecha.ObtenerFechaArgentina();
@@ -507,33 +529,27 @@ namespace ResimamisBackend.Negocio
 
         /// <summary>
         /// Cierra asignaciones con bebé donde el abrazo se inició antes del día calendario actual en Argentina
-        /// (<see cref="NegConversorFecha.RangoDiaHoyArgentinaEnUtc"/>) y nunca se finalizó: bebé a Sin abrazar,
-        /// voluntaria a Activa, asignación con fechaHoraFin y comentario de sistema. Idempotente sobre vacío.
+        /// y nunca se finalizó: bebé a Sin abrazar, voluntaria a Disponible/Activa, asignación con fechaHoraFin.
         /// </summary>
         /// <returns>Cantidad de asignaciones actualizadas.</returns>
         public int ResetearAbrazosBebeColgadosAntesDeHoy()
         {
             var (inicioHoyUtc, _) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
             var idElimAsig = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+            var idVolDisponible = estadoRepositorio.ObtenerIdVoluntariaDisponible();
+            var idBebeSinAbrazar = estadoRepositorio.ObtenerIdBebeSinAbrazar();
 
-            var ids = db.ASIGNACION
-                .AsNoTracking()
+            var asignaciones = db.ASIGNACION
                 .Where(a =>
                     a.idBebe != null
                     && a.fechaHoraInicio != null
                     && a.fechaHoraFin == null
                     && a.fechaHoraInicio < inicioHoyUtc
                     && a.idEstado != idElimAsig)
-                .Select(a => a.idAsignacion)
                 .ToList();
 
-            if (ids.Count == 0)
+            if (asignaciones.Count == 0)
                 return 0;
-
-            var estadoVolActiva = db.ESTADO.FirstOrDefault(e => e.nombre == "Activa" && e.ambito.nombre == "Voluntarias")
-                ?? throw new Exception("Estado 'Activa' (Voluntarias) no configurado en la base de datos.");
-            var estadoBebeSinAbrazar = db.ESTADO.FirstOrDefault(e => e.nombre == "Sin abrazar" && e.ambito.nombre == "Bebes")
-                ?? throw new Exception("Estado 'Sin abrazar' (Bebes) no configurado en la base de datos.");
 
             const string comentarioAuto = "Cierre automático: abrazo iniciado en día anterior sin finalizar.";
             var ahora = NegConversorFecha.ObtenerFechaArgentina();
@@ -541,14 +557,19 @@ namespace ResimamisBackend.Negocio
             using var tx = db.Database.BeginTransaction();
             try
             {
-                foreach (var id in ids)
+                foreach (var asignacion in asignaciones)
                 {
-                    var asignacion = db.ASIGNACION.First(a => a.idAsignacion == id);
-                    var vol = db.VOLUNTARIA.First(v => v.IdVoluntaria == asignacion.idVoluntaria);
-                    var bebe = db.BEBE.First(b => b.ID == asignacion.idBebe!.Value);
+                    var vol = db.VOLUNTARIA.FirstOrDefault(v => v.IdVoluntaria == asignacion.idVoluntaria);
+                    if (vol != null)
+                        vol.IdEstado = idVolDisponible;
 
-                    vol.IdEstado = estadoVolActiva.idEstado;
-                    bebe.IdEstado = estadoBebeSinAbrazar.idEstado;
+                    if (asignacion.idBebe.HasValue)
+                    {
+                        var bebe = db.BEBE.FirstOrDefault(b => b.ID == asignacion.idBebe.Value);
+                        if (bebe != null)
+                            bebe.IdEstado = idBebeSinAbrazar;
+                    }
+
                     asignacion.fechaHoraFin = ahora;
                     asignacion.comentario = string.IsNullOrWhiteSpace(asignacion.comentario)
                         ? comentarioAuto
@@ -559,7 +580,7 @@ namespace ResimamisBackend.Negocio
 
                 db.SaveChanges();
                 tx.Commit();
-                return ids.Count;
+                return asignaciones.Count;
             }
             catch
             {
@@ -609,52 +630,15 @@ namespace ResimamisBackend.Negocio
 
             AsegurarAsignacionNoEliminada(a);
 
-            return new RespuestaAsignaciones
-            {
-                idAsignacion = a.idAsignacion,
-                idTarea = a.idTarea,
-                idBebe = a.idBebe,
-                idVoluntaria = a.idVoluntaria,
-                nombreBebe = a.bebe?.nombre,
-                nombreVoluntaria = a.voluntaria != null ? $"{a.voluntaria.Nombre} {a.voluntaria.Apellido}" : "",
-                fechaHoraAsignacion = a.fechaHoraAsignacion,
-                fechaHoraFin = a.fechaHoraFin,
-                fechaHoraInicio = a.fechaHoraInicio,
-                estadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
-                sala = a.bebe?.IdSala,
-                detalles = db.DETALLEASIGNACION.Where(d => d.idAsignacion == a.idAsignacion).Select(d => new DetalleAsignacionResumido
-                {
-                    cantidad = d.cantidad,
-                    idInsumo = d.idInsumo,
-                    nombreInsumo = d.nombreInsumo,
-                    fechaEntrega = d.fechaEntrega!.Value
-                }).ToList()
-            };
+            return MapearRespuestaAsignacion(a);
         }
 
 
         public List<RespuestaAsignaciones>? listarAsignacionesHoy()
         {
-            var asignacionesHoy = asignacionRepositorio.listarAsignacionesHoy().Select(a => new RespuestaAsignaciones()
-            {
-                idAsignacion = a.idAsignacion,
-                idBebe = a.idBebe,
-                idVoluntaria = a.idVoluntaria,
-                nombreBebe = a.bebe.nombre,
-                nombreVoluntaria = a.voluntaria.Nombre +" "+a.voluntaria.Apellido,
-                fechaHoraAsignacion = a.fechaHoraAsignacion,
-                fechaHoraFin = a.fechaHoraFin,
-                fechaHoraInicio = a.fechaHoraInicio,
-                estadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
-                sala = a.bebe.IdSala,
-                detalles = db.DETALLEASIGNACION.Where(d=>d.idAsignacion==a.idAsignacion).Select(a => new DetalleAsignacionResumido()
-                {
-                    cantidad = a.cantidad,
-                    idInsumo= a.idInsumo,
-                    nombreInsumo= a.nombreInsumo,
-                    fechaEntrega=a.fechaEntrega.Value
-                }).ToList()
-            }).ToList();
+            var asignacionesHoy = asignacionRepositorio.listarAsignacionesHoy()
+                .Select(MapearRespuestaAsignacion)
+                .ToList();
 
             asignacionRepositorio.devolverDuracionesAbrazos();
 
@@ -669,26 +653,9 @@ namespace ResimamisBackend.Negocio
         }
         public List<RespuestaAsignaciones> listarAsignacionesHoyVoluntaria(int idVoluntaria)
         {
-            var asignacionesHoy = asignacionRepositorio.listarAsignacionesHoyVoluntaria(idVoluntaria).Select(a => new RespuestaAsignaciones()
-            {
-                idAsignacion = a.idAsignacion,
-                idBebe = a.idBebe,
-                idVoluntaria = a.idVoluntaria,
-                nombreBebe = a.bebe.nombre,
-                nombreVoluntaria = a.voluntaria.Nombre + " " + a.voluntaria.Apellido,
-                fechaHoraAsignacion = a.fechaHoraAsignacion,
-                fechaHoraFin = a.fechaHoraFin,
-                fechaHoraInicio = a.fechaHoraInicio,
-                estadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
-                sala=a.bebe.IdSala,
-                detalles = db.DETALLEASIGNACION.Where(d => d.idAsignacion == a.idAsignacion).Select(a => new DetalleAsignacionResumido()
-                {
-                    cantidad = a.cantidad,
-                    idInsumo = a.idInsumo,
-                    nombreInsumo = a.nombreInsumo,
-                    fechaEntrega = a.fechaEntrega.Value
-                }).ToList()
-            }).ToList();
+            var asignacionesHoy = asignacionRepositorio.listarAsignacionesHoyVoluntaria(idVoluntaria)
+                .Select(MapearRespuestaAsignacion)
+                .ToList();
             if (asignacionesHoy.Count == 0)
                 throw new ApplicationException("No hay asignaciones en el día de hoy");
             return asignacionesHoy;

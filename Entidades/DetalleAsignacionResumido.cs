@@ -9,7 +9,7 @@ namespace ResimamisBackend.Entidades
 
         public string nombreInsumo { get; set; }
 
-        public DateTime fechaEntrega { get;set; }
+        public DateTime? fechaEntrega { get; set; }
 
     }
 }

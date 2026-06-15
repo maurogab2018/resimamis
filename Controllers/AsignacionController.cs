@@ -360,7 +360,6 @@ namespace ResimamisBackend.Controllers
             }
         }
 
-        /// <summary>Cierra abrazos colgados: iniciados antes de hoy (AR) sin finalizar. Bebé → Sin abrazar, voluntaria → Activa.</summary>
         [HttpPost("resetearAbrazosColgados")]
         public IActionResult PostResetearAbrazosColgados()
         {

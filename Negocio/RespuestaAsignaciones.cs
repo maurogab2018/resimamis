@@ -13,6 +13,8 @@ namespace ResimamisBackend.Negocio
 
         public string? nombreBebe { get; set; }
 
+        public string? nombreTarea { get; set; }
+
 
         public int idVoluntaria{ get; set; }
 
