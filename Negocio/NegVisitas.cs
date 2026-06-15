@@ -72,12 +72,27 @@ namespace ResimamisBackend.Negocio
             return visitaRepositorio.listarVisitasPorBebe(idBebe);
         }
 
-        public VISITA consultarVisita(int idVisita)
+        public VisitaListado consultarVisita(int idVisita)
         {
             var visita = visitaRepositorio.obtenerPorId(idVisita);
             if (visita == null)
                 throw new NotFoundException("Visita inexistente o dada de baja.");
-            return visita;
+
+            return new VisitaListado
+            {
+                idVisita = visita.idVisita,
+                idBebe = visita.idBebe,
+                nombreBebe = visita.Bebe?.nombre,
+                apellidoBebe = visita.Bebe?.apellido,
+                nombreVisitante = visita.nombreVisitante,
+                familiar = visita.familiar,
+                fechaHoraVisita = visita.fechaHoraVisita,
+                observacion = visita.observacion,
+                documentoVisitante = visita.documentoVisitante,
+                telefonoVisitante = visita.telefonoVisitante,
+                activa = visita.Activa,
+                fechaRegistro = visita.fechaRegistro
+            };
         }
 
         public VISITA registrarVisita(VISITA visita)
@@ -96,12 +111,20 @@ namespace ResimamisBackend.Negocio
 
         public bool modificarVisita(int idVisita, VISITA visita)
         {
+            if (visita == null)
+                throw new ApplicationException("Visita inválida.");
+
+            var existente = visitaRepositorio.obtenerParaModificar(idVisita);
+
+            // El front suele enviar el PUT sin idBebe; conservar el de la visita existente.
+            if (visita.idBebe <= 0)
+                visita.idBebe = existente.idBebe;
+
             ValidarVisita(visita);
             AsegurarBebeValido(visita.idBebe);
             visita.observacion = string.IsNullOrWhiteSpace(visita.observacion)
                 ? null
                 : visita.observacion.Trim();
-            var existente = visitaRepositorio.obtenerParaModificar(idVisita);
             return visitaRepositorio.modificarVisita(visita, existente);
         }
 
