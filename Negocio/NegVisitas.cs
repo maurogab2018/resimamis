@@ -15,6 +15,30 @@ namespace ResimamisBackend.Negocio
             bebeRepositorio = new BebeRepositorio();
         }
 
+        private static void CombinarVisitaParaModificar(VISITA datos, VISITA existente)
+        {
+            if (datos.idBebe <= 0)
+                datos.idBebe = existente.idBebe;
+
+            if (string.IsNullOrWhiteSpace(datos.nombreVisitante))
+                datos.nombreVisitante = existente.nombreVisitante;
+
+            if (string.IsNullOrWhiteSpace(datos.familiar))
+                datos.familiar = existente.familiar;
+
+            if (datos.fechaHoraVisita == default)
+                datos.fechaHoraVisita = existente.fechaHoraVisita;
+
+            if (datos.observacion == null)
+                datos.observacion = existente.observacion;
+
+            if (datos.documentoVisitante == null)
+                datos.documentoVisitante = existente.documentoVisitante;
+
+            if (datos.telefonoVisitante == null)
+                datos.telefonoVisitante = existente.telefonoVisitante;
+        }
+
         private static void ValidarVisita(VISITA visita)
         {
             if (visita == null)
@@ -115,10 +139,7 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("Visita inválida.");
 
             var existente = visitaRepositorio.obtenerParaModificar(idVisita);
-
-            // El front suele enviar el PUT sin idBebe; conservar el de la visita existente.
-            if (visita.idBebe <= 0)
-                visita.idBebe = existente.idBebe;
+            CombinarVisitaParaModificar(visita, existente);
 
             ValidarVisita(visita);
             AsegurarBebeValido(visita.idBebe);

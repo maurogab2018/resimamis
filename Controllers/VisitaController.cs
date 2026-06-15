@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
+using System.Text.Json;
 
 namespace ResimamisBackend.Controllers
 {
@@ -16,6 +17,22 @@ namespace ResimamisBackend.Controllers
         public VisitaController()
         {
             negVisitas = new NegVisitas();
+        }
+
+        private static readonly JsonSerializerOptions VisitaJsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+        private static VISITA LeerVisitaDesdeBody(JsonElement body)
+        {
+            var payload = body.ValueKind == JsonValueKind.Object && body.TryGetProperty("data", out var data)
+                ? data
+                : body;
+
+            return JsonSerializer.Deserialize<VISITA>(payload.GetRawText(), VisitaJsonOptions)
+                ?? throw new ApplicationException("Visita inválida.");
         }
 
         /// <summary>Listado general de visitas activas (incluye datos del bebé).</summary>
@@ -87,10 +104,11 @@ namespace ResimamisBackend.Controllers
         }
 
         [HttpPost]
-        public IActionResult Post(VISITA visita)
+        public IActionResult Post([FromBody] JsonElement body)
         {
             try
             {
+                var visita = LeerVisitaDesdeBody(body);
                 var creada = negVisitas.registrarVisita(visita);
                 return ApiResults.Success(creada);
             }
@@ -109,10 +127,11 @@ namespace ResimamisBackend.Controllers
         }
 
         [HttpPut("id/{idVisita}")]
-        public IActionResult Put(int idVisita, VISITA visita)
+        public IActionResult Put(int idVisita, [FromBody] JsonElement body)
         {
             try
             {
+                var visita = LeerVisitaDesdeBody(body);
                 var ok = negVisitas.modificarVisita(idVisita, visita);
                 return ApiResults.Success(ok);
             }
