@@ -654,12 +654,9 @@ namespace ResimamisBackend.Negocio
         }
         public List<RespuestaAsignaciones> listarAsignacionesHoyVoluntaria(int idVoluntaria)
         {
-            var asignacionesHoy = asignacionRepositorio.listarAsignacionesHoyVoluntaria(idVoluntaria)
+            return asignacionRepositorio.listarAsignacionesHoyVoluntaria(idVoluntaria)
                 .Select(MapearRespuestaAsignacion)
                 .ToList();
-            if (asignacionesHoy.Count == 0)
-                throw new ApplicationException("No hay asignaciones en el día de hoy");
-            return asignacionesHoy;
         }
 
         public bool registrarDetalleAsignacion(List<RequestDetalleAsignacion> request)

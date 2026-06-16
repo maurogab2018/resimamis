@@ -56,7 +56,7 @@ namespace ResimamisBackend.Datos
             return true;
         }
 
-        public bool consultarAsistencia(int idVoluntaria)
+        public ASISTENCIA? consultarAsistencia(int idVoluntaria)
         {
             var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
@@ -69,7 +69,9 @@ namespace ResimamisBackend.Datos
                     && a.FechaHoraIngreso < finDia
                     && a.IdVoluntaria == idVoluntaria
                     && (a.idEstado == null || a.idEstado != idElim));
-            return asistenciaHoy != null && EsAsistenciaOperativa(asistenciaHoy);
+            if (asistenciaHoy == null || !EsAsistenciaOperativa(asistenciaHoy))
+                return null;
+            return asistenciaHoy;
         }
 
         public bool registrarAsistenciaSalida(int idVoluntaria)
@@ -88,7 +90,7 @@ namespace ResimamisBackend.Datos
                     && a.FechaHoraSalida == null
                     && (a.idEstado == null || a.idEstado != idElim));
             if (asistenciaHoy == null || !EsAsistenciaOperativa(asistenciaHoy))
-                throw new Exception("No existe un registro de asistencia para hoy o ya fue registrado");
+                throw new ApplicationException("No existe un registro de asistencia para hoy o ya fue registrada la salida");
             asistenciaHoy.FechaHoraSalida = fechaHoy;
             db.SaveChanges();
             return true;
@@ -111,8 +113,6 @@ namespace ResimamisBackend.Datos
                 .OrderBy(a => a.FechaHoraIngreso)
                 .ThenBy(a => a.IdVoluntaria)
                 .ToList();
-            if (listaAsistencias.Count == 0)
-                throw new Exception("No existes asistencias para la fecha");
             return listaAsistencias;
         }
 
@@ -128,8 +128,6 @@ namespace ResimamisBackend.Datos
                     && (a.idEstado == null || a.idEstado != idElim))
                 .OrderByDescending(a => a.FechaHoraIngreso)
                 .ToList();
-            if (listaAsistencias.Count == 0)
-                throw new Exception("No existes asistencias para esa voluntaria");
             return listaAsistencias;
         }
 

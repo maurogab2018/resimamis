@@ -14,7 +14,7 @@ namespace ResimamisBackend.Datos
         public string descripcion { get; set; }
 
         public int idAmbito { get; set; }
-        public virtual AMBITO ambito { get; set; }
+        public virtual AMBITO? ambito { get; set; }
 
         [JsonIgnore]
         public ICollection<BEBE>? Bebes { get; set; }

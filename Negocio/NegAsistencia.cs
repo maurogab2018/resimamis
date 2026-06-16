@@ -26,7 +26,7 @@ namespace ResimamisBackend.Negocio
             asistencia.FechaHoraSalida = null;
             return repositorioAsistencia.registrarAsistencia(asistencia);
         }
-        public bool consultarAsistencia(int idVoluntaria)
+        public ASISTENCIA? consultarAsistencia(int idVoluntaria)
         {
             return repositorioAsistencia.consultarAsistencia(idVoluntaria);
         }
