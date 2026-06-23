@@ -130,6 +130,28 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        [HttpGet("movimiento/id/{idMovimiento}")]
+        public IActionResult GetMovimientoPorId(int idMovimiento)
+        {
+            try
+            {
+                var resultado = negInsumos.obtenerMovimientoPorId(idMovimiento);
+                return ApiResults.Success(resultado);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
         [HttpPost("consultaMovimientos")]
         public IActionResult GetMovimientos(RequestMovimiento? movimientoFiltro)
         {

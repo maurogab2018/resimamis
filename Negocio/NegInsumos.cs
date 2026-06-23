@@ -89,6 +89,13 @@ namespace ResimamisBackend.Negocio
             return insumoRepositorio.obtenerMovimientos(movimientoFiltro);
         }
 
+        public DetalleMovimiento obtenerMovimientoPorId(int idMovimiento)
+        {
+            if (idMovimiento <= 0)
+                throw new ApplicationException("Id de movimiento inválido.");
+            return insumoRepositorio.obtenerMovimientoPorId(idMovimiento);
+        }
+
         public List<EstadisticaInsumo> obtenerEstadisticaInsumo()
         {
             return insumoRepositorio.devolverEstadisticas();

@@ -11,6 +11,7 @@ namespace ResimamisBackend.Negocio
         private readonly AsignacionRepositorio asignacionRepositorio;
         private readonly EstadoRepositorio estadoRepositorio;
         private readonly NegTareas negTareas;
+        private readonly NegUsuarios negUsuarios;
         private readonly ApplicationDbContext db;
         public NegAsignacion()
         {
@@ -19,6 +20,7 @@ namespace ResimamisBackend.Negocio
             asignacionRepositorio= new AsignacionRepositorio();
             estadoRepositorio = new EstadoRepositorio();
             negTareas = new NegTareas();
+            negUsuarios = new NegUsuarios();
             db = new ApplicationDbContext();
         }
 
@@ -719,8 +721,10 @@ namespace ResimamisBackend.Negocio
         }
 
 
-        public List<RespuestaAsignaciones>? listarAsignacionesHoy()
+        public List<RespuestaAsignaciones>? listarAsignacionesHoy(int dniSolicitante)
         {
+            negUsuarios.ValidarCoordinadora(dniSolicitante);
+
             var asignacionesHoy = asignacionRepositorio.listarAsignacionesHoy()
                 .Select(MapearRespuestaAsignacion)
                 .ToList();

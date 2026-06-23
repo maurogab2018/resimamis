@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
+using System.Security.Claims;
 
 namespace ResimamisBackend.Controllers
 {
@@ -18,13 +19,28 @@ namespace ResimamisBackend.Controllers
             negAsignacion = new NegAsignacion();
         }
 
+        private static int ObtenerDniAutenticado(ClaimsPrincipal user)
+        {
+            var claim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? user.FindFirst(ClaimTypes.Name)?.Value;
+            if (string.IsNullOrWhiteSpace(claim) || !int.TryParse(claim, out var dni))
+                throw new ApplicationException("No se pudo identificar al usuario autenticado.");
+            return dni;
+        }
+
+        /// <summary>Listado de asignaciones del día (solo Coordinadora).</summary>
         [HttpGet("listarAsignacionesHoy")]
         public IActionResult Get()
         {
             try
             {
-                var respuesta = negAsignacion.listarAsignacionesHoy();
+                var dni = ObtenerDniAutenticado(User);
+                var respuesta = negAsignacion.listarAsignacionesHoy(dni);
                 return ApiResults.Success(respuesta);
+            }
+            catch (ForbiddenException ex)
+            {
+                return ApiResults.Forbidden(ex.Message);
             }
             catch (NotFoundException ex)
             {

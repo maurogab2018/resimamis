@@ -46,6 +46,8 @@ namespace ResimamisBackend.Negocio
                 throw new ForbiddenException("No tiene permisos para esta operación.");
         }
 
+        public void ValidarCoordinadora(int dniSolicitante) => RequiereCoordinadora(dniSolicitante);
+
         private static void ValidarContrasenaNueva(string? contrasena)
         {
             if (string.IsNullOrWhiteSpace(contrasena) || contrasena.Length < 8 || contrasena.Length > 15)

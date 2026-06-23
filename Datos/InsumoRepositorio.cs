@@ -79,6 +79,49 @@ namespace ResimamisBackend.Datos
             return listaMovimientos;
         }
 
+        public DetalleMovimiento obtenerMovimientoPorId(int idMovimiento)
+        {
+            var movimiento = db.MOVIMIENTOSTOCK
+                .AsNoTracking()
+                .FirstOrDefault(m => m.idMovimiento == idMovimiento);
+            if (movimiento == null)
+                throw new NotFoundException("Movimiento no encontrado con ese id.");
+
+            var insumo = db.INSUMO.AsNoTracking().FirstOrDefault(i => i.idInsumo == movimiento.idInsumo);
+            var bebe = movimiento.idBebe.HasValue
+                ? db.BEBE.AsNoTracking().FirstOrDefault(b => b.ID == movimiento.idBebe.Value)
+                : null;
+            var voluntaria = movimiento.idVoluntaria.HasValue
+                ? db.VOLUNTARIA.AsNoTracking().FirstOrDefault(v => v.IdVoluntaria == movimiento.idVoluntaria.Value)
+                : null;
+            var proveedor = movimiento.idProveedor.HasValue
+                ? db.PROVEEDOR.AsNoTracking().FirstOrDefault(p => p.idProveedor == movimiento.idProveedor.Value)
+                : null;
+
+            return new DetalleMovimiento
+            {
+                IdMovimiento = movimiento.idMovimiento,
+                IdInsumo = movimiento.idInsumo,
+                NombreInsumo = insumo?.nombre ?? string.Empty,
+                IdBebe = movimiento.idBebe,
+                NombreBebe = bebe?.nombre,
+                ApellidoBebe = bebe?.apellido,
+                IdVoluntaria = movimiento.idVoluntaria,
+                NombreVoluntaria = voluntaria == null
+                    ? null
+                    : $"{voluntaria.Nombre} {voluntaria.Apellido}".Trim(),
+                FechaMovimiento = movimiento.fechaMovimiento,
+                Observacion = movimiento.observacion,
+                Cantidad = movimiento.cantidad,
+                EsEntrada = movimiento.esEntrada,
+                IdProveedor = movimiento.idProveedor,
+                NombreProveedor = proveedor?.nombre,
+                NombreMovimiento = movimiento.esEntrada == "S" || movimiento.esEntrada == "s"
+                    ? "Entrada de insumos"
+                    : "Salida de insumos"
+            };
+        }
+
         public INSUMO consultarInsumo(int idInsumo)
         {
             var insumo = db.INSUMO
