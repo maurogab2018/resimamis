@@ -32,7 +32,11 @@ namespace ResimamisBackend.Datos
 
         public List<MADRE> listarMadres()
         {
-            return QueryMadresVisibles().ToList();
+            return QueryMadresVisibles()
+                .AsNoTracking()
+                .Include(m => m.LocalidadDetalle)
+                .Include(m => m.EstadoDetalle).ThenInclude(e => e!.ambito)
+                .ToList();
         }
 
         public bool registrarMadre(MADRE madre)

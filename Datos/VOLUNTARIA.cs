@@ -24,7 +24,6 @@ namespace ResimamisBackend.Datos
         public int? IdRol { get; set; }
         //public string? rol { get; set; }
 
-        [JsonIgnore]
         public virtual ESTADO? Estado { get; set; }
 
         [NotMapped]

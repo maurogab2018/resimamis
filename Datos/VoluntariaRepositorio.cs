@@ -38,7 +38,11 @@ namespace ResimamisBackend.Datos
         public List<VOLUNTARIA> listarVoluntarias()
         {
             var idEl = IdEstadoEliminadoVoluntarias();
-            var q = db.VOLUNTARIA.Include(v => v.RolInfo).AsQueryable();
+            var q = db.VOLUNTARIA
+                .AsNoTracking()
+                .Include(v => v.RolInfo)
+                .Include(v => v.Estado!).ThenInclude(e => e!.ambito)
+                .AsQueryable();
             if (idEl != null)
                 q = q.Where(v => v.IdEstado != idEl);
             return q.ToList();
@@ -63,6 +67,7 @@ namespace ResimamisBackend.Datos
         {
             var voluntaria = db.VOLUNTARIA
                 .Include(v => v.RolInfo)
+                .Include(v => v.Estado!).ThenInclude(e => e!.ambito)
                 .FirstOrDefault(m => m.IdVoluntaria == Dni);
             //voluntaria.rol = voluntaria.RolInfo.Nombre;
             if (voluntaria == null)

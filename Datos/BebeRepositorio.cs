@@ -40,7 +40,12 @@ namespace ResimamisBackend.Datos
         public List<BEBE> listarBebes()
         {
             var idEl = IdEstadoEliminadoBebes();
-            var q = db.BEBE.Include(b => b.Sala).AsQueryable();
+            var q = db.BEBE
+                .AsNoTracking()
+                .Include(b => b.Sala)
+                .Include(b => b.Madre)
+                .Include(b => b.Estado!).ThenInclude(e => e!.ambito)
+                .AsQueryable();
             if (idEl != null)
                 q = q.Where(b => b.IdEstado != idEl);
             return q.ToList();
@@ -64,7 +69,11 @@ namespace ResimamisBackend.Datos
         }
         public BEBE consultarBebe(int id)
         {
-            var bebe = db.BEBE.FirstOrDefault(b => b.ID == id);
+            var bebe = db.BEBE
+                .Include(b => b.Sala)
+                .Include(b => b.Estado!).ThenInclude(e => e!.ambito)
+                .Include(b => b.Madre)
+                .FirstOrDefault(b => b.ID == id);
             if (bebe == null)
                 throw new NotFoundException("Bebé no encontrado con ese Id.");
             return bebe;
@@ -114,6 +123,7 @@ namespace ResimamisBackend.Datos
                 .Include(b => b.Estado!)
                 .ThenInclude(e => e!.ambito)
                 .Include(b => b.Sala)
+                .Include(b => b.Madre)
                 .Where(v => v.Estado != null
                             && (idElimBebe == null || v.IdEstado != idElimBebe)
                             && v.Estado.ambito.nombre == "Bebes"

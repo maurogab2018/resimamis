@@ -35,7 +35,6 @@ namespace ResimamisBackend.Datos
 
         public int? IdEstado { get; set; }
 
-        [JsonIgnore]
         public virtual MADRE? Madre { get; set; }
 
         public virtual SALA? Sala { get; set; }
