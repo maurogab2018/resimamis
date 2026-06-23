@@ -63,9 +63,12 @@ namespace ResimamisBackend.Negocio
             };
 
 
-        public List<RespuestaAsignaciones> generarAsiganacionTareas(RequestAsignacionTareas requestAsignacion)
+        public List<RespuestaAsignaciones> generarAsiganacionTareasPorId(RequestAsignacionTareas requestAsignacion)
         {
-
+            if (requestAsignacion.idVoluntarias == null || requestAsignacion.idVoluntarias.Count == 0)
+                throw new ApplicationException("Debe indicar al menos una voluntaria.");
+            if (requestAsignacion.idTareas == null || requestAsignacion.idTareas.Count == 0)
+                throw new ApplicationException("Debe indicar al menos una tarea.");
 
             var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
             var (diaInicio, diaFin) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
@@ -144,6 +147,37 @@ namespace ResimamisBackend.Negocio
             return respuestas;
 
         }
+
+        /// <summary>
+        /// Genera asignaciones de abrazo con bebés y voluntarias elegidas.
+        /// <paramref name="requestAsignacion.idTareas"/> son ids de bebé (BEBE.ID), no de la tabla TAREA.
+        /// </summary>
+        public List<RespuestaAsignaciones> generarAsignacionesSeleccion(RequestAsignacionTareas requestAsignacion)
+        {
+            if (requestAsignacion.idVoluntarias == null || requestAsignacion.idVoluntarias.Count == 0)
+                throw new ApplicationException("Debe indicar al menos una voluntaria.");
+            if (requestAsignacion.idTareas == null || requestAsignacion.idTareas.Count == 0)
+                throw new ApplicationException("Debe indicar al menos un bebé.");
+
+            var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
+            var fechaMesAnterior = fechaHoy.AddMonths(-1);
+            var (diaInicio, diaFin) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var idEstadoAsignacionEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+
+            var bebesAbrazar = CargarBebesPorIdsParaGenerar(
+                requestAsignacion.idTareas,
+                diaInicio,
+                diaFin,
+                idEstadoAsignacionEliminado);
+            var voluntariasActivas = CargarVoluntariasPorIdsParaGenerar(
+                requestAsignacion.idVoluntarias,
+                diaInicio,
+                diaFin,
+                fechaMesAnterior);
+
+            return EjecutarGeneracionAsignacionesAbrazos(bebesAbrazar, voluntariasActivas);
+        }
+
         public RespuestaAsignaciones generarAsiganacionTarea(RequestAsignacionTarea requestAsignacion)
         {
             var voluntaria = voluntariaRepositorio.consultarVoluntaria(requestAsignacion.idVoluntaria);
@@ -188,6 +222,26 @@ namespace ResimamisBackend.Negocio
         }
         public List<RespuestaAsignaciones> generarAsiganaciones()
         {
+            var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
+            var fechaMesAnterior = fechaHoy.AddMonths(-1);
+            var (diaInicio, diaFin) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var idEstadoAsignacionEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+
+            var bebesAbrazar = CargarBebesAbrazarParaGenerar(diaInicio, diaFin, idEstadoAsignacionEliminado);
+            if (bebesAbrazar.Count == 0)
+                throw new ApplicationException("No hay bebes para abrazar para el día de hoy");
+
+            var voluntariasActivas = CargarVoluntariasLibresParaGenerar(inicioDia: diaInicio, finDia: diaFin, fechaMesAnterior);
+            if (voluntariasActivas.Count == 0)
+                throw new ApplicationException("No hay voluntarias disponibles para el día de hoy");
+
+            return EjecutarGeneracionAsignacionesAbrazos(bebesAbrazar, voluntariasActivas);
+        }
+
+        private List<RespuestaAsignaciones> EjecutarGeneracionAsignacionesAbrazos(
+            List<BEBE> bebesAbrazar,
+            List<VOLUNTARIA> voluntariasActivas)
+        {
             using var transaction = db.Database.BeginTransaction();
             try
             {
@@ -207,14 +261,6 @@ namespace ResimamisBackend.Negocio
 
                 var idEstadoAsignacionCreada = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Creada", "Asignaciones");
                 var idEstadoAsignacionEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
-
-                var bebesAbrazar = CargarBebesAbrazarParaGenerar(diaInicio, diaFin, idEstadoAsignacionEliminado);
-                if (bebesAbrazar.Count == 0)
-                    throw new ApplicationException("No hay bebes para abrazar para el día de hoy");
-
-                var voluntariasActivas = CargarVoluntariasLibresParaGenerar(inicioDia: diaInicio, finDia: diaFin, fechaMesAnterior);
-                if (voluntariasActivas.Count == 0)
-                    throw new ApplicationException("No hay voluntarias disponibles para el día de hoy");
 
                 var asignaciones = new List<ASIGNACION>();
 
@@ -448,6 +494,44 @@ namespace ResimamisBackend.Negocio
                                 && a.fechaHoraInicio != null
                                 && a.fechaHoraInicio >= diaInicio && a.fechaHoraInicio < diaFin))
                 .ToList();
+        }
+
+        private List<BEBE> CargarBebesPorIdsParaGenerar(
+            List<int> idsBebes,
+            DateTime diaInicio,
+            DateTime diaFin,
+            int idEstadoAsignacionEliminado)
+        {
+            var ids = idsBebes.Distinct().ToList();
+            var elegibles = CargarBebesAbrazarParaGenerar(diaInicio, diaFin, idEstadoAsignacionEliminado)
+                .Where(b => ids.Contains(b.ID))
+                .ToDictionary(b => b.ID);
+
+            var faltantes = ids.Where(id => !elegibles.ContainsKey(id)).ToList();
+            if (faltantes.Count > 0)
+                throw new ApplicationException(
+                    $"Bebé(s) no disponibles para abrazo o inexistentes: {string.Join(", ", faltantes)}.");
+
+            return ids.Select(id => elegibles[id]).ToList();
+        }
+
+        private List<VOLUNTARIA> CargarVoluntariasPorIdsParaGenerar(
+            List<int> idsVoluntarias,
+            DateTime inicioDia,
+            DateTime finDia,
+            DateTime fechaMesAnterior)
+        {
+            var ids = idsVoluntarias.Distinct().ToList();
+            var libres = CargarVoluntariasLibresParaGenerar(inicioDia, finDia, fechaMesAnterior)
+                .Where(v => ids.Contains(v.IdVoluntaria))
+                .ToDictionary(v => v.IdVoluntaria);
+
+            var faltantes = ids.Where(id => !libres.ContainsKey(id)).ToList();
+            if (faltantes.Count > 0)
+                throw new ApplicationException(
+                    $"Voluntaria(s) no disponibles o inexistentes: {string.Join(", ", faltantes)}.");
+
+            return ids.Select(id => libres[id]).ToList();
         }
 
         /// <summary>Misma regla que obtenerVoluntariasLibres; Include filtrado de asignaciones (~1 mes) para evitar cargar todo el historial.</summary>

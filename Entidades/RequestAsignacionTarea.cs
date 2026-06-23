@@ -13,11 +13,13 @@ namespace ResimamisBackend.Entidades
 
     public class RequestAsignacionTareas
     {
-        public List<int> idVoluntarias { get; set; }
+        public List<int> idVoluntarias { get; set; } = new();
 
-        public List<int> idTareas { get; set; }
-
-
+        /// <summary>
+        /// En <c>generarTareas</c> son ids de bebé (BEBE.ID).
+        /// En <c>generarTareasPorId</c> son ids de la tabla TAREA.
+        /// </summary>
+        public List<int> idTareas { get; set; } = new();
     }
 
     public class VoluntariaConAsignaciones

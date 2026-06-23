@@ -235,7 +235,33 @@ namespace ResimamisBackend.Controllers
         {
             try
             {
-                var respuesta = negAsignacion.generarAsiganacionTareas(request);
+                var respuesta = negAsignacion.generarAsignacionesSeleccion(request);
+                return ApiResults.Success(respuesta);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
+            catch (ConflictException ex)
+            {
+                return ApiResults.Conflict(ex.Message);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        [HttpPost("generarTareasPorId")]
+        public IActionResult PostAsignacionesPorIdTarea(RequestAsignacionTareas request)
+        {
+            try
+            {
+                var respuesta = negAsignacion.generarAsiganacionTareasPorId(request);
                 return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
