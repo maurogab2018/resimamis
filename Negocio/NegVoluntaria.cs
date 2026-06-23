@@ -1,4 +1,5 @@
 ﻿using ResimamisBackend.Datos;
+using ResimamisBackend.Entidades;
 using System.Text.RegularExpressions;
 
 namespace ResimamisBackend.Negocio
@@ -6,9 +7,11 @@ namespace ResimamisBackend.Negocio
     public class NegVoluntaria
     {
         public readonly VoluntariaRepositorio voluntariaRepositorio;
+        private readonly HorarioRepositorio horarioRepositorio;
         public NegVoluntaria()
         {
             voluntariaRepositorio = new VoluntariaRepositorio();
+            horarioRepositorio = new HorarioRepositorio();
         }
 
         private void ValidarVoluntaria(VOLUNTARIA voluntaria)
@@ -85,6 +88,32 @@ namespace ResimamisBackend.Negocio
         {
             return voluntariaRepositorio.consultarVoluntaria(id);
         }
+
+        public VoluntariaDetalle consultarVoluntariaDetalle(int id)
+        {
+            var voluntaria = voluntariaRepositorio.consultarVoluntaria(id);
+            var horarios = horarioRepositorio.obtenerHorariosPorVoluntaria(id);
+            return MapearVoluntariaDetalle(voluntaria, horarios);
+        }
+
+        private static VoluntariaDetalle MapearVoluntariaDetalle(
+            VOLUNTARIA voluntaria,
+            List<HorarioVoluntariaRespuesta> horarios) =>
+            new()
+            {
+                IdVoluntaria = voluntaria.IdVoluntaria,
+                Dni = voluntaria.Dni,
+                Nombre = voluntaria.Nombre,
+                Apellido = voluntaria.Apellido,
+                Mail = voluntaria.Mail,
+                Celular = voluntaria.Celular,
+                FechaInicio = voluntaria.FechaInicio,
+                FechaFin = voluntaria.FechaFin,
+                IdEstado = voluntaria.IdEstado,
+                IdRol = voluntaria.IdRol,
+                Rol = voluntaria.rol,
+                Horarios = horarios
+            };
 
         public bool modificarVoluntaria(VOLUNTARIA voluntaria,int id)
         {

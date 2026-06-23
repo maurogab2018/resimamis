@@ -1,4 +1,6 @@
-﻿using ResimamisBackend.Negocio;
+﻿using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
 {
@@ -46,6 +48,40 @@ namespace ResimamisBackend.Datos
         public List<DIA> obtenerDias()
         {
             return db.DIA.ToList();
+        }
+
+        public List<HorarioVoluntariaRespuesta> obtenerHorariosPorVoluntaria(int idVoluntaria)
+        {
+            var existe = db.VOLUNTARIA.AsNoTracking().Any(v => v.IdVoluntaria == idVoluntaria);
+            if (!existe)
+                throw new NotFoundException("Voluntaria no encontrada con ese Id.");
+
+            return db.VOLUNTARIAHORARIO
+                .AsNoTracking()
+                .Where(vh => vh.IdVoluntaria == idVoluntaria)
+                .Join(
+                    db.HORARIO.AsNoTracking(),
+                    vh => vh.IdHorario,
+                    h => h.IdHorario,
+                    (vh, h) => new { vh, h })
+                .Join(
+                    db.DIA.AsNoTracking(),
+                    x => x.h.IdDia,
+                    d => d.IdDia,
+                    (x, d) => new HorarioVoluntariaRespuesta
+                    {
+                        IdHorarioVoluntaria = x.vh.IdHorarioVoluntaria,
+                        IdHorario = x.h.IdHorario,
+                        IdVoluntaria = x.vh.IdVoluntaria,
+                        IdDia = d.IdDia,
+                        Dia = d.Descripcion,
+                        Turno = x.h.Turno,
+                        HoraIngreso = x.h.HoraIngreso,
+                        HoraSalida = x.h.HoraSalida
+                    })
+                .OrderBy(h => h.IdDia)
+                .ThenBy(h => h.Turno)
+                .ToList();
         }
     }
 }

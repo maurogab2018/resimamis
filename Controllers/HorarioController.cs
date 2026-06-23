@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
+using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Controllers
@@ -23,6 +24,28 @@ namespace ResimamisBackend.Controllers
             {
                 var respuesta = negHorariosVoluntaria.obtenerDias();
                 return ApiResults.Success(respuesta);
+            }
+            catch (ApplicationException exa)
+            {
+                return ApiResults.BadRequest(exa.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        [HttpGet("voluntaria/{idVoluntaria}")]
+        public IActionResult GetHorariosPorVoluntaria(int idVoluntaria)
+        {
+            try
+            {
+                var respuesta = negHorariosVoluntaria.obtenerHorariosPorVoluntaria(idVoluntaria);
+                return ApiResults.Success(respuesta);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException exa)
             {

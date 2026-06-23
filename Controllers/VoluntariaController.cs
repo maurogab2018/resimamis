@@ -89,7 +89,7 @@ namespace ResimamisBackend.Controllers
         {
             try
             {
-                var voluntariaDni = negVoluntaria.consultarVoluntaria(Id);
+                var voluntariaDni = negVoluntaria.consultarVoluntariaDetalle(Id);
                 return ApiResults.Success(voluntariaDni);
             }
             catch (NotFoundException ex)
