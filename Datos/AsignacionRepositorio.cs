@@ -115,11 +115,21 @@ namespace ResimamisBackend.Datos
         {
             request.ForEach(r =>
             {
-                var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
                 var asignacion = consultarAsignacion(r.idAsignacion.Value);
                 var insumo = insumoRepositorio.consultarInsumo(r.idInsumo.Value);
                 if (insumo.stockActual < r.cantidadInsumo.Value)
                     throw new ApplicationException("No hay stock disponible para esa cantidad de " + insumo.nombre);
+
+                var movimiento = new MOVIMIENTOSTOCK
+                {
+                    idInsumo = insumo.idInsumo,
+                    idBebe = asignacion.idBebe,
+                    idVoluntaria = asignacion.idVoluntaria,
+                    cantidad = r.cantidadInsumo.Value,
+                    esEntrada = "N",
+                    observacion = $"Salida por asignación #{asignacion.idAsignacion}"
+                };
+                insumoRepositorio.registrarMovimientoStock(movimiento);
 
                 var detalleAsignacion = new DETALLEASIGNACION()
                 {
@@ -129,7 +139,6 @@ namespace ResimamisBackend.Datos
                     fechaEntrega = NegConversorFecha.ObtenerFechaArgentina()
                 };
 
-                insumoRepositorio.actualizarStock(insumo, r.cantidadInsumo.Value);
                 detalleAsignacion.nombreInsumo = insumo.nombre;
                 db.DETALLEASIGNACION.Add(detalleAsignacion);
             });

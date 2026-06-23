@@ -54,29 +54,55 @@ namespace ResimamisBackend.Datos
 
         public List<ConsultaMovimiento> obtenerMovimientos(RequestMovimiento? movimientoFiltro)
         {
-            var listaMovimientos = db.MOVIMIENTOSTOCK
-                .Where(m =>
-            (movimientoFiltro == null ||
-             ((movimientoFiltro.fechaDesde == null || m.fechaMovimiento >= movimientoFiltro.fechaDesde) &&
-              (movimientoFiltro.fechaHasta == null || m.fechaMovimiento <= movimientoFiltro.fechaHasta))))
-                .Select(m => new ConsultaMovimiento()
-                {
-                    idMovimiento = m.idMovimiento,
-                    idInsumo = m.idInsumo,
-                    idBebe = m.idBebe,
-                    idVoluntaria = m.idVoluntaria,
-                    fechaMovimiento = m.fechaMovimiento,
-                    observacion = m.observacion,
-                    cantidad = m.cantidad,
-                    esEntrada = m.esEntrada,
-                    idProveedor = m.idProveedor,
-                    nombreProveedor = db.PROVEEDOR.FirstOrDefault(p => p.idProveedor == m.idProveedor)!.nombre,
-                    nombreVoluntaria = voluntariaRepositorio.consultarVoluntaria(m.idVoluntaria!.Value).Nombre + " " +
-                                       voluntariaRepositorio.consultarVoluntaria(m.idVoluntaria!.Value).Apellido,
-                    nombreMovimiento = m.esEntrada == "S" ? "Entrada de insumos" : "Salida de insumos"
-                }).ToList();
+            var query = db.MOVIMIENTOSTOCK.AsNoTracking().AsQueryable();
+            if (movimientoFiltro?.fechaDesde != null)
+                query = query.Where(m => m.fechaMovimiento >= movimientoFiltro.fechaDesde);
+            if (movimientoFiltro?.fechaHasta != null)
+                query = query.Where(m => m.fechaMovimiento <= movimientoFiltro.fechaHasta);
 
-            return listaMovimientos;
+            var movimientos = query
+                .OrderByDescending(m => m.fechaMovimiento)
+                .ThenByDescending(m => m.idMovimiento)
+                .ToList();
+
+            return movimientos.Select(MapConsultaMovimiento).ToList();
+        }
+
+        private ConsultaMovimiento MapConsultaMovimiento(MOVIMIENTOSTOCK m)
+        {
+            var insumo = db.INSUMO.AsNoTracking().FirstOrDefault(i => i.idInsumo == m.idInsumo);
+            var bebe = m.idBebe.HasValue
+                ? db.BEBE.AsNoTracking().FirstOrDefault(b => b.ID == m.idBebe.Value)
+                : null;
+            var voluntaria = m.idVoluntaria.HasValue
+                ? db.VOLUNTARIA.AsNoTracking().FirstOrDefault(v => v.IdVoluntaria == m.idVoluntaria.Value)
+                : null;
+            var proveedor = m.idProveedor.HasValue
+                ? db.PROVEEDOR.AsNoTracking().FirstOrDefault(p => p.idProveedor == m.idProveedor.Value)
+                : null;
+
+            return new ConsultaMovimiento
+            {
+                idMovimiento = m.idMovimiento,
+                idInsumo = m.idInsumo,
+                nombreInsumo = insumo?.nombre ?? string.Empty,
+                idBebe = m.idBebe,
+                nombreBebe = bebe?.nombre,
+                apellidoBebe = bebe?.apellido,
+                idVoluntaria = m.idVoluntaria,
+                nombreVoluntaria = voluntaria == null
+                    ? string.Empty
+                    : $"{voluntaria.Nombre} {voluntaria.Apellido}".Trim(),
+                fechaMovimiento = m.fechaMovimiento,
+                observacion = m.observacion ?? string.Empty,
+                cantidad = m.cantidad,
+                esEntrada = m.esEntrada ?? string.Empty,
+                idProveedor = m.idProveedor,
+                nombreProveedor = proveedor?.nombre ?? string.Empty,
+                nombreMovimiento = m.esEntrada == "S" || m.esEntrada == "s"
+                    ? "Entrada de insumos"
+                    : "Salida de insumos"
+            };
         }
 
         public DetalleMovimiento obtenerMovimientoPorId(int idMovimiento)

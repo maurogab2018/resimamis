@@ -17,6 +17,9 @@
 
         public string nombreProveedor { get; set; }
         public string nombreVoluntaria { get; set; }
+        public string nombreInsumo { get; set; } = string.Empty;
+        public string? nombreBebe { get; set; }
+        public string? apellidoBebe { get; set; }
 
         public string nombreMovimiento { get; set; }
     }
