@@ -115,6 +115,9 @@ namespace ResimamisBackend.Datos
         {
             request.ForEach(r =>
             {
+                if (!r.cantidadInsumo.HasValue || r.cantidadInsumo.Value <= 0)
+                    return;
+
                 var asignacion = consultarAsignacion(r.idAsignacion.Value);
                 var insumo = insumoRepositorio.consultarInsumo(r.idInsumo.Value);
                 if (insumo.stockActual < r.cantidadInsumo.Value)
