@@ -11,31 +11,65 @@ namespace ResimamisBackend.Datos
         {
             db = new ApplicationDbContext();
         }
+
+        private static bool EsHorarioVoluntariaActivo(VOLUNTARIAHORARIO vh) => vh.Activa;
+
         public bool registrarHoraraioVoluntaria(List<HorarioVoluntaria> horarioVoluntaria)
         {
-            if (horarioVoluntaria != null)
+            if (horarioVoluntaria == null || horarioVoluntaria.Count == 0)
+                return false;
+
+            foreach (HorarioVoluntaria h in horarioVoluntaria)
             {
-                foreach(HorarioVoluntaria h in horarioVoluntaria) 
+                var dia = db.DIA.FirstOrDefault(d => d.IdDia == h.IdDia);
+                if (dia == null)
+                    throw new ApplicationException("Día no existente con es id");
+                var voluntaria = db.VOLUNTARIA.FirstOrDefault(v => v.IdVoluntaria == h.IdVoluntaria);
+                if (voluntaria == null)
+                    throw new ApplicationException("Voluntaria inexistente con ese id");
+
+                var horario = db.HORARIO.FirstOrDefault(ho => ho.Turno == h.Turno && ho.IdDia == dia.IdDia);
+                if (horario == null)
+                    throw new ApplicationException("Horario no existente para ese día o turno");
+
+                var existente = db.VOLUNTARIAHORARIO.FirstOrDefault(vh =>
+                    vh.IdHorario == horario.IdHorario && vh.IdVoluntaria == h.IdVoluntaria);
+
+                if (existente != null)
                 {
-                    var dia = db.DIA.FirstOrDefault(d => d.IdDia == h.IdDia);
-                    if (dia == null)
-                        throw new ApplicationException("Día no existente con es id");
-                    var voluntaria = db.VOLUNTARIA.FirstOrDefault(v => v.IdVoluntaria == h.IdVoluntaria);
-                    if (voluntaria == null)
-                        throw new ApplicationException("Voluntaria ya existente con ese id");
-                    var horario = db.HORARIO.FirstOrDefault(ho => ho.Turno == h.Turno && ho.IdDia == dia.IdDia);
-                    if (horario == null)
-                        throw new ApplicationException("Horario no existente para ese día o turno");
-                    var a = db.VOLUNTARIAHORARIO.FirstOrDefault(ho => ho.IdHorario == horario.IdHorario && ho.IdHorarioVoluntaria == h.IdVoluntaria);
-                    if (db.VOLUNTARIAHORARIO.Any(ho => ho.IdHorario == horario.IdHorario && ho.IdVoluntaria==h.IdVoluntaria))
+                    if (EsHorarioVoluntariaActivo(existente))
                         throw new ApplicationException("Horario ya asignado para ese día");
-                    var horarioVoluntariaNuevo = new VOLUNTARIAHORARIO() { IdHorario=horario.IdHorario,IdVoluntaria=voluntaria.IdVoluntaria};
-                    db.VOLUNTARIAHORARIO.Add(horarioVoluntariaNuevo);
+
+                    existente.Activa = true;
                     db.SaveChanges();
+                    continue;
                 }
-                return true;
+
+                var horarioVoluntariaNuevo = new VOLUNTARIAHORARIO
+                {
+                    IdHorario = horario.IdHorario,
+                    IdVoluntaria = voluntaria.IdVoluntaria,
+                    Activa = true
+                };
+                db.VOLUNTARIAHORARIO.Add(horarioVoluntariaNuevo);
+                db.SaveChanges();
             }
-            return false;
+
+            return true;
+        }
+
+        public bool eliminarHorarioVoluntariaLogico(int idHorarioVoluntaria)
+        {
+            var row = db.VOLUNTARIAHORARIO.FirstOrDefault(vh => vh.IdHorarioVoluntaria == idHorarioVoluntaria);
+            if (row == null)
+                throw new NotFoundException("Horario de voluntaria no encontrado con ese Id.");
+
+            if (!row.Activa)
+                return true;
+
+            row.Activa = false;
+            db.SaveChanges();
+            return true;
         }
 
         public HORARIO consultarHorario(int id)
@@ -45,6 +79,7 @@ namespace ResimamisBackend.Datos
                 throw new ApplicationException("No existe horario con ese id");
             return horario;
         }
+
         public List<DIA> obtenerDias()
         {
             return db.DIA.ToList();
@@ -58,7 +93,7 @@ namespace ResimamisBackend.Datos
 
             return db.VOLUNTARIAHORARIO
                 .AsNoTracking()
-                .Where(vh => vh.IdVoluntaria == idVoluntaria)
+                .Where(vh => vh.IdVoluntaria == idVoluntaria && vh.Activa)
                 .Join(
                     db.HORARIO.AsNoTracking(),
                     vh => vh.IdHorario,
@@ -77,7 +112,8 @@ namespace ResimamisBackend.Datos
                         Dia = d.Descripcion,
                         Turno = x.h.Turno,
                         HoraIngreso = x.h.HoraIngreso,
-                        HoraSalida = x.h.HoraSalida
+                        HoraSalida = x.h.HoraSalida,
+                        Activa = x.vh.Activa
                     })
                 .OrderBy(h => h.IdDia)
                 .ThenBy(h => h.Turno)

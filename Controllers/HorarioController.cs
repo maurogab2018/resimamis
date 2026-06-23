@@ -57,6 +57,28 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        [HttpDelete("voluntaria/{idHorarioVoluntaria}")]
+        public IActionResult DeleteHorarioVoluntaria(int idHorarioVoluntaria)
+        {
+            try
+            {
+                var respuesta = negHorariosVoluntaria.eliminarHorarioVoluntaria(idHorarioVoluntaria);
+                return ApiResults.Success(respuesta);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
+            catch (ApplicationException exa)
+            {
+                return ApiResults.BadRequest(exa.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
         [HttpPost]
         public IActionResult Post(List<HorarioVoluntaria> horarioVoluntarias)
         {

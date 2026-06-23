@@ -8,5 +8,6 @@ namespace ResimamisBackend.Datos
         public int IdHorarioVoluntaria { get; set; }
         public int IdHorario { get; set; }
         public int IdVoluntaria { get; set; }
+        public bool Activa { get; set; } = true;
     }
 }

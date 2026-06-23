@@ -10,5 +10,6 @@ namespace ResimamisBackend.Entidades
         public string Turno { get; set; } = string.Empty;
         public TimeSpan HoraIngreso { get; set; }
         public TimeSpan HoraSalida { get; set; }
+        public bool Activa { get; set; } = true;
     }
 }

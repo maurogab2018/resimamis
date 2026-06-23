@@ -38,5 +38,12 @@ namespace ResimamisBackend.Negocio
             return horarioRepositorio.obtenerHorariosPorVoluntaria(idVoluntaria);
         }
 
+        public bool eliminarHorarioVoluntaria(int idHorarioVoluntaria)
+        {
+            if (idHorarioVoluntaria <= 0)
+                throw new ApplicationException("Id de horario de voluntaria inválido.");
+            return horarioRepositorio.eliminarHorarioVoluntariaLogico(idHorarioVoluntaria);
+        }
+
     }
 }
