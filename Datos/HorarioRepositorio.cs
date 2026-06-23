@@ -58,6 +58,46 @@ namespace ResimamisBackend.Datos
             return true;
         }
 
+        public bool reemplazarHorarios(int idVoluntaria, List<HorarioVoluntaria> nuevos)
+        {
+            // 1. Desactivar todos los horarios actuales de la voluntaria
+            var actuales = db.VOLUNTARIAHORARIO
+                .Where(vh => vh.IdVoluntaria == idVoluntaria && vh.Activa)
+                .ToList();
+            foreach (var vh in actuales)
+                vh.Activa = false;
+            db.SaveChanges();
+
+            // 2. Activar / crear los nuevos
+            foreach (var h in nuevos)
+            {
+                var dia = db.DIA.FirstOrDefault(d => d.IdDia == h.IdDia);
+                if (dia == null)
+                    throw new ApplicationException($"Día no existente con id {h.IdDia}.");
+
+                var horario = db.HORARIO.FirstOrDefault(ho => ho.Turno == h.Turno && ho.IdDia == dia.IdDia);
+                if (horario == null)
+                    throw new ApplicationException($"No existe horario para el día {h.IdDia} con turno '{h.Turno}'.");
+
+                var existente = db.VOLUNTARIAHORARIO.FirstOrDefault(vh =>
+                    vh.IdHorario == horario.IdHorario && vh.IdVoluntaria == idVoluntaria);
+
+                if (existente != null)
+                    existente.Activa = true;
+                else
+                    db.VOLUNTARIAHORARIO.Add(new VOLUNTARIAHORARIO
+                    {
+                        IdHorario = horario.IdHorario,
+                        IdVoluntaria = idVoluntaria,
+                        Activa = true,
+                    });
+
+                db.SaveChanges();
+            }
+
+            return true;
+        }
+
         public bool eliminarHorarioVoluntariaLogico(int idHorarioVoluntaria)
         {
             var row = db.VOLUNTARIAHORARIO.FirstOrDefault(vh => vh.IdHorarioVoluntaria == idHorarioVoluntaria);

@@ -95,7 +95,25 @@ namespace ResimamisBackend.Controllers
             {
                 return ApiResults.InternalServerError();
             }
-            
+
+        }
+
+        [HttpPut("{idVoluntaria}")]
+        public IActionResult Put(int idVoluntaria, [FromBody] List<HorarioVoluntaria> horarioVoluntarias)
+        {
+            try
+            {
+                var respuesta = negHorariosVoluntaria.reemplazarHorarios(idVoluntaria, horarioVoluntarias);
+                return ApiResults.Success(respuesta);
+            }
+            catch (ApplicationException exa)
+            {
+                return ApiResults.BadRequest(exa.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError();
+            }
         }
 
     }

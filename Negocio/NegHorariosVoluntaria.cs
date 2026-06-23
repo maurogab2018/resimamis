@@ -26,6 +26,22 @@ namespace ResimamisBackend.Negocio
                 .ThenBy(h => h.Turno)
                 .ToList();
         }
+        public List<HorarioVoluntariaRespuesta> reemplazarHorarios(int idVoluntaria, List<HorarioVoluntaria> horarios)
+        {
+            if (idVoluntaria <= 0)
+                throw new ApplicationException("Id de voluntaria inválido.");
+
+            horarioRepositorio.reemplazarHorarios(idVoluntaria, horarios ?? new List<HorarioVoluntaria>());
+
+            return horarios?
+                .Select(h => h.IdVoluntaria)
+                .Distinct()
+                .SelectMany(id => horarioRepositorio.obtenerHorariosPorVoluntaria(id))
+                .OrderBy(h => h.IdDia)
+                .ThenBy(h => h.Turno)
+                .ToList() ?? horarioRepositorio.obtenerHorariosPorVoluntaria(idVoluntaria);
+        }
+
         public List<DIA> obtenerDias()
         {
             return horarioRepositorio.obtenerDias();
