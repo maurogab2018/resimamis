@@ -32,5 +32,23 @@ namespace ResimamisBackend.Controllers
                 return ApiResults.InternalServerError();
             }
         }
+
+        [HttpGet("estadosCiviles")]
+        public IActionResult GetEstadosCiviles()
+        {
+            try
+            {
+                var estadosCiviles = negGenericos.obtenerEstadosCiviles();
+                return ApiResults.Success(estadosCiviles);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
     }
 }
