@@ -7,8 +7,8 @@ namespace ResimamisBackend.Datos
     {
         [Key]
         public int idInsumo { get; set; }
-        public string nombre { get; set; }
-        public string descripcion { get; set; }
+        public string nombre { get; set; } = string.Empty;
+        public string? descripcion { get; set; }
 
         public int stockMaximo { get; set; }
         public int stockMinimo { get; set; }
