@@ -117,7 +117,9 @@ namespace ResimamisBackend.Datos
                 insumo.idEstado = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Activo", "Insumos");
 
             insumo.nombre = nombreNormalizado;
-            insumo.descripcion = insumo.descripcion.Trim();
+            insumo.descripcion = string.IsNullOrWhiteSpace(insumo.descripcion)
+                ? string.Empty
+                : insumo.descripcion.Trim();
             db.INSUMO.Add(insumo);
             db.SaveChanges();
             return insumo;
@@ -126,7 +128,9 @@ namespace ResimamisBackend.Datos
         public bool modificarInsumo(INSUMO parcial, INSUMO existente)
         {
             existente.nombre = parcial.nombre;
-            existente.descripcion = parcial.descripcion;
+            existente.descripcion = string.IsNullOrWhiteSpace(parcial.descripcion)
+                ? string.Empty
+                : parcial.descripcion.Trim();
             existente.stockMaximo = parcial.stockMaximo;
             existente.stockMinimo = parcial.stockMinimo;
             existente.stockActual = parcial.stockActual;

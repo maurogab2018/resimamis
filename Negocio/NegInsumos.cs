@@ -18,8 +18,10 @@ namespace ResimamisBackend.Negocio
 
             if (string.IsNullOrWhiteSpace(insumo.nombre))
                 throw new ApplicationException("El nombre es obligatorio.");
-            if (string.IsNullOrWhiteSpace(insumo.descripcion))
-                throw new ApplicationException("La descripción es obligatoria.");
+
+            insumo.descripcion = string.IsNullOrWhiteSpace(insumo.descripcion)
+                ? string.Empty
+                : insumo.descripcion.Trim();
 
             if (insumo.stockMinimo < 0 || insumo.stockMaximo < 0 || insumo.stockActual < 0)
                 throw new ApplicationException("Los stocks no pueden ser negativos.");
