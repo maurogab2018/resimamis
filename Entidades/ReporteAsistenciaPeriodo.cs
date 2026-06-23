@@ -26,10 +26,10 @@ namespace ResimamisBackend.Entidades
     public class ReporteAsistenciaPeriodoRespuesta
     {
         /// <summary>Fecha inicio del filtro (solo fecha, inclusive).</summary>
-        public DateTime FechaInicio { get; set; }
+        public DateOnly FechaInicio { get; set; }
 
         /// <summary>Fecha fin del filtro (solo fecha, inclusive).</summary>
-        public DateTime FechaFin { get; set; }
+        public DateOnly FechaFin { get; set; }
 
         public int TotalRegistros { get; set; }
 

@@ -40,13 +40,26 @@ namespace ResimamisBackend.Controllers
             }
         }
 
-        /// <summary>Reporte de asistencias por período (días inclusive, zona Argentina). Query: fechaInicio, fechaFin (ej. 2026-01-01).</summary>
+        /// <summary>Reporte de asistencias por período (días inclusive, zona Argentina). Query: fechaInicio y fechaFin (ej. 2026-05-25 o 25/05/2026).</summary>
         [HttpGet("reporte")]
-        public IActionResult GetReporteAsistenciaPeriodo([FromQuery] DateTime fechaInicio, [FromQuery] DateTime fechaFin)
+        public IActionResult GetReporteAsistenciaPeriodo(
+            [FromQuery] string? fechaInicio,
+            [FromQuery] string? fechaFin,
+            [FromQuery(Name = "fecha_inicio")] string? fechaInicioSnake,
+            [FromQuery(Name = "fecha_fin")] string? fechaFinSnake,
+            [FromQuery(Name = "fechaDesde")] string? fechaDesde,
+            [FromQuery(Name = "fechaHasta")] string? fechaHasta)
         {
             try
             {
-                ReporteAsistenciaPeriodoRespuesta reporte = negAsistencia.ReporteAsistenciaPorPeriodo(fechaInicio, fechaFin);
+                var inicioRaw = fechaInicio ?? fechaInicioSnake ?? fechaDesde;
+                var finRaw = fechaFin ?? fechaFinSnake ?? fechaHasta;
+                if (string.IsNullOrWhiteSpace(inicioRaw) || string.IsNullOrWhiteSpace(finRaw))
+                    throw new ApplicationException("Debe indicar fechaInicio y fechaFin en el query (ej. 2026-05-25).");
+
+                var dInicio = NegConversorFecha.ParseFechaCalendarioReporte(inicioRaw);
+                var dFin = NegConversorFecha.ParseFechaCalendarioReporte(finRaw);
+                ReporteAsistenciaPeriodoRespuesta reporte = negAsistencia.ReporteAsistenciaPorPeriodo(dInicio, dFin);
                 return ApiResults.Success(reporte);
             }
             catch (NotFoundException ex)

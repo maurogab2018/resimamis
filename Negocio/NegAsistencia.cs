@@ -78,8 +78,8 @@ namespace ResimamisBackend.Negocio
 
             return new ReporteAsistenciaPeriodoRespuesta
             {
-                FechaInicio = fechaInicio.Date,
-                FechaFin = fechaFin.Date,
+                FechaInicio = DateOnly.FromDateTime(fechaInicio.Date),
+                FechaFin = DateOnly.FromDateTime(fechaFin.Date),
                 TotalRegistros = items.Count,
                 Registros = items
             };

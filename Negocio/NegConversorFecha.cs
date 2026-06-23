@@ -1,7 +1,17 @@
+using System.Globalization;
+
 namespace ResimamisBackend.Negocio
 {
     public static class NegConversorFecha
     {
+        private static readonly string[] FormatosFechaReporte =
+        {
+            "yyyy-MM-dd",
+            "dd/MM/yyyy",
+            "d/M/yyyy",
+            "dd-MM-yyyy",
+            "d-M-yyyy"
+        };
         private static TimeZoneInfo ArgentinaTimeZone =>
             LazyArgentinaTz.Value;
 
@@ -76,6 +86,41 @@ namespace ResimamisBackend.Negocio
             var inicioUtc = TimeZoneInfo.ConvertTimeToUtc(inicioLocal, tz);
             var finUtc = TimeZoneInfo.ConvertTimeToUtc(finExclusivoLocal, tz);
             return (inicioUtc, finUtc);
+        }
+
+        /// <summary>Parsea fecha de reporte como día calendario (sin corrimiento por zona horaria).</summary>
+        public static bool TryParseFechaCalendarioReporte(string? value, out DateTime fecha)
+        {
+            fecha = default;
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            value = value.Trim();
+            if (value.Length >= 10
+                && DateOnly.TryParseExact(value.AsSpan(0, 10), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var iso))
+            {
+                fecha = iso.ToDateTime(TimeOnly.MinValue);
+                return true;
+            }
+
+            if (DateTime.TryParseExact(value, FormatosFechaReporte, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+                || DateTime.TryParseExact(value, FormatosFechaReporte, new CultureInfo("es-AR"), DateTimeStyles.None, out parsed)
+                || DateTime.TryParse(value, new CultureInfo("es-AR"), DateTimeStyles.None, out parsed))
+            {
+                fecha = parsed.Date;
+                return true;
+            }
+
+            return false;
+        }
+
+        public static DateTime ParseFechaCalendarioReporte(string value)
+        {
+            if (TryParseFechaCalendarioReporte(value, out var fecha))
+                return fecha;
+
+            throw new ApplicationException(
+                $"Fecha inválida: '{value}'. Use yyyy-MM-dd o dd/MM/yyyy.");
         }
     }
 }

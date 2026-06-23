@@ -149,6 +149,8 @@ namespace ResimamisBackend.Datos
         /// <summary>Asistencias con ingreso en [inicioUtc, finUtcExclusivo), excluye bajas lógicas.</summary>
         public List<ASISTENCIA> ListarAsistenciasPorPeriodoUtc(DateTime inicioUtc, DateTime finUtcExclusivo)
         {
+            var inicio = DateTime.SpecifyKind(inicioUtc, DateTimeKind.Utc);
+            var fin = DateTime.SpecifyKind(finUtcExclusivo, DateTimeKind.Utc);
             var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
             return db.ASISTENCIA
                 .AsNoTracking()
@@ -158,8 +160,8 @@ namespace ResimamisBackend.Datos
                 .ThenInclude(e => e!.ambito)
                 .Where(a =>
                     a.FechaHoraIngreso != null
-                    && a.FechaHoraIngreso >= inicioUtc
-                    && a.FechaHoraIngreso < finUtcExclusivo
+                    && a.FechaHoraIngreso >= inicio
+                    && a.FechaHoraIngreso < fin
                     && (a.idEstado == null || a.idEstado != idElim))
                 .OrderBy(a => a.FechaHoraIngreso)
                 .ThenBy(a => a.IdVoluntaria)
