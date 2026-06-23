@@ -10,8 +10,6 @@ namespace ResimamisBackend.Negocio
 {
     public class NegUsuarios
     {
-        private const string RolAdministrativa = "Administrativa";
-
         private readonly ApplicationDbContext db;
         private readonly EstadoRepositorio estadoRepositorio;
         private readonly UsuarioRepositorio usuarioRepositorio;
@@ -25,25 +23,26 @@ namespace ResimamisBackend.Negocio
             voluntariaRepositorio = new VoluntariaRepositorio();
         }
 
-        public bool EsAdministrativaPorDni(int dni)
+        public bool EsCoordinadoraPorDni(int dni)
         {
             var usuario = usuarioRepositorio.ObtenerPorDni(dni);
             if (usuario == null || !UsuarioRepositorio.EsUsuarioOperativo(usuario))
                 return false;
 
-            var rol = db.VOLUNTARIA
+            var voluntaria = db.VOLUNTARIA
                 .AsNoTracking()
                 .Include(v => v.RolInfo)
-                .Where(v => v.IdVoluntaria == usuario.IdVoluntaria)
-                .Select(v => v.RolInfo != null ? v.RolInfo.Nombre : null)
-                .FirstOrDefault();
+                .FirstOrDefault(v => v.IdVoluntaria == usuario.IdVoluntaria);
 
-            return string.Equals(rol, RolAdministrativa, StringComparison.OrdinalIgnoreCase);
+            if (voluntaria == null)
+                return false;
+
+            return RolesVoluntaria.EsCoordinadora(voluntaria.IdRol, voluntaria.RolInfo?.Nombre);
         }
 
-        private void RequiereAdministrativa(int dniSolicitante)
+        private void RequiereCoordinadora(int dniSolicitante)
         {
-            if (!EsAdministrativaPorDni(dniSolicitante))
+            if (!EsCoordinadoraPorDni(dniSolicitante))
                 throw new ForbiddenException("No tiene permisos para esta operación.");
         }
 
@@ -89,7 +88,7 @@ namespace ResimamisBackend.Negocio
 
         public bool RegistrarUsuario(int dniSolicitante, USUARIO usuario)
         {
-            RequiereAdministrativa(dniSolicitante);
+            RequiereCoordinadora(dniSolicitante);
             return RegistrarUsuarioInterno(usuario);
         }
 
@@ -125,13 +124,13 @@ namespace ResimamisBackend.Negocio
 
         public List<UsuarioListado> ListarUsuarios(int dniSolicitante)
         {
-            RequiereAdministrativa(dniSolicitante);
+            RequiereCoordinadora(dniSolicitante);
             return usuarioRepositorio.ListarUsuariosOperativos();
         }
 
         public List<VOLUNTARIA> ListarVoluntariasSinUsuario(int dniSolicitante)
         {
-            RequiereAdministrativa(dniSolicitante);
+            RequiereCoordinadora(dniSolicitante);
             return voluntariaRepositorio.listarVoluntariasSinUsuario();
         }
 
@@ -143,9 +142,9 @@ namespace ResimamisBackend.Negocio
             if (UsuarioRepositorio.EsUsuarioEliminado(u))
                 throw new ApplicationException("Usuario no disponible.");
 
-            var esAdmin = EsAdministrativaPorDni(dniSolicitante);
+            var esCoordinadora = EsCoordinadoraPorDni(dniSolicitante);
             var propio = u.Dni == dniSolicitante;
-            if (!esAdmin && !propio)
+            if (!esCoordinadora && !propio)
                 throw new ForbiddenException("No tiene permisos para consultar este usuario.");
 
             return new
@@ -184,7 +183,7 @@ namespace ResimamisBackend.Negocio
 
         public bool ModificarUsuario(int dniSolicitante, int idUsuario, USUARIO datos)
         {
-            RequiereAdministrativa(dniSolicitante);
+            RequiereCoordinadora(dniSolicitante);
 
             if (datos == null)
                 throw new ApplicationException("Datos inválidos.");
@@ -235,7 +234,7 @@ namespace ResimamisBackend.Negocio
 
         public bool EliminarUsuario(int dniSolicitante, int idUsuario)
         {
-            RequiereAdministrativa(dniSolicitante);
+            RequiereCoordinadora(dniSolicitante);
             return usuarioRepositorio.EliminarLogico(idUsuario);
         }
 

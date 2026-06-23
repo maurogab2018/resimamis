@@ -27,7 +27,7 @@ namespace ResimamisBackend.Controllers
             return dni;
         }
 
-        /// <summary>Registro de usuario (solo rol Administrativa). Asociar a una voluntaria sin usuario.</summary>
+        /// <summary>Registro de usuario (solo rol Coordinadora). Asociar a una voluntaria sin usuario.</summary>
         [Authorize]
         [HttpPost]
         public IActionResult Post(USUARIO Usuario)
@@ -98,7 +98,7 @@ namespace ResimamisBackend.Controllers
             }
         }
 
-        /// <summary>Listado de usuarios activos (solo Administrativa): dni, voluntaria, fecha creación.</summary>
+        /// <summary>Listado de usuarios activos (solo Coordinadora): dni, voluntaria, fecha creación.</summary>
         [Authorize]
         [HttpGet]
         public IActionResult GetListado()
@@ -135,7 +135,7 @@ namespace ResimamisBackend.Controllers
             }
         }
 
-        /// <summary>Voluntarias sin usuario asociado (solo Administrativa), para alta de usuario.</summary>
+        /// <summary>Voluntarias sin usuario asociado (solo Coordinadora), para alta de usuario.</summary>
         [Authorize]
         [HttpGet("voluntarias-sin-usuario")]
         public IActionResult GetVoluntariasSinUsuario()
@@ -245,7 +245,7 @@ namespace ResimamisBackend.Controllers
             }
         }
 
-        /// <summary>Modificar usuario (solo Administrativa): dni, voluntaria y opcionalmente contraseña.</summary>
+        /// <summary>Modificar usuario (solo Coordinadora): dni, voluntaria y opcionalmente contraseña.</summary>
         [Authorize]
         [HttpPut("id/{idUsuario}")]
         public IActionResult PutUsuario(int idUsuario, USUARIO usuario)
@@ -282,7 +282,7 @@ namespace ResimamisBackend.Controllers
             }
         }
 
-        /// <summary>Baja lógica del usuario (estado Eliminado, ámbito Usuarios). Solo Administrativa.</summary>
+        /// <summary>Baja lógica del usuario (estado Eliminado, ámbito Usuarios). Solo Coordinadora.</summary>
         [Authorize]
         [HttpPost("delete")]
         public IActionResult Delete(int idUsuario)

@@ -62,8 +62,8 @@ namespace ResimamisBackend.Negocio
                     throw new ApplicationException("Estado inválido");
             }
 
-            if (voluntaria.IdRol.HasValue && voluntaria.IdRol.Value <= 0)
-                throw new ApplicationException("Rol inválido");
+            if (voluntaria.IdRol.HasValue && !RolesVoluntaria.EsRolPermitido(voluntaria.IdRol))
+                throw new ApplicationException("Rol inválido. Debe ser Voluntaria o Coordinadora.");
         }
 
         public List<VOLUNTARIA> listarVoluntarias()

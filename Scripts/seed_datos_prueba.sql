@@ -102,8 +102,7 @@ AND NOT EXISTS (SELECT 1 FROM "ESTADO" e JOIN "AMBITO" am ON e."idAmbito" = am."
 -- ---------------------------------------------------------------------------
 INSERT INTO "ROL" ("Nombre", "Descripcion") VALUES
   ('Voluntaria', 'Abrazo y acompañamiento'),
-  ('Coordinadora', 'Coordinación de turnos'),
-  ('Administrativa', 'Gestión administrativa');
+  ('Coordinadora', 'Coordinación y gestión administrativa');
 
 -- ---------------------------------------------------------------------------
 -- PROVEEDOR e INSUMO
@@ -190,25 +189,35 @@ VALUES
 -- ---------------------------------------------------------------------------
 INSERT INTO "VOLUNTARIA" ("Dni", "Nombre", "Apellido", "Mail", "Celular", "FechaInicio", "FechaFin", "IdEstado", "IdRol") VALUES
   (30111111, 'Paula', 'Martínez', 'paula.m@test.seed', 3516111001, TIMESTAMPTZ '2025-01-10 00:00:00+00', NULL,
-    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Activa' LIMIT 1), 1),
+    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Activa' LIMIT 1),
+    (SELECT "IdRol" FROM "ROL" WHERE "Nombre" = 'Voluntaria' LIMIT 1)),
   (30111112, 'Julia', 'Sánchez', 'julia.s@test.seed', 3516111002, TIMESTAMPTZ '2025-02-15 00:00:00+00', NULL,
-    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Activa' LIMIT 1), 1),
+    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Activa' LIMIT 1),
+    (SELECT "IdRol" FROM "ROL" WHERE "Nombre" = 'Voluntaria' LIMIT 1)),
   (30111113, 'Micaela', 'Torres', 'micaela.t@test.seed', 3516111003, TIMESTAMPTZ '2025-03-01 00:00:00+00', NULL,
-    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Abrazando' LIMIT 1), 1),
+    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Abrazando' LIMIT 1),
+    (SELECT "IdRol" FROM "ROL" WHERE "Nombre" = 'Voluntaria' LIMIT 1)),
   (30111114, 'Florencia', 'Díaz', 'florencia.d@test.seed', 3516111004, TIMESTAMPTZ '2024-11-20 00:00:00+00', NULL,
-    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Disponible' LIMIT 1), 1),
+    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Disponible' LIMIT 1),
+    (SELECT "IdRol" FROM "ROL" WHERE "Nombre" = 'Voluntaria' LIMIT 1)),
   (30111115, 'Natalia', 'Romero', 'natalia.r@test.seed', 3516111005, TIMESTAMPTZ '2025-04-05 00:00:00+00', NULL,
-    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Inactiva' LIMIT 1), 1),
+    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Inactiva' LIMIT 1),
+    (SELECT "IdRol" FROM "ROL" WHERE "Nombre" = 'Voluntaria' LIMIT 1)),
   (30111116, 'Verónica', 'Castro', 'veronica.c@test.seed', 3516111006, TIMESTAMPTZ '2025-05-12 00:00:00+00', NULL,
-    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Asignada' LIMIT 1), 1),
+    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Asignada' LIMIT 1),
+    (SELECT "IdRol" FROM "ROL" WHERE "Nombre" = 'Voluntaria' LIMIT 1)),
   (30111117, 'Gabriela', 'Morales', 'gabriela.m@test.seed', 3516111007, TIMESTAMPTZ '2025-06-01 00:00:00+00', NULL,
-    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Ayudando' LIMIT 1), 2),
+    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Ayudando' LIMIT 1),
+    (SELECT "IdRol" FROM "ROL" WHERE "Nombre" = 'Voluntaria' LIMIT 1)),
   (30111118, 'Andrea', 'Rojas', 'andrea.r@test.seed', 3516111008, TIMESTAMPTZ '2024-09-01 00:00:00+00', NULL,
-    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Creada' LIMIT 1), 1),
+    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Creada' LIMIT 1),
+    (SELECT "IdRol" FROM "ROL" WHERE "Nombre" = 'Voluntaria' LIMIT 1)),
   (30111119, 'Lucía', 'Vega', 'lucia.v@test.seed', 3516111009, TIMESTAMPTZ '2025-07-20 00:00:00+00', NULL,
-    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Licencia' LIMIT 1), 1),
+    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Licencia' LIMIT 1),
+    (SELECT "IdRol" FROM "ROL" WHERE "Nombre" = 'Voluntaria' LIMIT 1)),
   (30111120, 'Rocío', 'Mendoza', 'rocio.m@test.seed', 3516111010, TIMESTAMPTZ '2025-08-10 00:00:00+00', NULL,
-    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Carpeta médica' LIMIT 1), 3);
+    (SELECT e."idEstado" FROM "ESTADO" e JOIN "AMBITO" a ON a."idAmbito" = e."idAmbito" WHERE a."nombre" = 'Voluntarias' AND e."nombre" = 'Carpeta médica' LIMIT 1),
+    (SELECT "IdRol" FROM "ROL" WHERE "Nombre" = 'Coordinadora' LIMIT 1));
 
 -- ---------------------------------------------------------------------------
 -- ASIGNACION (muestras; idEstado = 1 como en NegAsignacion)
