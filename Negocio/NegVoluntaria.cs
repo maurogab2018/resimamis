@@ -14,7 +14,7 @@ namespace ResimamisBackend.Negocio
             horarioRepositorio = new HorarioRepositorio();
         }
 
-        private void ValidarVoluntaria(VOLUNTARIA voluntaria)
+        private void ValidarVoluntaria(VOLUNTARIA voluntaria, bool validarEstado = true)
         {
             if (voluntaria == null)
                 throw new ApplicationException("Voluntaria inválida");
@@ -52,7 +52,7 @@ namespace ResimamisBackend.Negocio
             if (voluntaria.FechaFin.HasValue && voluntaria.FechaFin.Value < voluntaria.FechaInicio)
                 throw new ApplicationException("FechaFin inválida");
 
-            if (voluntaria.IdEstado.HasValue)
+            if (validarEstado && voluntaria.IdEstado.HasValue)
             {
                 if (voluntaria.IdEstado.Value <= 0)
                     throw new ApplicationException("Estado inválido");
@@ -118,7 +118,7 @@ namespace ResimamisBackend.Negocio
         public bool modificarVoluntaria(VOLUNTARIA voluntaria,int id)
         {
             var voluntariaModificar = voluntariaRepositorio.consultarVoluntaria(id);
-            ValidarVoluntaria(voluntaria);
+            ValidarVoluntaria(voluntaria, validarEstado: false);
 
             return voluntariaRepositorio.modificarVoluntaria(voluntaria, voluntariaModificar);
         }

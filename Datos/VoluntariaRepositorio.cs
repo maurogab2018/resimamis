@@ -114,7 +114,6 @@ namespace ResimamisBackend.Datos
             voluntariaModificar.FechaInicio = voluntaria.FechaInicio;
             voluntariaModificar.Mail = voluntaria.Mail;
             voluntariaModificar.Dni = voluntaria.Dni;
-            voluntariaModificar.IdEstado=voluntaria.IdEstado;
             db.SaveChanges();
             return true;
         }
