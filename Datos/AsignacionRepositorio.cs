@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 

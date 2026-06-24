@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ResimamisBackend.Controllers
 {
@@ -13,10 +15,83 @@ namespace ResimamisBackend.Controllers
     public class BebeController : ControllerBase
     {
         public readonly NegBebes neg_Bebes;
+
+        private static readonly JsonSerializerOptions BebeJsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            NumberHandling = JsonNumberHandling.AllowReadingFromString
+        };
+
+        private static readonly HashSet<string> PropsIgnorarEnBody = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "madre", "sala", "estado", "asignaciones", "visitas", "nombreSala"
+        };
+
         public BebeController()
         {
             neg_Bebes = new NegBebes();
         }
+
+        private static BEBE LeerBebeDesdeBody(JsonElement body, bool esAlta)
+        {
+            var payload = body.ValueKind == JsonValueKind.Object && body.TryGetProperty("data", out var data)
+                ? data
+                : body;
+
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartObject();
+                foreach (var prop in payload.EnumerateObject())
+                {
+                    if (PropsIgnorarEnBody.Contains(prop.Name))
+                        continue;
+
+                    if (esAlta && prop.Name.Equals("id", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (prop.Value.ValueKind == JsonValueKind.Null)
+                            continue;
+                        if (prop.Value.ValueKind == JsonValueKind.Number
+                            && prop.Value.TryGetInt32(out var id)
+                            && id <= 0)
+                            continue;
+                    }
+
+                    if (esAlta && prop.Name.Equals("idEstado", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    prop.WriteTo(writer);
+                }
+
+                if (!TienePropiedadConValor(payload, "idMadre")
+                    && payload.TryGetProperty("madre", out var madre)
+                    && madre.ValueKind == JsonValueKind.Object
+                    && madre.TryGetProperty("idMadre", out var idMadre)
+                    && idMadre.ValueKind == JsonValueKind.Number)
+                {
+                    writer.WriteNumber("idMadre", idMadre.GetInt32());
+                }
+
+                if (!TienePropiedadConValor(payload, "idSala")
+                    && payload.TryGetProperty("sala", out var sala)
+                    && sala.ValueKind == JsonValueKind.Object
+                    && sala.TryGetProperty("idSala", out var idSala)
+                    && idSala.ValueKind == JsonValueKind.Number)
+                {
+                    writer.WriteNumber("idSala", idSala.GetInt32());
+                }
+
+                writer.WriteEndObject();
+            }
+
+            var json = Encoding.UTF8.GetString(stream.ToArray());
+            return JsonSerializer.Deserialize<BEBE>(json, BebeJsonOptions)
+                ?? throw new ApplicationException("Bebé inválido.");
+        }
+
+        private static bool TienePropiedadConValor(JsonElement obj, string name) =>
+            obj.TryGetProperty(name, out var p) && p.ValueKind != JsonValueKind.Null;
         [HttpGet]
         public IActionResult Get()
         {
@@ -96,10 +171,11 @@ namespace ResimamisBackend.Controllers
         }
 
         [HttpPost]
-        public IActionResult post(BEBE bebe)
+        public IActionResult post([FromBody] JsonElement body)
         {
             try
             {
+                var bebe = LeerBebeDesdeBody(body, esAlta: true);
                 var respuesta = neg_Bebes.registrarBebe(bebe);
                 return ApiResults.Success(respuesta);
             }
@@ -119,11 +195,12 @@ namespace ResimamisBackend.Controllers
 
 
         [HttpPut]
-        public IActionResult Put(BEBE bebe)
+        public IActionResult Put([FromBody] JsonElement body)
         {
             try
             {
-                var respuesta=neg_Bebes.modificarBebe(bebe);
+                var bebe = LeerBebeDesdeBody(body, esAlta: false);
+                var respuesta = neg_Bebes.modificarBebe(bebe);
                 return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
