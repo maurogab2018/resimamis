@@ -25,7 +25,7 @@ namespace ResimamisBackend.Controllers
 
         private static readonly HashSet<string> PropsIgnorarEnBody = new(StringComparer.OrdinalIgnoreCase)
         {
-            "madre", "sala", "estado", "asignaciones", "visitas", "nombreSala"
+            "madre", "sala", "estado", "localidad", "asignaciones", "visitas", "nombreSala"
         };
 
         public BebeController()
@@ -80,6 +80,22 @@ namespace ResimamisBackend.Controllers
                     && idSala.ValueKind == JsonValueKind.Number)
                 {
                     writer.WriteNumber("idSala", idSala.GetInt32());
+                }
+
+                if (!TienePropiedadConValor(payload, "idLocalidad")
+                    && payload.TryGetProperty("localidad", out var localidad)
+                    && localidad.ValueKind == JsonValueKind.Object)
+                {
+                    if (localidad.TryGetProperty("idLocalidad", out var idLocalidad)
+                        && idLocalidad.ValueKind == JsonValueKind.Number)
+                    {
+                        writer.WriteNumber("idLocalidad", idLocalidad.GetInt32());
+                    }
+                    else if (localidad.TryGetProperty("id", out var idLoc)
+                             && idLoc.ValueKind == JsonValueKind.Number)
+                    {
+                        writer.WriteNumber("idLocalidad", idLoc.GetInt32());
+                    }
                 }
 
                 writer.WriteEndObject();

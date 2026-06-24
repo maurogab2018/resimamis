@@ -33,9 +33,13 @@ namespace ResimamisBackend.Datos
         
         public int? IdMadre { get; set; }
 
+        public int? IdLocalidad { get; set; }
+
         public int? IdEstado { get; set; }
 
         public virtual MADRE? Madre { get; set; }
+
+        public virtual LOCALIDAD? LocalidadDetalle { get; set; }
 
         public virtual SALA? Sala { get; set; }
 

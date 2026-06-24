@@ -57,6 +57,14 @@ namespace ResimamisBackend.Negocio
 
             if (bebe.FechaNacimiento == null || bebe.FechaNacimiento == default)
                 resultado.Errores.Add(prefijo + "FechaNacimiento es obligatorio.");
+
+            if (bebe.IdLocalidad.HasValue)
+            {
+                if (bebe.IdLocalidad.Value <= 0)
+                    bebe.IdLocalidad = null;
+                else if (!new GenericosRepositorio().existeLocalidad(bebe.IdLocalidad.Value))
+                    resultado.Errores.Add(prefijo + "Localidad no existente con ese ID.");
+            }
         }
 
         public List<BEBE> listarBebes()

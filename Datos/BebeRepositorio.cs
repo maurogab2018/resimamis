@@ -44,6 +44,7 @@ namespace ResimamisBackend.Datos
                 .AsNoTracking()
                 .Include(b => b.Sala)
                 .Include(b => b.Madre)
+                .Include(b => b.LocalidadDetalle)
                 .Include(b => b.Estado!).ThenInclude(e => e!.ambito)
                 .AsQueryable();
             if (idEl != null)
@@ -71,6 +72,7 @@ namespace ResimamisBackend.Datos
         {
             var bebe = db.BEBE
                 .Include(b => b.Sala)
+                .Include(b => b.LocalidadDetalle)
                 .Include(b => b.Estado!).ThenInclude(e => e!.ambito)
                 .Include(b => b.Madre)
                 .FirstOrDefault(b => b.ID == id);
@@ -95,6 +97,7 @@ namespace ResimamisBackend.Datos
             bebeModificar.DiagnosticoEgreso = bebe.DiagnosticoEgreso;
             bebeModificar.DiagnosticoIngreso = bebe.DiagnosticoIngreso;
             bebeModificar.IdSala = bebe.IdSala;
+            bebeModificar.IdLocalidad = bebe.IdLocalidad;
             bebeModificar.IdMadre = madreBebe.IdMadre;
             db.SaveChanges();
             return true;
@@ -124,6 +127,7 @@ namespace ResimamisBackend.Datos
                 .ThenInclude(e => e!.ambito)
                 .Include(b => b.Sala)
                 .Include(b => b.Madre)
+                .Include(b => b.LocalidadDetalle)
                 .Where(v => v.Estado != null
                             && (idElimBebe == null || v.IdEstado != idElimBebe)
                             && v.Estado.ambito.nombre == "Bebes"

@@ -12,5 +12,7 @@
         {
             return db.LOCALIDAD.ToList();
         }
+
+        public bool existeLocalidad(int id) => db.LOCALIDAD.Any(l => l.idLocalidad == id);
     }
 }

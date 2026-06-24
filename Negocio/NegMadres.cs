@@ -77,7 +77,8 @@ namespace ResimamisBackend.Negocio
 
         private static bool PropiedadBebeIgnorar(string name) =>
             name is nameof(BEBE.Madre) or nameof(BEBE.Sala) or nameof(BEBE.Estado)
-                or nameof(BEBE.Asignaciones) or nameof(BEBE.NombreSala);
+                or nameof(BEBE.LocalidadDetalle) or nameof(BEBE.Asignaciones) or nameof(BEBE.Visitas)
+                or nameof(BEBE.NombreSala);
 
         private static BEBE CombinarParcheBebe(BEBE existente, BEBE parcial)
         {

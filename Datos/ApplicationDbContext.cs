@@ -105,6 +105,11 @@ namespace ResimamisBackend.Datos
                 .WithMany()
                 .HasForeignKey(b => b.IdSala);
 
+            modelBuilder.Entity<BEBE>()
+                .HasOne(b => b.LocalidadDetalle)
+                .WithMany()
+                .HasForeignKey(b => b.IdLocalidad);
+
             modelBuilder.Entity<ASISTENCIA>()
             .HasOne(a => a.Voluntaria)
             .WithMany(v => v.Asistencias)
