@@ -34,6 +34,9 @@ namespace ResimamisBackend.Negocio
         private static string NombreCompletoVoluntaria(VOLUNTARIA? voluntaria) =>
             voluntaria == null ? string.Empty : $"{voluntaria.Nombre} {voluntaria.Apellido}".Trim();
 
+        private static string? NombreCompletoBebe(BEBE? bebe) =>
+            bebe == null ? null : $"{bebe.nombre} {bebe.apellido}".Trim();
+
         private List<DetalleAsignacionResumido> ObtenerDetallesResumidos(int idAsignacion) =>
             db.DETALLEASIGNACION
                 .Where(d => d.idAsignacion == idAsignacion)
@@ -53,7 +56,7 @@ namespace ResimamisBackend.Negocio
                 idTarea = a.idTarea,
                 idBebe = a.idBebe,
                 idVoluntaria = a.idVoluntaria,
-                nombreBebe = a.bebe?.nombre,
+                nombreBebe = NombreCompletoBebe(a.bebe),
                 nombreTarea = a.tarea?.nombre,
                 nombreVoluntaria = NombreCompletoVoluntaria(a.voluntaria),
                 fechaHoraAsignacion = a.fechaHoraAsignacion,
@@ -463,7 +466,7 @@ namespace ResimamisBackend.Negocio
                     idAsignacion = a.idAsignacion,
                     idBebe = a.idBebe,
                     idVoluntaria = a.idVoluntaria,
-                    nombreBebe = a.bebe != null ? a.bebe.nombre : "Desconocido",
+                    nombreBebe = NombreCompletoBebe(a.bebe) ?? "Desconocido",
                     nombreVoluntaria = a.voluntaria != null ? (a.voluntaria.Nombre + " " + a.voluntaria.Apellido) : "Desconocido",
                     fechaHoraAsignacion = a.fechaHoraAsignacion,
                     fechaHoraFin = a.fechaHoraFin,
