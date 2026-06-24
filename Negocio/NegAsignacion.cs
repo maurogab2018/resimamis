@@ -37,6 +37,9 @@ namespace ResimamisBackend.Negocio
         private static string? NombreCompletoBebe(BEBE? bebe) =>
             bebe == null ? null : $"{bebe.nombre} {bebe.apellido}".Trim();
 
+        private static string? NombreSalaBebe(BEBE? bebe) =>
+            bebe?.Sala?.Nombre ?? bebe?.NombreSala;
+
         private List<DetalleAsignacionResumido> ObtenerDetallesResumidos(int idAsignacion) =>
             db.DETALLEASIGNACION
                 .Where(d => d.idAsignacion == idAsignacion)
@@ -64,6 +67,7 @@ namespace ResimamisBackend.Negocio
                 fechaHoraInicio = a.fechaHoraInicio,
                 estadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
                 sala = a.bebe?.IdSala,
+                nombreSala = NombreSalaBebe(a.bebe),
                 detalles = ObtenerDetallesResumidos(a.idAsignacion)
             };
 
@@ -455,7 +459,8 @@ namespace ResimamisBackend.Negocio
                 var idsCreados = asignaciones.Select(a => a.idAsignacion).ToHashSet();
                 var asignacionesConDatos = db.ASIGNACION
                     .AsSplitQuery()
-                    .Include(a => a.bebe)
+                    .Include(a => a.bebe!)
+                        .ThenInclude(b => b.Sala)
                     .Include(a => a.voluntaria)
                     .Include(a => a.estado)
                     .Where(a => idsCreados.Contains(a.idAsignacion))
@@ -472,7 +477,8 @@ namespace ResimamisBackend.Negocio
                     fechaHoraFin = a.fechaHoraFin,
                     fechaHoraInicio = a.fechaHoraInicio,
                     estadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
-                    sala = a.bebe != null ? a.bebe.IdSala : 0
+                    sala = a.bebe?.IdSala,
+                    nombreSala = NombreSalaBebe(a.bebe)
                 }).ToList();
 
                 transaction.Commit();
@@ -711,7 +717,8 @@ namespace ResimamisBackend.Negocio
         {
             var a = db.ASIGNACION
                 .Include(x => x.voluntaria)
-                .Include(x => x.bebe)
+                .Include(x => x.bebe!)
+                    .ThenInclude(b => b.Sala)
                 .Include(x => x.tarea)
                 .Include(x => x.estado)
                 .FirstOrDefault(x => x.idAsignacion == idAsignacion);

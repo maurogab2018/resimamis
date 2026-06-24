@@ -54,7 +54,12 @@ namespace ResimamisBackend.Datos
         {
             var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
-            var asignaciones= db.ASIGNACION.Where(a => a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia && a.idEstado != idElim).Select(a=> new ASIGNACION()
+            var asignaciones= db.ASIGNACION
+                .Include(a => a.bebe!).ThenInclude(b => b.Sala)
+                .Include(a => a.voluntaria)
+                .Include(a => a.tarea)
+                .Include(a => a.estado)
+                .Where(a => a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia && a.idEstado != idElim).Select(a=> new ASIGNACION()
             {
                 idAsignacion=a.idAsignacion,
                 fechaHoraAsignacion = a.fechaHoraAsignacion,
@@ -88,7 +93,12 @@ namespace ResimamisBackend.Datos
         {
             var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
-            var asignaciones = db.ASIGNACION.Where(a => a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia && a.idVoluntaria==idVoluntaria && a.idEstado != idElim).Select(a => new ASIGNACION()
+            var asignaciones = db.ASIGNACION
+                .Include(a => a.bebe!).ThenInclude(b => b.Sala)
+                .Include(a => a.voluntaria)
+                .Include(a => a.tarea)
+                .Include(a => a.estado)
+                .Where(a => a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia && a.idVoluntaria==idVoluntaria && a.idEstado != idElim).Select(a => new ASIGNACION()
             {
                 idAsignacion = a.idAsignacion,
                 fechaHoraAsignacion = a.fechaHoraAsignacion,
