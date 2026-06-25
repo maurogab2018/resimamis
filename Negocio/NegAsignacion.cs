@@ -247,6 +247,36 @@ namespace ResimamisBackend.Negocio
             return EjecutarGeneracionAsignacionesAbrazos(bebesAbrazar, voluntariasActivas);
         }
 
+        private static VOLUNTARIA ElegirVoluntariaConMenorConteo(
+            IReadOnlyList<VOLUNTARIA> candidatas,
+            Func<VOLUNTARIA, int> conteo)
+        {
+            var min = candidatas.Min(conteo);
+            return candidatas.First(v => conteo(v) == min);
+        }
+
+        private Dictionary<int, int> ContarAsignacionesPorVoluntaria(
+            IEnumerable<int> idsVoluntarias,
+            DateTime desde,
+            DateTime hasta,
+            int idEstadoAsignacionEliminado)
+        {
+            var ids = idsVoluntarias.Distinct().ToList();
+            var conteos = db.ASIGNACION
+                .AsNoTracking()
+                .Where(a => ids.Contains(a.idVoluntaria)
+                            && a.fechaHoraAsignacion >= desde
+                            && a.fechaHoraAsignacion < hasta
+                            && a.idEstado != idEstadoAsignacionEliminado)
+                .GroupBy(a => a.idVoluntaria)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            foreach (var id in ids)
+                conteos.TryAdd(id, 0);
+
+            return conteos;
+        }
+
         private List<RespuestaAsignaciones> EjecutarGeneracionAsignacionesAbrazos(
             List<BEBE> bebesAbrazar,
             List<VOLUNTARIA> voluntariasActivas)
@@ -271,186 +301,84 @@ namespace ResimamisBackend.Negocio
                 var idEstadoAsignacionCreada = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Creada", "Asignaciones");
                 var idEstadoAsignacionEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
 
+                var idsBebes = bebesAbrazar.Select(b => b.ID).ToList();
+                var idsVoluntarias = voluntariasActivas.Select(v => v.IdVoluntaria).ToList();
+
+                var bebes = db.BEBE
+                    .Where(b => idsBebes.Contains(b.ID))
+                    .ToList()
+                    .OrderBy(b => idsBebes.IndexOf(b.ID))
+                    .ToList();
+
+                var voluntarias = db.VOLUNTARIA
+                    .Where(v => idsVoluntarias.Contains(v.IdVoluntaria))
+                    .ToList()
+                    .OrderBy(v => idsVoluntarias.IndexOf(v.IdVoluntaria))
+                    .ToList();
+
+                var asignacionesHoyPorVol = ContarAsignacionesPorVoluntaria(
+                    idsVoluntarias, diaInicio, diaFin, idEstadoAsignacionEliminado);
+                var asignacionesMesPorVol = ContarAsignacionesPorVoluntaria(
+                    idsVoluntarias, fechaMesAnterior, fechaHoy, idEstadoAsignacionEliminado);
+
                 var asignaciones = new List<ASIGNACION>();
 
-                void AsegurarListaAsignaciones(VOLUNTARIA v)
+                void RegistrarAsignacion(BEBE bebe, VOLUNTARIA voluntaria)
                 {
-                    v.Asignaciones ??= new List<ASIGNACION>();
-                }
+                    bebe.IdEstado = idEstadoBebeAsignado;
+                    voluntaria.IdEstado = idEstadoVolAsignada;
 
-                void AplicarEstadosBebeYVoluntaria(BEBE bebe, int idVoluntaria)
-                {
-                    if (bebe.IdEstado != idEstadoBebeAsignado)
-                        bebe.IdEstado = idEstadoBebeAsignado;
-
-                    var vol = db.VOLUNTARIA.Local.FirstOrDefault(x => x.IdVoluntaria == idVoluntaria)
-                              ?? db.VOLUNTARIA.Find(idVoluntaria);
-                    if (vol == null)
-                        throw new ApplicationException("Voluntaria no existente con ese Id");
-                    if (vol.IdEstado != idEstadoVolAsignada)
-                        vol.IdEstado = idEstadoVolAsignada;
-                }
-
-                if (bebesAbrazar.Count == voluntariasActivas.Count)
-                {
-                    for (int i = 0; i < bebesAbrazar.Count; i++)
+                    var asignacion = new ASIGNACION
                     {
-                        var asignacion = new ASIGNACION
-                        {
-                            idVoluntaria = voluntariasActivas[i].IdVoluntaria,
-                            idBebe = bebesAbrazar[i].ID,
-                            fechaHoraAsignacion = fechaHoy,
-                            idEstado = idEstadoAsignacionCreada
-                        };
-                        AplicarEstadosBebeYVoluntaria(bebesAbrazar[i], voluntariasActivas[i].IdVoluntaria);
-                        db.ASIGNACION.Add(asignacion);
-                        asignaciones.Add(asignacion);
-                    }
+                        idVoluntaria = voluntaria.IdVoluntaria,
+                        idBebe = bebe.ID,
+                        fechaHoraAsignacion = fechaHoy,
+                        idEstado = idEstadoAsignacionCreada
+                    };
+
+                    db.ASIGNACION.Add(asignacion);
+                    asignaciones.Add(asignacion);
+
+                    asignacionesHoyPorVol[voluntaria.IdVoluntaria] =
+                        asignacionesHoyPorVol.GetValueOrDefault(voluntaria.IdVoluntaria, 0) + 1;
+                    asignacionesMesPorVol[voluntaria.IdVoluntaria] =
+                        asignacionesMesPorVol.GetValueOrDefault(voluntaria.IdVoluntaria, 0) + 1;
                 }
 
-                if (bebesAbrazar.Count > voluntariasActivas.Count)
+                if (bebes.Count == voluntarias.Count)
                 {
-                    for (int i = 0; i < bebesAbrazar.Count; i++)
+                    for (var i = 0; i < bebes.Count; i++)
+                        RegistrarAsignacion(bebes[i], voluntarias[i]);
+                }
+                else if (bebes.Count > voluntarias.Count)
+                {
+                    foreach (var bebe in bebes)
                     {
-                        int minAsignacionesHoy = voluntariasActivas
-                            .Where(voluntaria => voluntaria.Asignaciones != null)
-                            .Select(voluntaria => voluntaria.Asignaciones!
-                                .Count(asignacion => asignacion.fechaHoraAsignacion >= diaInicio && asignacion.fechaHoraAsignacion < diaFin && asignacion.idEstado != idEstadoAsignacionEliminado))
-                            .DefaultIfEmpty(0)
-                            .Min();
-
-                        var voluntariaMenosAsignacionesHoy = voluntariasActivas
-                            .Where(voluntaria => voluntaria.Asignaciones != null && voluntaria.Asignaciones
-                                .Count(asignacion => asignacion.fechaHoraAsignacion >= diaInicio && asignacion.fechaHoraAsignacion < diaFin && asignacion.idEstado != idEstadoAsignacionEliminado) == minAsignacionesHoy)
+                        var minHoy = voluntarias.Min(v => asignacionesHoyPorVol.GetValueOrDefault(v.IdVoluntaria, 0));
+                        var candidatasHoy = voluntarias
+                            .Where(v => asignacionesHoyPorVol.GetValueOrDefault(v.IdVoluntaria, 0) == minHoy)
                             .ToList();
 
-                        if (voluntariaMenosAsignacionesHoy.Count == 1)
-                        {
-                            var vol = voluntariaMenosAsignacionesHoy[0];
-                            AsegurarListaAsignaciones(vol);
-                            var asignacion = new ASIGNACION
-                            {
-                                idVoluntaria = vol.IdVoluntaria,
-                                idBebe = bebesAbrazar[i].ID,
-                                fechaHoraAsignacion = fechaHoy,
-                                idEstado = idEstadoAsignacionCreada
-                            };
-                            vol.Asignaciones!.Add(asignacion);
-                            AplicarEstadosBebeYVoluntaria(bebesAbrazar[i], vol.IdVoluntaria);
-                            db.ASIGNACION.Add(asignacion);
-                            asignacion.bebe = bebesAbrazar[i];
-                            asignacion.voluntaria = vol;
-                            asignaciones.Add(asignacion);
-                        }
-                        else
-                        {
-                            int minAsignacionesMesPasado = voluntariaMenosAsignacionesHoy
-                                .Select(voluntaria => voluntaria.Asignaciones!
-                                    .Count(asignacion => asignacion.fechaHoraAsignacion >= fechaMesAnterior && asignacion.fechaHoraAsignacion < fechaHoy && asignacion.idEstado != idEstadoAsignacionEliminado))
-                                .DefaultIfEmpty(0)
-                                .Min();
+                        var voluntaria = candidatasHoy.Count == 1
+                            ? candidatasHoy[0]
+                            : ElegirVoluntariaConMenorConteo(
+                                candidatasHoy,
+                                v => asignacionesMesPorVol.GetValueOrDefault(v.IdVoluntaria, 0));
 
-                            var voluntariaMenosAsignacionesMes = voluntariaMenosAsignacionesHoy
-                                .Where(voluntaria => voluntaria.Asignaciones != null && voluntaria.Asignaciones
-                                    .Count(asignacion => asignacion.fechaHoraAsignacion >= fechaMesAnterior && asignacion.fechaHoraAsignacion < fechaHoy && asignacion.idEstado != idEstadoAsignacionEliminado) == minAsignacionesMesPasado)
-                                .FirstOrDefault();
-
-                            if (voluntariaMenosAsignacionesMes != null)
-                            {
-                                var vol = voluntariaMenosAsignacionesMes;
-                                AsegurarListaAsignaciones(vol);
-                                var asignacion = new ASIGNACION
-                                {
-                                    idVoluntaria = vol.IdVoluntaria,
-                                    idBebe = bebesAbrazar[i].ID,
-                                    fechaHoraAsignacion = fechaHoy,
-                                    idEstado = idEstadoAsignacionCreada
-                                };
-                                var actualizaVoluntariasLibres = voluntariasActivas.Single(v => v.IdVoluntaria == vol.IdVoluntaria);
-                                actualizaVoluntariasLibres.Asignaciones!.Add(asignacion);
-                                AplicarEstadosBebeYVoluntaria(bebesAbrazar[i], vol.IdVoluntaria);
-                                db.ASIGNACION.Add(asignacion);
-                                asignacion.bebe = bebesAbrazar[i];
-                                asignacion.voluntaria = vol;
-                                asignaciones.Add(asignacion);
-                            }
-                            else
-                            {
-                                var asignacion = new ASIGNACION
-                                {
-                                    idVoluntaria = voluntariasActivas[0].IdVoluntaria,
-                                    idBebe = bebesAbrazar[i].ID,
-                                    fechaHoraAsignacion = fechaHoy,
-                                    idEstado = idEstadoAsignacionCreada
-                                };
-                                var actualizaVoluntariaAsignada = voluntariasActivas.Single(v => v.IdVoluntaria == voluntariasActivas[0].IdVoluntaria);
-                                voluntariasActivas.Remove(actualizaVoluntariaAsignada);
-                                AplicarEstadosBebeYVoluntaria(bebesAbrazar[i], voluntariasActivas[0].IdVoluntaria);
-                                db.ASIGNACION.Add(asignacion);
-                                asignacion.bebe = bebesAbrazar[i];
-                                asignacion.voluntaria = voluntariasActivas[0];
-                                asignaciones.Add(asignacion);
-                            }
-                        }
+                        RegistrarAsignacion(bebe, voluntaria);
                     }
                 }
-
-                if (bebesAbrazar.Count < voluntariasActivas.Count)
+                else
                 {
-                    for (int i = 0; i < bebesAbrazar.Count; i++)
+                    var pool = voluntarias.ToList();
+                    foreach (var bebe in bebes)
                     {
-                        int minAsignacionesMesPasado = voluntariasActivas
-                            .Where(voluntaria => voluntaria.Asignaciones != null)
-                            .Select(voluntaria => voluntaria.Asignaciones!
-                                .Count(asignacion => asignacion.fechaHoraAsignacion >= fechaMesAnterior && asignacion.fechaHoraAsignacion < fechaHoy && asignacion.idEstado != idEstadoAsignacionEliminado))
-                            .DefaultIfEmpty(0)
-                            .Min();
+                        var voluntaria = ElegirVoluntariaConMenorConteo(
+                            pool,
+                            v => asignacionesMesPorVol.GetValueOrDefault(v.IdVoluntaria, 0));
 
-                        var voluntariaMenosAsignacionesMes = voluntariasActivas
-                            .Where(voluntaria => (voluntaria.Asignaciones ?? new List<ASIGNACION>())
-                                .Count(asignacion => asignacion.fechaHoraAsignacion >= fechaMesAnterior && asignacion.fechaHoraAsignacion < fechaHoy && asignacion.idEstado != idEstadoAsignacionEliminado) == minAsignacionesMesPasado)
-                            .FirstOrDefault();
-
-                        if (voluntariaMenosAsignacionesMes != null)
-                        {
-                            var vol = voluntariaMenosAsignacionesMes;
-                            AsegurarListaAsignaciones(vol);
-                            var asignacion = new ASIGNACION
-                            {
-                                idVoluntaria = vol.IdVoluntaria,
-                                idBebe = bebesAbrazar[i].ID,
-                                fechaHoraAsignacion = fechaHoy,
-                                idEstado = idEstadoAsignacionCreada
-                            };
-                            var actualizaVoluntariaAsignada = voluntariasActivas.Single(v => v.IdVoluntaria == vol.IdVoluntaria);
-                            voluntariasActivas.Remove(actualizaVoluntariaAsignada);
-                            vol.Asignaciones!.Add(asignacion);
-                            AplicarEstadosBebeYVoluntaria(bebesAbrazar[i], vol.IdVoluntaria);
-                            db.ASIGNACION.Add(asignacion);
-                            asignacion.bebe = bebesAbrazar[i];
-                            asignacion.voluntaria = vol;
-                            asignaciones.Add(asignacion);
-                        }
-                        else
-                        {
-                            var vol0 = voluntariasActivas[0];
-                            AsegurarListaAsignaciones(vol0);
-                            var asignacion = new ASIGNACION
-                            {
-                                idVoluntaria = vol0.IdVoluntaria,
-                                idBebe = bebesAbrazar[i].ID,
-                                fechaHoraAsignacion = fechaHoy,
-                                idEstado = idEstadoAsignacionCreada
-                            };
-                            var actualizaVoluntariaAsignada = voluntariasActivas.Single(v => v.IdVoluntaria == vol0.IdVoluntaria);
-                            voluntariasActivas.Remove(actualizaVoluntariaAsignada);
-                            vol0.Asignaciones!.Add(asignacion);
-                            AplicarEstadosBebeYVoluntaria(bebesAbrazar[i], vol0.IdVoluntaria);
-                            db.ASIGNACION.Add(asignacion);
-                            asignacion.bebe = bebesAbrazar[i];
-                            asignacion.voluntaria = vol0;
-                            asignaciones.Add(asignacion);
-                        }
+                        RegistrarAsignacion(bebe, voluntaria);
+                        pool.Remove(voluntaria);
                     }
                 }
 
