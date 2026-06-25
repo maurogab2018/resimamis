@@ -640,6 +640,18 @@ namespace ResimamisBackend.Negocio
             if (datos.idBebe.HasValue)
                 bebeRepositorio.consultarBebe(datos.idBebe.Value);
 
+            var idIniciado = estadoRepositorio.ObtenerIdEstadoAsignacionIniciado();
+            var idFinalizado = estadoRepositorio.ObtenerIdEstadoAsignacionFinalizado();
+
+            var idEstado = existentePrevio.idEstado;
+            if (datos.fechaHoraFin != null)
+                idEstado = idFinalizado;
+            else if (datos.fechaHoraInicio != null)
+                idEstado = idIniciado;
+
+            var pasoAFinalizado = idEstado == idFinalizado && existentePrevio.idEstado != idFinalizado;
+            var pasoAIniciado = idEstado == idIniciado && existentePrevio.idEstado != idIniciado;
+
             var patch = new ASIGNACION
             {
                 idTarea = datos.idTarea,
@@ -648,8 +660,46 @@ namespace ResimamisBackend.Negocio
                 comentario = datos.comentario,
                 fechaHoraInicio = datos.fechaHoraInicio,
                 fechaHoraFin = datos.fechaHoraFin,
+                idEstado = idEstado,
             };
-            return asignacionRepositorio.modificarAsignacion(patch, existentePrevio);
+            asignacionRepositorio.modificarAsignacion(patch, existentePrevio);
+
+            if (pasoAFinalizado)
+            {
+                var idVolDisponible = estadoRepositorio.ObtenerIdVoluntariaDisponible();
+                var voluntaria = voluntariaRepositorio.consultarVoluntaria(datos.idVoluntaria);
+                voluntaria.IdEstado = idVolDisponible;
+                voluntariaRepositorio.cambioEstadoVoluntaria(voluntaria);
+
+                var idBebe = datos.idBebe ?? existentePrevio.idBebe;
+                if (idBebe.HasValue)
+                {
+                    var idBebeSinAbrazar = estadoRepositorio.ObtenerIdBebeSinAbrazar();
+                    var bebe = bebeRepositorio.consultarBebe(idBebe.Value);
+                    bebe.IdEstado = idBebeSinAbrazar;
+                    bebeRepositorio.cambioEstadoBebe(bebe, idBebeSinAbrazar);
+                }
+            }
+            else if (pasoAIniciado)
+            {
+                var idEstadoVoluntaria = datos.idBebe.HasValue || existentePrevio.idBebe.HasValue
+                    ? estadoRepositorio.ObtenerIdVoluntariaAbrazando()
+                    : estadoRepositorio.ObtenerIdVoluntariaEnTarea();
+                var voluntaria = voluntariaRepositorio.consultarVoluntaria(datos.idVoluntaria);
+                voluntaria.IdEstado = idEstadoVoluntaria;
+                voluntariaRepositorio.cambioEstadoVoluntaria(voluntaria);
+
+                var idBebe = datos.idBebe ?? existentePrevio.idBebe;
+                if (idBebe.HasValue)
+                {
+                    var idBebeAbrazado = estadoRepositorio.ObtenerIdBebeAbrazado();
+                    var bebe = bebeRepositorio.consultarBebe(idBebe.Value);
+                    bebe.IdEstado = idBebeAbrazado;
+                    bebeRepositorio.cambioEstadoBebe(bebe, idBebeAbrazado);
+                }
+            }
+
+            return true;
         }
 
         public RespuestaAsignaciones consultarAsignacionPorId(int idAsignacion)

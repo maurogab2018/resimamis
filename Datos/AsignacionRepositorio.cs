@@ -38,6 +38,7 @@ namespace ResimamisBackend.Datos
             existente.comentario = datos.comentario;
             existente.fechaHoraInicio = datos.fechaHoraInicio;
             existente.fechaHoraFin = datos.fechaHoraFin;
+            existente.idEstado = datos.idEstado;
             db.SaveChanges();
             return true;
         }
@@ -121,6 +122,7 @@ namespace ResimamisBackend.Datos
 
             return asignaciones;
         }
+
         public void registrarCambioaAsignacion()
         {
             db.SaveChanges();
