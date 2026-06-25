@@ -512,6 +512,7 @@ namespace ResimamisBackend.Negocio
             }
 
             asignacion.fechaHoraInicio = NegConversorFecha.ObtenerFechaArgentina();
+            asignacion.idEstado = estadoRepositorio.ObtenerIdEstadoAsignacionIniciado();
             asignacionRepositorio.registrarCambioaAsignacion();
 
             return true;
@@ -543,6 +544,7 @@ namespace ResimamisBackend.Negocio
 
             asignacion.fechaHoraFin = NegConversorFecha.ObtenerFechaArgentina();
             asignacion.comentario = comentario;
+            asignacion.idEstado = estadoRepositorio.ObtenerIdEstadoAsignacionFinalizado();
             asignacionRepositorio.registrarCambioaAsignacion();
 
             return true;
@@ -550,13 +552,14 @@ namespace ResimamisBackend.Negocio
 
         /// <summary>
         /// Cierra asignaciones con bebé donde el abrazo se inició antes del día calendario actual en Argentina
-        /// y nunca se finalizó: bebé a Sin abrazar, voluntaria a Disponible/Activa, asignación con fechaHoraFin.
+        /// y nunca se finalizó: bebé a Sin abrazar, voluntaria a Disponible/Activa, asignación Finalizado con fechaHoraFin.
         /// </summary>
         /// <returns>Cantidad de asignaciones actualizadas.</returns>
         public int ResetearAbrazosBebeColgadosAntesDeHoy()
         {
             var (inicioHoyUtc, _) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
             var idElimAsig = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+            var idEstadoFinalizado = estadoRepositorio.ObtenerIdEstadoAsignacionFinalizado();
             var idVolDisponible = estadoRepositorio.ObtenerIdVoluntariaDisponible();
             var idBebeSinAbrazar = estadoRepositorio.ObtenerIdBebeSinAbrazar();
 
@@ -592,6 +595,7 @@ namespace ResimamisBackend.Negocio
                     }
 
                     asignacion.fechaHoraFin = ahora;
+                    asignacion.idEstado = idEstadoFinalizado;
                     asignacion.comentario = string.IsNullOrWhiteSpace(asignacion.comentario)
                         ? comentarioAuto
                         : (asignacion.comentario.Contains("Cierre automático", StringComparison.Ordinal)

@@ -113,10 +113,10 @@ namespace ResimamisBackend.Datos
 
         public List<BEBE> obtenerBebesAbrazar()
         {
-            var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
-
             var idElimBebe = IdEstadoEliminadoBebes();
-            var idElimAsig = IdEstadoEliminadoAsignaciones();
+            var idEstadoIniciado = estadoRepositorio.ObtenerIdEstadoAsignacionIniciado();
+            var idEstadoCreada = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Creada", "Asignaciones");
+
             return db.BEBE
                 .AsNoTracking()
                 .Include(b => b.Estado!)
@@ -129,10 +129,10 @@ namespace ResimamisBackend.Datos
                             && v.Estado.ambito.nombre == "Bebes"
                             && v.Estado.nombre == "Sin abrazar"
                             && !v.Asignaciones.Any(a =>
-                                a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia
-                                && a.fechaHoraInicio != null
-                                && a.fechaHoraInicio >= inicioDia && a.fechaHoraInicio < finDia
-                                && (idElimAsig == null || a.idEstado != idElimAsig)))
+                                a.idEstado == idEstadoIniciado
+                                || (a.idEstado == idEstadoCreada
+                                    && a.fechaHoraInicio != null
+                                    && a.fechaHoraFin == null)))
                 .OrderBy(b => b.nombre)
                 .ToList();
         }

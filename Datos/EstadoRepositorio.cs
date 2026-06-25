@@ -76,5 +76,13 @@ namespace ResimamisBackend.Datos
         /// <summary>Bebé en abrazo activo.</summary>
         public int ObtenerIdBebeAbrazado() =>
             ObtenerIdEstadoPorNombresYAmbito("Bebes", "Abrazado", "Asignado");
+
+        /// <summary>Asignación con abrazo en curso.</summary>
+        public int ObtenerIdEstadoAsignacionIniciado() =>
+            ObtenerIdEstadoPorNombreYAmbito("Iniciado", "Asignaciones");
+
+        /// <summary>Asignación con abrazo cerrado.</summary>
+        public int ObtenerIdEstadoAsignacionFinalizado() =>
+            ObtenerIdEstadoPorNombreYAmbito("Finalizado", "Asignaciones");
     }
 }
