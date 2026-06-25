@@ -8,10 +8,13 @@ namespace ResimamisBackend.Negocio
     {
         public readonly VoluntariaRepositorio voluntariaRepositorio;
         private readonly HorarioRepositorio horarioRepositorio;
+        private readonly EstadoRepositorio estadoRepositorio;
+
         public NegVoluntaria()
         {
             voluntariaRepositorio = new VoluntariaRepositorio();
             horarioRepositorio = new HorarioRepositorio();
+            estadoRepositorio = new EstadoRepositorio();
         }
 
         private void ValidarVoluntaria(VOLUNTARIA voluntaria, bool validarEstado = true)
@@ -71,11 +74,55 @@ namespace ResimamisBackend.Negocio
             return voluntariaRepositorio.listarVoluntarias();
         }
 
-        public bool registrarVoluntaria(VOLUNTARIA voluntaria)
+        public VoluntariaDetalle registrarVoluntaria(VOLUNTARIA voluntaria, List<HorarioVoluntaria>? horarios = null)
         {
-            ValidarVoluntaria(voluntaria);
-            bool registroVoluntaria = voluntariaRepositorio.registrarVoluntaria(voluntaria);
-            return registroVoluntaria;
+            ValidarVoluntaria(voluntaria, validarEstado: false);
+
+            voluntaria.IdRol = RolesVoluntaria.IdVoluntaria;
+            voluntaria.IdEstado = estadoRepositorio.ObtenerIdEstadoPorNombresYAmbito(
+                "Voluntarias", "Creada", "Activa");
+
+            voluntariaRepositorio.registrarVoluntaria(voluntaria);
+
+            var horariosNormalizados = NormalizarHorariosAlta(voluntaria.IdVoluntaria, horarios);
+            if (horariosNormalizados.Count > 0)
+                horarioRepositorio.registrarHoraraioVoluntaria(horariosNormalizados);
+
+            return consultarVoluntariaDetalle(voluntaria.IdVoluntaria);
+        }
+
+        private List<HorarioVoluntaria> NormalizarHorariosAlta(int idVoluntaria, List<HorarioVoluntaria>? horarios)
+        {
+            if (horarios == null || horarios.Count == 0)
+                return new List<HorarioVoluntaria>();
+
+            var normalizados = new List<HorarioVoluntaria>();
+            foreach (var h in horarios)
+            {
+                if (h.IdDia > 0 && !string.IsNullOrWhiteSpace(h.Turno))
+                {
+                    normalizados.Add(new HorarioVoluntaria
+                    {
+                        IdVoluntaria = idVoluntaria,
+                        IdDia = h.IdDia,
+                        Turno = h.Turno.Trim()
+                    });
+                    continue;
+                }
+
+                if (h.IdHorario > 0)
+                {
+                    var horario = horarioRepositorio.consultarHorario(h.IdHorario);
+                    normalizados.Add(new HorarioVoluntaria
+                    {
+                        IdVoluntaria = idVoluntaria,
+                        IdDia = horario.IdDia,
+                        Turno = horario.Turno
+                    });
+                }
+            }
+
+            return normalizados;
         }
 
         public bool eliminarVoluntaria(int id)
