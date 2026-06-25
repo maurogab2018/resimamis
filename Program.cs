@@ -3,6 +3,7 @@ using ResimamisBackend;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http.Timeouts;
 using Microsoft.OpenApi.Models;
 using System.Text.Json;
 
@@ -11,6 +12,9 @@ using System.Text.Json;
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
+
+var requestTimeoutSeconds = builder.Configuration.GetValue("RequestTimeouts:DefaultSeconds", 120);
+var dbCommandTimeoutSeconds = builder.Configuration.GetValue("Database:CommandTimeoutSeconds", 120);
 
 // Render (y otros PaaS) suele setear PORT. Esto asegura que Kestrel escuche en el puerto correcto.
 var port = Environment.GetEnvironmentVariable("PORT");
@@ -24,7 +28,16 @@ var startup = new Startup(builder.Configuration);
 // Add services to the container.
 var connectionString = ConnectionStringResolver.Resolve(builder.Configuration);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(connectionString, npgsql =>
+        npgsql.CommandTimeout(dbCommandTimeoutSeconds)));
+
+builder.Services.AddRequestTimeouts(options =>
+{
+    options.DefaultPolicy = new RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromSeconds(requestTimeoutSeconds)
+    };
+});
 
 // Add Swagger service
 builder.Services.AddSwaggerGen(c =>
@@ -80,6 +93,8 @@ if (builder.Configuration["RUN_MIGRATIONS_ON_STARTUP"]?.Equals("false", StringCo
 }
 
 startup.Configure(app, app.Lifetime);
+
+app.UseRequestTimeouts();
 
 app.UseExceptionHandler(errApp =>
 {
