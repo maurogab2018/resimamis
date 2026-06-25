@@ -609,7 +609,7 @@ namespace ResimamisBackend.Negocio
             }
         }
 
-        /// <summary>Actualiza tarea, bebé, voluntaria y comentario de una asignación existente.</summary>
+        /// <summary>Actualiza tarea, bebé, voluntaria, comentario y fechas de inicio/fin de una asignación existente.</summary>
         public bool eliminarAsignacion(int idAsignacion)
         {
             return asignacionRepositorio.eliminarAsignacionLogica(idAsignacion);

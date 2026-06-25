@@ -36,6 +36,8 @@ namespace ResimamisBackend.Datos
             existente.idBebe = datos.idBebe;
             existente.idVoluntaria = datos.idVoluntaria;
             existente.comentario = datos.comentario;
+            existente.fechaHoraInicio = datos.fechaHoraInicio;
+            existente.fechaHoraFin = datos.fechaHoraFin;
             db.SaveChanges();
             return true;
         }
