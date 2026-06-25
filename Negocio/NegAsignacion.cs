@@ -171,13 +171,8 @@ namespace ResimamisBackend.Negocio
             var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
             var fechaMesAnterior = fechaHoy.AddMonths(-1);
             var (diaInicio, diaFin) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
-            var idEstadoAsignacionEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
 
-            var bebesAbrazar = CargarBebesPorIdsParaGenerar(
-                requestAsignacion.idTareas,
-                diaInicio,
-                diaFin,
-                idEstadoAsignacionEliminado);
+            var bebesAbrazar = CargarBebesPorIdsParaGenerar(requestAsignacion.idTareas);
             var voluntariasActivas = CargarVoluntariasPorIdsParaGenerar(
                 requestAsignacion.idVoluntarias,
                 diaInicio,
@@ -252,9 +247,8 @@ namespace ResimamisBackend.Negocio
             var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
             var fechaMesAnterior = fechaHoy.AddMonths(-1);
             var (diaInicio, diaFin) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
-            var idEstadoAsignacionEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
 
-            var bebesAbrazar = CargarBebesAbrazarParaGenerar(diaInicio, diaFin, idEstadoAsignacionEliminado);
+            var bebesAbrazar = CargarBebesAbrazarParaGenerar();
             if (bebesAbrazar.Count == 0)
                 throw new ApplicationException("No hay bebes para abrazar para el día de hoy");
 
@@ -437,31 +431,16 @@ namespace ResimamisBackend.Negocio
             }
         }
 
-        /// <summary>Misma lógica que BebeRepositorio.obtenerBebesAbrazar, sobre el DbContext de esta clase (una sola unidad de trabajo).</summary>
-        private List<BEBE> CargarBebesAbrazarParaGenerar(DateTime diaInicio, DateTime diaFin, int idEstadoAsignacionEliminado)
+        /// <summary>Misma lógica que BebeRepositorio.obtenerBebesAbrazar.</summary>
+        private List<BEBE> CargarBebesAbrazarParaGenerar()
         {
-            return db.BEBE
-                .Where(v => v.Estado != null
-                            && v.Estado.ambito.nombre == "Bebes"
-                            && v.Estado.nombre == "Sin abrazar"
-                            && v.Estado.nombre != "Asignado"
-                            && !v.Asignaciones.Any(a =>
-                                a.idEstado != idEstadoAsignacionEliminado
-                                && a.fechaHoraAsignacion >= diaInicio && a.fechaHoraAsignacion < diaFin
-                                && a.fechaHoraInicio != null
-                                && a.fechaHoraInicio >= diaInicio && a.fechaHoraInicio < diaFin))
-                .ToList();
+            return bebeRepositorio.obtenerBebesAbrazar();
         }
 
-        private List<BEBE> CargarBebesPorIdsParaGenerar(
-            List<int> idsBebes,
-            DateTime diaInicio,
-            DateTime diaFin,
-            int idEstadoAsignacionEliminado)
+        private List<BEBE> CargarBebesPorIdsParaGenerar(List<int> idsBebes)
         {
             var ids = idsBebes.Distinct().ToList();
-            var elegibles = CargarBebesAbrazarParaGenerar(diaInicio, diaFin, idEstadoAsignacionEliminado)
-                .Where(b => ids.Contains(b.ID))
+            var elegibles = bebeRepositorio.obtenerBebesAbrazarPorIds(ids)
                 .ToDictionary(b => b.ID);
 
             var faltantes = ids.Where(id => !elegibles.ContainsKey(id)).ToList();

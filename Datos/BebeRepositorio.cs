@@ -132,9 +132,16 @@ namespace ResimamisBackend.Datos
                                 a.fechaHoraAsignacion >= inicioDia && a.fechaHoraAsignacion < finDia
                                 && a.fechaHoraInicio != null
                                 && a.fechaHoraInicio >= inicioDia && a.fechaHoraInicio < finDia
-                                && (idElimAsig == null || a.idEstado == null || a.idEstado != idElimAsig)))
+                                && (idElimAsig == null || a.idEstado != idElimAsig)))
                 .OrderBy(b => b.nombre)
                 .ToList();
+        }
+
+        /// <summary>Misma regla que <see cref="obtenerBebesAbrazar"/> restringida a ids.</summary>
+        public List<BEBE> obtenerBebesAbrazarPorIds(IEnumerable<int> idsBebes)
+        {
+            var ids = idsBebes.Distinct().ToHashSet();
+            return obtenerBebesAbrazar().Where(b => ids.Contains(b.ID)).ToList();
         }
         public bool cambioEstadoBebe(BEBE bebe, int idEstado )
         {
