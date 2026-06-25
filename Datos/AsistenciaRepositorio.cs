@@ -146,6 +146,21 @@ namespace ResimamisBackend.Datos
             return true;
         }
 
+        /// <summary>Todas las asistencias no eliminadas, más recientes primero.</summary>
+        public List<ASISTENCIA> ListarTodasAsistencias()
+        {
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
+            return db.ASISTENCIA
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(a => a.Voluntaria)
+                .Include(a => a.Estado!)
+                .ThenInclude(e => e!.ambito)
+                .Where(a => a.idEstado == null || a.idEstado != idElim)
+                .OrderByDescending(a => a.FechaHoraIngreso)
+                .ToList();
+        }
+
         /// <summary>Asistencias con ingreso en [inicioUtc, finUtcExclusivo), excluye bajas lógicas.</summary>
         public List<ASISTENCIA> ListarAsistenciasPorPeriodoUtc(DateTime inicioUtc, DateTime finUtcExclusivo)
         {

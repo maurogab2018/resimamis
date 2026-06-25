@@ -51,6 +51,28 @@ namespace ResimamisBackend.Negocio
             return repositorioAsistencia.eliminarAsistenciaLogico(idAsistencia);
         }
 
+        public List<ReporteAsistenciaPeriodoItem> ListarTodasAsistencias()
+        {
+            var rows = repositorioAsistencia.ListarTodasAsistencias();
+            return rows.Select(a =>
+            {
+                double? minutos = null;
+                if (a.FechaHoraIngreso.HasValue && a.FechaHoraSalida.HasValue)
+                    minutos = (a.FechaHoraSalida.Value - a.FechaHoraIngreso.Value).TotalMinutes;
+                return new ReporteAsistenciaPeriodoItem
+                {
+                    IdAsistencia = a.IdAsistencia ?? 0,
+                    IdVoluntaria = a.IdVoluntaria ?? 0,
+                    NombreVoluntaria = a.Voluntaria?.Nombre ?? "",
+                    ApellidoVoluntaria = a.Voluntaria?.Apellido ?? "",
+                    FechaHoraIngreso = a.FechaHoraIngreso,
+                    FechaHoraSalida = a.FechaHoraSalida,
+                    DuracionMinutos = minutos,
+                    EstadoAsistencia = a.Estado?.nombre ?? ""
+                };
+            }).ToList();
+        }
+
         /// <summary>Reporte de asistencias en un período (fechas inclusive por día calendario en Argentina).</summary>
         public ReporteAsistenciaPeriodoRespuesta ReporteAsistenciaPorPeriodo(DateTime fechaInicio, DateTime fechaFin)
         {

@@ -18,6 +18,20 @@ namespace ResimamisBackend.Controllers
             negAsistencia = new NegAsistencia();
         }
 
+        [HttpGet]
+        public IActionResult GetAll()
+        {
+            try
+            {
+                var resultado = negAsistencia.ListarTodasAsistencias();
+                return ApiResults.Success(resultado);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
         [HttpGet("id/{IdVoluntaria}")]
         public IActionResult Get(int IdVoluntaria)
         {
