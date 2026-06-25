@@ -7,9 +7,12 @@ namespace ResimamisBackend.Negocio
     public class NegBebes
     {
         private readonly BebeRepositorio repositorioBebe;
+        private readonly NegSalas negSalas;
+
         public NegBebes()
         {
             repositorioBebe = new BebeRepositorio();
+            negSalas = new NegSalas();
         }
 
         /// <summary>Reglas alineadas con modificar/registrar: nombre, apellido, sexo, dni opcional, fecha nacimiento.</summary>
@@ -65,6 +68,27 @@ namespace ResimamisBackend.Negocio
                 else if (!new GenericosRepositorio().existeLocalidad(bebe.IdLocalidad.Value))
                     resultado.Errores.Add(prefijo + "Localidad no existente con ese ID.");
             }
+
+            if (bebe.IdSala.HasValue)
+            {
+                if (bebe.IdSala.Value <= 0)
+                    bebe.IdSala = null;
+                else
+                {
+                    try
+                    {
+                        new NegSalas().ValidarSalaActivaParaBebe(bebe.IdSala);
+                    }
+                    catch (NotFoundException)
+                    {
+                        resultado.Errores.Add(prefijo + "Sala no existente con ese ID.");
+                    }
+                    catch (ApplicationException ex)
+                    {
+                        resultado.Errores.Add(prefijo + ex.Message);
+                    }
+                }
+            }
         }
 
         public List<BEBE> listarBebes()
@@ -74,7 +98,7 @@ namespace ResimamisBackend.Negocio
 
         public List<SALA> listarSalas()
         {
-            return repositorioBebe.listarSalas();
+            return negSalas.listarSalasActivas();
         }
 
         public bool registrarBebe(BEBE bebe)

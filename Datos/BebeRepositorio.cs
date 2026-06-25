@@ -52,10 +52,6 @@ namespace ResimamisBackend.Datos
             return q.ToList();
         }
 
-        public List<SALA> listarSalas()
-        {
-            return db.SALA.ToList();
-        }
         public bool registrarBebe(BEBE bebe) {
             if (bebe.Dni.HasValue)
             {
