@@ -382,7 +382,7 @@ namespace ResimamisBackend.Controllers
         }
 
         [HttpPut("id/{idAsignacion}")]
-        public IActionResult PutModificarAsignacion(int idAsignacion, ASIGNACION datos)
+        public IActionResult PutModificarAsignacion(int idAsignacion, RespuestaAsignaciones datos)
         {
             try
             {

@@ -76,6 +76,7 @@ namespace ResimamisBackend.Datos
                 idVoluntaria=a.idVoluntaria,  
                 estado=a.estado,
                 idEstado =a.idEstado,
+                comentario = a.comentario,
             }).ToList();
 
             return asignaciones;
@@ -115,6 +116,7 @@ namespace ResimamisBackend.Datos
                 idVoluntaria = a.idVoluntaria,
                 estado = a.estado,
                 idEstado = a.idEstado,
+                comentario = a.comentario,
             }).ToList();
 
             return asignaciones;

@@ -27,6 +27,8 @@ namespace ResimamisBackend.Negocio
 
         public string estadoAsignacion { get; set; }
 
+        public string? comentario { get; set; }
+
         public int? sala { get; set; }
         public string? nombreSala { get; set; }
         public List<DetalleAsignacionResumido>? detalles { get; set; }

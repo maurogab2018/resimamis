@@ -66,6 +66,7 @@ namespace ResimamisBackend.Negocio
                 fechaHoraFin = a.fechaHoraFin,
                 fechaHoraInicio = a.fechaHoraInicio,
                 estadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
+                comentario = a.comentario,
                 sala = a.bebe?.IdSala,
                 nombreSala = NombreSalaBebe(a.bebe),
                 detalles = ObtenerDetallesResumidos(a.idAsignacion)
@@ -615,7 +616,7 @@ namespace ResimamisBackend.Negocio
             return asignacionRepositorio.eliminarAsignacionLogica(idAsignacion);
         }
 
-        public bool modificarAsignacion(int idAsignacion, ASIGNACION datos)
+        public bool modificarAsignacion(int idAsignacion, RespuestaAsignaciones datos)
         {
             var existentePrevio = asignacionRepositorio.consultarAsignacion(idAsignacion);
             AsegurarAsignacionNoEliminada(existentePrevio);
@@ -635,7 +636,16 @@ namespace ResimamisBackend.Negocio
             if (datos.idBebe.HasValue)
                 bebeRepositorio.consultarBebe(datos.idBebe.Value);
 
-            return asignacionRepositorio.modificarAsignacion(datos, existentePrevio);
+            var patch = new ASIGNACION
+            {
+                idTarea = datos.idTarea,
+                idBebe = datos.idBebe,
+                idVoluntaria = datos.idVoluntaria,
+                comentario = datos.comentario,
+                fechaHoraInicio = datos.fechaHoraInicio,
+                fechaHoraFin = datos.fechaHoraFin,
+            };
+            return asignacionRepositorio.modificarAsignacion(patch, existentePrevio);
         }
 
         public RespuestaAsignaciones consultarAsignacionPorId(int idAsignacion)
