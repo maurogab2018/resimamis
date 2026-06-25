@@ -47,11 +47,6 @@ namespace ResimamisBackend.Datos
             return QueryInsumosVisiblesAmbitoInsumos().AsNoTracking().FirstOrDefault(i => i.idInsumo == idInsumo);
         }
 
-        public List<PROVEEDOR> obtenerProveedores()
-        {
-            return db.PROVEEDOR.ToList();
-        }
-
         public List<ConsultaMovimiento> obtenerMovimientos(RequestMovimiento? movimientoFiltro)
         {
             var query = db.MOVIMIENTOSTOCK.AsNoTracking().AsQueryable();

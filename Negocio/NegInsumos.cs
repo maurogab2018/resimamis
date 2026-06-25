@@ -6,9 +6,12 @@ namespace ResimamisBackend.Negocio
     public class NegInsumos
     {
         private readonly InsumoRepositorio insumoRepositorio;
+        private readonly NegProveedores negProveedores;
+
         public NegInsumos()
         {
             insumoRepositorio = new InsumoRepositorio();
+            negProveedores = new NegProveedores();
         }
 
         private static void ValidarDatosInsumo(INSUMO insumo, InsumoRepositorio repo)
@@ -76,12 +79,13 @@ namespace ResimamisBackend.Negocio
             movimiento.observacion = string.IsNullOrWhiteSpace(movimiento.observacion)
                 ? string.Empty
                 : movimiento.observacion.Trim();
+            negProveedores.ValidarProveedorActivoParaMovimiento(movimiento.idProveedor);
             return insumoRepositorio.registrarMovimientoStock(movimiento);
         }
 
         public List<PROVEEDOR> obtenerProveedores()
         {
-            return insumoRepositorio.obtenerProveedores();
+            return negProveedores.listarProveedoresActivos();
         }
 
         public List<ConsultaMovimiento> obtenerMovimientos(RequestMovimiento? movimientoFiltro)

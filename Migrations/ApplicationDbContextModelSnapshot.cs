@@ -449,6 +449,9 @@ namespace ResimamisBackend.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("idProveedor"));
 
+                    b.Property<bool>("Activa")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("descripcion")
                         .IsRequired()
                         .HasColumnType("text");

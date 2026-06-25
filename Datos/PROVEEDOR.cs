@@ -8,5 +8,8 @@ namespace ResimamisBackend.Datos
         public int idProveedor { get; set; }
         public string nombre { get; set; }
         public string descripcion { get; set; }
+
+        /// <summary>Vigente en el catálogo de proveedores.</summary>
+        public bool Activa { get; set; } = true;
     }
 }
