@@ -187,12 +187,34 @@ namespace ResimamisBackend.Negocio
             return EjecutarGeneracionAsignacionesAbrazos(bebesAbrazar, voluntariasActivas);
         }
 
+        /// <summary>
+        /// Asigna un bebé a una voluntaria. <paramref name="requestAsignacion.idTarea"/> es BEBE.ID.
+        /// </summary>
         public RespuestaAsignaciones generarAsiganacionTarea(RequestAsignacionTarea requestAsignacion)
         {
+            if (requestAsignacion.idVoluntaria <= 0)
+                throw new ApplicationException("Debe indicar una voluntaria válida.");
+            if (requestAsignacion.idTarea <= 0)
+                throw new ApplicationException("Debe indicar un bebé válido.");
+
+            var resultados = generarAsignacionesSeleccion(new RequestAsignacionTareas
+            {
+                idVoluntarias = new List<int> { requestAsignacion.idVoluntaria },
+                idTareas = new List<int> { requestAsignacion.idTarea }
+            });
+
+            return resultados.First();
+        }
+
+        /// <summary>
+        /// Asigna una tarea del catálogo (tabla TAREA) a una voluntaria.
+        /// </summary>
+        public RespuestaAsignaciones generarAsignacionTareaCatalogo(RequestAsignacionTarea requestAsignacion)
+        {
             var voluntaria = voluntariaRepositorio.consultarVoluntaria(requestAsignacion.idVoluntaria);
-            if(voluntaria== null)
+            if (voluntaria == null)
                 throw new NotFoundException("Voluntaria no encontrada");
-            var tarea = db.TAREA.FirstOrDefault(t=>t.idTarea==requestAsignacion.idTarea);
+            var tarea = db.TAREA.FirstOrDefault(t => t.idTarea == requestAsignacion.idTarea);
             if (tarea == null)
                 throw new NotFoundException("Tarea no encontrada");
             negTareas.ValidarTareaDisponibleParaAsignar(tarea.idTarea);
@@ -200,18 +222,18 @@ namespace ResimamisBackend.Negocio
             {
                 var idEstadoAsignacionCreada = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Creada", "Asignaciones");
                 var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
-                var asignacion = new ASIGNACION();
-                asignacion.idVoluntaria = voluntaria.IdVoluntaria;
-                //asignacion.idBebe = bebesAbrazar[i].ID;
-                asignacion.fechaHoraAsignacion = fechaHoy;
-                asignacion.idEstado = idEstadoAsignacionCreada;
-                asignacion.idTarea = tarea.idTarea;
+                var asignacion = new ASIGNACION
+                {
+                    idVoluntaria = voluntaria.IdVoluntaria,
+                    fechaHoraAsignacion = fechaHoy,
+                    idEstado = idEstadoAsignacionCreada,
+                    idTarea = tarea.idTarea
+                };
                 voluntariaRepositorio.asignarVoluntaria(voluntaria.IdVoluntaria);
                 db.ASIGNACION.Add(asignacion);
                 db.SaveChanges();
 
-
-                var asignacionesRespuesta = new RespuestaAsignaciones()
+                return new RespuestaAsignaciones
                 {
                     idAsignacion = asignacion.idAsignacion,
                     idVoluntaria = voluntaria.IdVoluntaria,
@@ -219,15 +241,11 @@ namespace ResimamisBackend.Negocio
                     fechaHoraAsignacion = fechaHoy,
                     estadoAsignacion = "Creada",
                 };
-
-                return asignacionesRespuesta;
             }
             catch (Exception ex)
             {
                 throw new ApplicationException(ex.Message);
             }
-
-
         }
         public List<RespuestaAsignaciones> generarAsiganaciones()
         {

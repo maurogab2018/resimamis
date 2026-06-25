@@ -6,9 +6,11 @@ namespace ResimamisBackend.Entidades
     {
         public int idVoluntaria { get; set; }
 
+        /// <summary>
+        /// En <c>generarTarea</c> es id de bebé (BEBE.ID).
+        /// En <c>generarTareaCatalogo</c> es id de la tabla TAREA.
+        /// </summary>
         public int idTarea { get; set; }
-
-
     }
 
     public class RequestAsignacionTareas

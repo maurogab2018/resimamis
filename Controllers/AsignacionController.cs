@@ -220,6 +220,7 @@ namespace ResimamisBackend.Controllers
         }
 
 
+        /// <summary>Asigna un bebé a una voluntaria. Body: idVoluntaria + idTarea (id del bebé).</summary>
         [HttpPost("generarTarea")]
         public IActionResult PostAsignacion(RequestAsignacionTarea request)
         {
@@ -246,6 +247,34 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        /// <summary>Asigna una tarea del catálogo (tabla TAREA) a una voluntaria.</summary>
+        [HttpPost("generarTareaCatalogo")]
+        public IActionResult PostAsignacionTareaCatalogo(RequestAsignacionTarea request)
+        {
+            try
+            {
+                var respuesta = negAsignacion.generarAsignacionTareaCatalogo(request);
+                return ApiResults.Success(respuesta);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
+            catch (ConflictException ex)
+            {
+                return ApiResults.Conflict(ex.Message);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        /// <summary>Asigna bebés a voluntarias. idTareas = ids de bebé (BEBE.ID).</summary>
         [HttpPost("generarTareas")]
         public IActionResult PostAsignaciones(RequestAsignacionTareas request)
         {
@@ -272,7 +301,9 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        /// <summary>Asigna tareas del catálogo a voluntarias. idTareas = ids de TAREA.</summary>
         [HttpPost("generarTareasPorId")]
+        [HttpPost("generarTareasCatalogo")]
         public IActionResult PostAsignacionesPorIdTarea(RequestAsignacionTareas request)
         {
             try
