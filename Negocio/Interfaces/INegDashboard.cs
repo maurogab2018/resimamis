@@ -12,4 +12,9 @@ public interface INegDashboard
     DashboardResumenRespuesta ObtenerResumen(DateTime fechaInicio, DateTime fechaFin);
     AbrazosBebeDashboardRespuesta ObtenerAbrazosBebeHoy(int idBebe);
     AbrazosBebeDashboardRespuesta ObtenerAbrazosBebeHistorial(int idBebe, DateTime? fechaInicio, DateTime? fechaFin);
+    DashboardCoordinacionHoyRespuesta ObtenerCoordinacionHoy();
+    DashboardCoberturaHoyRespuesta ObtenerCoberturaHoy();
+    EstadisticaBebesPorEstadoRespuesta ObtenerBebesPorEstado();
+    EstadisticaBebesPorSalaRespuesta ObtenerBebesPorSala();
+    RankingVoluntariasAbrazosRespuesta ObtenerRankingVoluntariasAbrazos(DateTime fechaInicio, DateTime fechaFin, int top);
 }

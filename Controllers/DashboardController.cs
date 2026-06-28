@@ -231,5 +231,109 @@ namespace ResimamisBackend.Controllers
                 return ApiResults.InternalServerError();
             }
         }
+
+        /// <summary>Snapshot operativo del día (Argentina): bebés, abrazos, asistencias y visitas.</summary>
+        [HttpGet("coordinacion/hoy")]
+        public IActionResult GetCoordinacionHoy()
+        {
+            try
+            {
+                var resultado = negDashboard.ObtenerCoordinacionHoy();
+                return ApiResults.Success(resultado);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        /// <summary>Cobertura de abrazos del día: % bebés activos con abrazo finalizado hoy y lista sin abrazo.</summary>
+        [HttpGet("coordinacion/cobertura-hoy")]
+        public IActionResult GetCoberturaHoy()
+        {
+            try
+            {
+                var resultado = negDashboard.ObtenerCoberturaHoy();
+                return ApiResults.Success(resultado);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        /// <summary>Conteo de bebés activos por estado.</summary>
+        [HttpGet("bebes/por-estado")]
+        public IActionResult GetBebesPorEstado()
+        {
+            try
+            {
+                var resultado = negDashboard.ObtenerBebesPorEstado();
+                return ApiResults.Success(resultado);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        /// <summary>Bebés activos por sala con promedio de permanencia en NEO.</summary>
+        [HttpGet("bebes/por-sala")]
+        public IActionResult GetBebesPorSala()
+        {
+            try
+            {
+                var resultado = negDashboard.ObtenerBebesPorSala();
+                return ApiResults.Success(resultado);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        /// <summary>Top voluntarias por abrazos finalizados en un período.</summary>
+        [HttpGet("voluntarias/ranking-abrazos")]
+        public IActionResult GetRankingVoluntariasAbrazos(
+            [FromQuery] string? fechaDesde,
+            [FromQuery] string? fechaHasta,
+            [FromQuery] string? fechaInicio,
+            [FromQuery] string? fechaFin,
+            [FromQuery] int top = 10)
+        {
+            try
+            {
+                if (top < 1 || top > 100)
+                    throw new ApplicationException("El parámetro top debe estar entre 1 y 100.");
+
+                var (inicio, fin) = ParseRangoFechasObligatorio(fechaDesde, fechaHasta, fechaInicio, fechaFin);
+                var resultado = negDashboard.ObtenerRankingVoluntariasAbrazos(inicio, fin, top);
+                return ApiResults.Success(resultado);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
     }
 }

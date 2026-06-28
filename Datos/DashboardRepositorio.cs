@@ -320,5 +320,209 @@ namespace ResimamisBackend.Datos
             if (a.Length == 0) return n;
             return $"{n} {a}";
         }
+
+        public DashboardCoordinacionHoyRespuesta ObtenerCoordinacionHoy(
+            DateTime inicioUtc,
+            DateTime finUtcExclusivo,
+            DateOnly fecha)
+        {
+            var bebesActivos = QueryBebesActivos().ToList();
+            var bebesDisponibles = bebeRepositorio.obtenerBebesAbrazar().Count;
+            var bebesAsignados = bebesActivos.Count(b => b.Estado?.nombre == "Asignado");
+
+            var abrazosHoy = QueryAsignacionesActivas()
+                .Where(a => a.idBebe != null && a.fechaHoraAsignacion >= inicioUtc && a.fechaHoraAsignacion < finUtcExclusivo)
+                .Select(a => new { a.fechaHoraInicio, a.fechaHoraFin })
+                .ToList();
+
+            var abrazosEnCursoHoy = abrazosHoy.Count(a =>
+                a.fechaHoraInicio != null
+                && a.fechaHoraInicio >= inicioUtc
+                && a.fechaHoraInicio < finUtcExclusivo
+                && a.fechaHoraFin == null);
+
+            var abrazosFinalizadosHoy = QueryAsignacionesActivas()
+                .Count(a => a.idBebe != null
+                            && a.fechaHoraFin != null
+                            && a.fechaHoraFin >= inicioUtc
+                            && a.fechaHoraFin < finUtcExclusivo);
+
+            var abrazosColgados = QueryAsignacionesActivas()
+                .Count(a => a.idBebe != null && a.fechaHoraInicio != null && a.fechaHoraFin == null);
+
+            var idElimAsist = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
+            var voluntariasConAsistencia = db.ASISTENCIA.AsNoTracking()
+                .Where(a => a.FechaHoraIngreso != null
+                            && a.FechaHoraIngreso >= inicioUtc
+                            && a.FechaHoraIngreso < finUtcExclusivo
+                            && (a.idEstado == null || a.idEstado != idElimAsist))
+                .Select(a => a.IdVoluntaria)
+                .Distinct()
+                .Count();
+
+            var visitasHoy = db.VISITA.AsNoTracking()
+                .Count(v => v.Activa && v.fechaHoraVisita >= inicioUtc && v.fechaHoraVisita < finUtcExclusivo);
+
+            return new DashboardCoordinacionHoyRespuesta
+            {
+                Fecha = fecha,
+                BebesActivos = bebesActivos.Count,
+                BebesDisponiblesAbrazo = bebesDisponibles,
+                BebesAsignados = bebesAsignados,
+                AbrazosHoy = new AbrazosHoyResumen
+                {
+                    Creados = abrazosHoy.Count,
+                    EnCurso = abrazosEnCursoHoy,
+                    Finalizados = abrazosFinalizadosHoy
+                },
+                VoluntariasConAsistenciaHoy = voluntariasConAsistencia,
+                AbrazosColgados = abrazosColgados,
+                VisitasHoy = visitasHoy
+            };
+        }
+
+        public DashboardCoberturaHoyRespuesta ObtenerCoberturaHoy(
+            DateTime inicioUtc,
+            DateTime finUtcExclusivo,
+            DateOnly fecha)
+        {
+            var bebesActivos = QueryBebesActivos()
+                .OrderBy(b => b.apellido)
+                .ThenBy(b => b.nombre)
+                .ToList();
+
+            var bebesConAbrazoHoy = QueryAsignacionesActivas()
+                .Where(a => a.idBebe != null
+                            && a.fechaHoraFin != null
+                            && a.fechaHoraFin >= inicioUtc
+                            && a.fechaHoraFin < finUtcExclusivo)
+                .Select(a => a.idBebe!.Value)
+                .Distinct()
+                .ToHashSet();
+
+            var conAbrazo = bebesConAbrazoHoy.Count;
+            var total = bebesActivos.Count;
+            var sinAbrazo = bebesActivos
+                .Where(b => !bebesConAbrazoHoy.Contains(b.ID))
+                .Select(b => new BebeSinAbrazoHoyItem
+                {
+                    IdBebe = b.ID,
+                    Nombre = b.nombre,
+                    Apellido = b.apellido,
+                    EstadoBebe = b.Estado?.nombre,
+                    NombreSala = b.Sala?.Nombre
+                })
+                .ToList();
+
+            return new DashboardCoberturaHoyRespuesta
+            {
+                Fecha = fecha,
+                TotalBebesActivos = total,
+                BebesConAbrazoFinalizadoHoy = conAbrazo,
+                PorcentajeCobertura = total == 0 ? 0 : Math.Round(conAbrazo * 100.0 / total, 2),
+                BebesSinAbrazoHoy = sinAbrazo
+            };
+        }
+
+        public EstadisticaBebesPorEstadoRespuesta ObtenerBebesPorEstado()
+        {
+            var porEstado = QueryBebesActivos()
+                .GroupBy(b => b.Estado != null ? b.Estado.nombre : "Sin estado")
+                .Select(g => new EstadisticaBebesPorEstadoItem
+                {
+                    EstadoBebe = g.Key,
+                    Cantidad = g.Count()
+                })
+                .OrderByDescending(x => x.Cantidad)
+                .ThenBy(x => x.EstadoBebe)
+                .ToList();
+
+            return new EstadisticaBebesPorEstadoRespuesta
+            {
+                TotalBebes = porEstado.Sum(x => x.Cantidad),
+                PorEstado = porEstado
+            };
+        }
+
+        public EstadisticaBebesPorSalaRespuesta ObtenerBebesPorSala()
+        {
+            var bebes = QueryBebesActivos().ToList();
+
+            var porSala = bebes
+                .GroupBy(b => new { b.IdSala, Nombre = b.Sala?.Nombre ?? "Sin sala" })
+                .Select(g =>
+                {
+                    var conPermanencia = g.Where(b => b.FechaIngresoNEO != null).ToList();
+                    return new EstadisticaBebesPorSalaItem
+                    {
+                        IdSala = g.Key.IdSala,
+                        NombreSala = g.Key.Nombre,
+                        CantidadBebes = g.Count(),
+                        PromedioPermanenciaDias = conPermanencia.Count == 0
+                            ? 0
+                            : conPermanencia.Average(b =>
+                                NegConversorFecha.DiasDesdeFechaCalendarioHastaHoyArgentina(b.FechaIngresoNEO!.Value))
+                    };
+                })
+                .OrderByDescending(x => x.CantidadBebes)
+                .ThenBy(x => x.NombreSala)
+                .ToList();
+
+            return new EstadisticaBebesPorSalaRespuesta
+            {
+                TotalBebes = bebes.Count,
+                PorSala = porSala
+            };
+        }
+
+        public RankingVoluntariasAbrazosRespuesta ObtenerRankingVoluntariasAbrazos(
+            DateTime fechaInicio,
+            DateTime fechaFin,
+            int top)
+        {
+            var (inicioUtc, finUtc) = NegConversorFecha.RangoFechasArgentinaEnUtc(fechaInicio, fechaFin);
+
+            var ranking = QueryAsignacionesActivas()
+                .Include(a => a.voluntaria)
+                .Where(a => a.idBebe != null
+                            && a.fechaHoraInicio != null
+                            && a.fechaHoraFin != null
+                            && a.fechaHoraFin >= inicioUtc
+                            && a.fechaHoraFin < finUtc)
+                .GroupBy(a => new
+                {
+                    a.idVoluntaria,
+                    a.voluntaria!.Nombre,
+                    a.voluntaria.Apellido
+                })
+                .Select(g => new
+                {
+                    g.Key.idVoluntaria,
+                    g.Key.Nombre,
+                    g.Key.Apellido,
+                    Cantidad = g.Count()
+                })
+                .OrderByDescending(x => x.Cantidad)
+                .ThenBy(x => x.Apellido)
+                .ThenBy(x => x.Nombre)
+                .Take(top)
+                .ToList();
+
+            var items = ranking.Select((x, i) => new RankingVoluntariaAbrazosItem
+            {
+                Posicion = i + 1,
+                IdVoluntaria = x.idVoluntaria,
+                NombreVoluntaria = FormatearNombre(x.Nombre, x.Apellido),
+                CantidadAbrazosFinalizados = x.Cantidad
+            }).ToList();
+
+            return new RankingVoluntariasAbrazosRespuesta
+            {
+                FechaInicio = DateOnly.FromDateTime(fechaInicio.Date),
+                FechaFin = DateOnly.FromDateTime(fechaFin.Date),
+                Top = top,
+                Ranking = items
+            };
+        }
     }
 }

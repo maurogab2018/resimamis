@@ -120,4 +120,83 @@ namespace ResimamisBackend.Entidades
         public string NombreVoluntaria { get; set; } = "";
         public string? Comentario { get; set; }
     }
+
+    public class AbrazosHoyResumen
+    {
+        public int Creados { get; set; }
+        public int EnCurso { get; set; }
+        public int Finalizados { get; set; }
+    }
+
+    public class DashboardCoordinacionHoyRespuesta
+    {
+        public DateOnly Fecha { get; set; }
+        public int BebesActivos { get; set; }
+        public int BebesDisponiblesAbrazo { get; set; }
+        public int BebesAsignados { get; set; }
+        public AbrazosHoyResumen AbrazosHoy { get; set; } = new();
+        public int VoluntariasConAsistenciaHoy { get; set; }
+        public int AbrazosColgados { get; set; }
+        public int VisitasHoy { get; set; }
+    }
+
+    public class BebeSinAbrazoHoyItem
+    {
+        public int IdBebe { get; set; }
+        public string? Nombre { get; set; }
+        public string? Apellido { get; set; }
+        public string? EstadoBebe { get; set; }
+        public string? NombreSala { get; set; }
+    }
+
+    public class DashboardCoberturaHoyRespuesta
+    {
+        public DateOnly Fecha { get; set; }
+        public int TotalBebesActivos { get; set; }
+        public int BebesConAbrazoFinalizadoHoy { get; set; }
+        public double PorcentajeCobertura { get; set; }
+        public List<BebeSinAbrazoHoyItem> BebesSinAbrazoHoy { get; set; } = new();
+    }
+
+    public class EstadisticaBebesPorEstadoItem
+    {
+        public string EstadoBebe { get; set; } = "";
+        public int Cantidad { get; set; }
+    }
+
+    public class EstadisticaBebesPorEstadoRespuesta
+    {
+        public int TotalBebes { get; set; }
+        public List<EstadisticaBebesPorEstadoItem> PorEstado { get; set; } = new();
+    }
+
+    public class EstadisticaBebesPorSalaItem
+    {
+        public int? IdSala { get; set; }
+        public string NombreSala { get; set; } = "";
+        public int CantidadBebes { get; set; }
+        public double PromedioPermanenciaDias { get; set; }
+    }
+
+    public class EstadisticaBebesPorSalaRespuesta
+    {
+        public int TotalBebes { get; set; }
+        public List<EstadisticaBebesPorSalaItem> PorSala { get; set; } = new();
+    }
+
+    public class RankingVoluntariaAbrazosItem
+    {
+        public int Posicion { get; set; }
+        public int IdVoluntaria { get; set; }
+        public string NombreVoluntaria { get; set; } = "";
+        public int CantidadAbrazosFinalizados { get; set; }
+    }
+
+    public class RankingVoluntariasAbrazosRespuesta
+    {
+        public DateOnly FechaInicio { get; set; }
+        public DateOnly FechaFin { get; set; }
+        public int Top { get; set; }
+        public List<RankingVoluntariaAbrazosItem> Ranking { get; set; } = new();
+    }
 }
