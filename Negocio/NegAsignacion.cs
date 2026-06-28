@@ -528,7 +528,7 @@ namespace ResimamisBackend.Negocio
             return true;
         }
 
-        public bool registrarFinAsignacionAbrazo(int idAsignacion,string comentario)
+        public bool registrarFinAsignacionAbrazo(int idAsignacion, string? comentario)
         {
             var asignacion = asignacionRepositorio.consultarAsignacion(idAsignacion);
             AsegurarAsignacionNoEliminada(asignacion);
@@ -553,7 +553,7 @@ namespace ResimamisBackend.Negocio
             }
 
             asignacion.fechaHoraFin = NegConversorFecha.ObtenerFechaArgentina();
-            asignacion.comentario = comentario;
+            asignacion.comentario = string.IsNullOrWhiteSpace(comentario) ? null : comentario;
             asignacion.idEstado = estadoRepositorio.ObtenerIdEstadoAsignacionFinalizado();
             asignacionRepositorio.registrarCambioaAsignacion();
 

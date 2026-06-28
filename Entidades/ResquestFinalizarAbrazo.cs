@@ -5,7 +5,7 @@
         ///{idAsignacion}/{comentario}
         public  int idAsignacion {  get; set; }
 
-        public string comentario { get; set; }
+        public string? comentario { get; set; }
 
 
 

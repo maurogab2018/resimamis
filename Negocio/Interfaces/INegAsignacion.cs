@@ -11,7 +11,7 @@ public interface INegAsignacion
     RespuestaAsignaciones generarAsignacionTareaCatalogo(RequestAsignacionTarea requestAsignacion);
     List<RespuestaAsignaciones> generarAsiganaciones();
     bool registrarInicioAsignacionAbrazo(int idAsignacion);
-    bool registrarFinAsignacionAbrazo(int idAsignacion, string comentario);
+    bool registrarFinAsignacionAbrazo(int idAsignacion, string? comentario);
     int ResetearAbrazosBebeColgadosAntesDeHoy();
     bool eliminarAsignacion(int idAsignacion);
     bool modificarAsignacion(int idAsignacion, RespuestaAsignaciones datos);
