@@ -17,6 +17,7 @@ public interface IInsumoRepositorio
     bool actualizarStock(INSUMO insumo, int cantidad);
     bool registrarMovimientoStock(MOVIMIENTOSTOCK movimiento);
     List<EstadisticaInsumo> devolverEstadisticas();
+    List<INSUMO> obtenerInsumosBajoStockMinimo();
     bool IdEstadoEsDelAmbitoInsumos(int idEstado);
     bool IdEstadoEsEliminadoInsumos(int idEstado);
 }

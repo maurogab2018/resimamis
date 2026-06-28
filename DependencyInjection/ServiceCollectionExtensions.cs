@@ -25,6 +25,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInsumoRepositorio, InsumoRepositorio>();
         services.AddScoped<IAsignacionRepositorio, AsignacionRepositorio>();
         services.AddScoped<IVisitaRepositorio, VisitaRepositorio>();
+        services.AddScoped<IDashboardRepositorio, DashboardRepositorio>();
 
         // Servicios de negocio
         services.AddScoped<INegGenericos, NegGenericos>();
@@ -40,6 +41,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INegVisitas, NegVisitas>();
         services.AddScoped<INegInsumos, NegInsumos>();
         services.AddScoped<INegAsignacion, NegAsignacion>();
+        services.AddScoped<INegEnvioMail, NegEnvioMail>();
+        services.AddScoped<INegDashboard, NegDashboard>();
 
         return services;
     }

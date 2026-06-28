@@ -122,5 +122,23 @@ namespace ResimamisBackend.Negocio
             throw new ApplicationException(
                 $"Fecha inválida: '{value}'. Use yyyy-MM-dd o dd/MM/yyyy.");
         }
+
+        /// <summary>Día calendario en Argentina para un instante UTC almacenado en BD.</summary>
+        public static DateOnly FechaCalendarioArgentina(DateTime utcInstant)
+        {
+            var utc = utcInstant.Kind == DateTimeKind.Utc
+                ? utcInstant
+                : DateTime.SpecifyKind(utcInstant, DateTimeKind.Utc);
+            var local = TimeZoneInfo.ConvertTimeFromUtc(utc, ArgentinaTimeZone);
+            return DateOnly.FromDateTime(local.Date);
+        }
+
+        /// <summary>Días transcurridos desde una fecha calendario hasta hoy en Argentina (inclusive).</summary>
+        public static int DiasDesdeFechaCalendarioHastaHoyArgentina(DateTime fechaReferencia)
+        {
+            var hoy = FechaCalendarioArgentina(DateTime.UtcNow);
+            var refDia = DateOnly.FromDateTime(fechaReferencia.Date);
+            return Math.Max(0, hoy.DayNumber - refDia.DayNumber);
+        }
     }
 }

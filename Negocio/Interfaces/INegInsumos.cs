@@ -15,4 +15,6 @@ public interface INegInsumos
     List<ConsultaMovimiento> obtenerMovimientos(RequestMovimiento? movimientoFiltro);
     DetalleMovimiento obtenerMovimientoPorId(int idMovimiento);
     List<EstadisticaInsumo> obtenerEstadisticaInsumo();
+    List<InsumoBajoStockMinimo> obtenerInsumosBajoStockMinimo();
+    ResultadoAvisoStockMinimo enviarAvisoStockMinimo();
 }

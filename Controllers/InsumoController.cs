@@ -192,6 +192,44 @@ namespace ResimamisBackend.Controllers
         }
 
 
+        /// <summary>Insumos con stock actual &lt;= stock mínimo (activos, no eliminados).</summary>
+        [HttpGet("bajoStockMinimo")]
+        public IActionResult GetBajoStockMinimo()
+        {
+            try
+            {
+                var resultado = negInsumos.obtenerInsumosBajoStockMinimo();
+                return ApiResults.Success(resultado);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        /// <summary>Envía correo de aviso si hay insumos bajo stock mínimo (requiere Email configurado).</summary>
+        [HttpPost("avisoStockMinimo")]
+        public IActionResult PostAvisoStockMinimo()
+        {
+            try
+            {
+                var resultado = negInsumos.enviarAvisoStockMinimo();
+                return ApiResults.Success(resultado);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
         [HttpGet("estadisticaInsumoCantidad")]
         public IActionResult GetEstadisticasInsumos()
         {

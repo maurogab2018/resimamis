@@ -16,8 +16,22 @@ Backend **ASP.NET Core 8** (API + Swagger en la raíz), **EF Core + Npgsql**, mi
 | `PORT` | No | La setea Render; no hace falta definirla a mano. |
 | `ASPNETCORE_ENVIRONMENT` | No | El `Dockerfile` ya pone `Production`. |
 | `RUN_MIGRATIONS_ON_STARTUP` | No | Si vale `false`, no se ejecuta `Migrate()` al arrancar. |
+| `Email__Enabled` | No (mail) | `true` para activar envío de correos (avisos de stock, etc.). |
+| `Email__From` | Sí (mail) | Remitente autorizado por tu proveedor SMTP. |
+| `Email__Smtp__Host` | Sí (mail) | Host SMTP (ej. `smtp.tuproveedor.com`). |
+| `Email__Smtp__User` o `EMAIL_SMTP_USER` | Sí (mail) | Usuario SMTP. |
+| `Email__Smtp__Password` o `EMAIL_SMTP_PASSWORD` | Sí (mail) | Contraseña o clave SMTP. |
+| `Email__AvisoStockMinimo__Destinatarios__0` | No | Primer destinatario del aviso de stock (Render: índices 0, 1, …). |
 
 En local podés seguir usando `appsettings.json`; en Render conviene **no** depender de secretos en el repo: usá solo `DATABASE_URL` y rotá credenciales si alguna vez quedó commiteada.
+
+## Correo (SMTP genérico)
+
+El backend usa SMTP estándar (`System.Net.Mail.SmtpClient`). Con `Email:Enabled` en `false` (default) no se envía nada.
+
+Para activar en Render, configurá host, usuario, contraseña y remitente. Destinatarios del aviso de stock: `Email:AvisoStockMinimo:Destinatarios` o, si está vacío, mails de coordinadoras en la BD.
+
+Probar: `POST /api/Insumo/avisoStockMinimo` (con JWT). También se dispara solo tras un movimiento de stock que deje un insumo bajo el mínimo.
 
 ## Pasos en Render (Docker)
 

@@ -2,6 +2,8 @@
 using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio.Interfaces;
+using Microsoft.Extensions.Configuration;
+using System.Text;
 
 namespace ResimamisBackend.Negocio
 {
@@ -9,11 +11,22 @@ namespace ResimamisBackend.Negocio
     {
         private readonly IInsumoRepositorio insumoRepositorio;
         private readonly INegProveedores negProveedores;
+        private readonly INegEnvioMail negEnvioMail;
+        private readonly IVoluntariaRepositorio voluntariaRepositorio;
+        private readonly IConfiguration configuration;
 
-        public NegInsumos(IInsumoRepositorio insumoRepositorio, INegProveedores negProveedores)
+        public NegInsumos(
+            IInsumoRepositorio insumoRepositorio,
+            INegProveedores negProveedores,
+            INegEnvioMail negEnvioMail,
+            IVoluntariaRepositorio voluntariaRepositorio,
+            IConfiguration configuration)
         {
             this.insumoRepositorio = insumoRepositorio;
             this.negProveedores = negProveedores;
+            this.negEnvioMail = negEnvioMail;
+            this.voluntariaRepositorio = voluntariaRepositorio;
+            this.configuration = configuration;
         }
 
         private static void ValidarDatosInsumo(INSUMO insumo, IInsumoRepositorio repo)
@@ -82,7 +95,19 @@ namespace ResimamisBackend.Negocio
                 ? string.Empty
                 : movimiento.observacion.Trim();
             negProveedores.ValidarProveedorActivoParaMovimiento(movimiento.idProveedor);
-            return insumoRepositorio.registrarMovimientoStock(movimiento);
+            var ok = insumoRepositorio.registrarMovimientoStock(movimiento);
+            if (ok)
+            {
+                try
+                {
+                    enviarAvisoStockMinimo();
+                }
+                catch
+                {
+                    // El movimiento no debe fallar si el mail falla.
+                }
+            }
+            return ok;
         }
 
         public List<PROVEEDOR> obtenerProveedores()
@@ -105,6 +130,101 @@ namespace ResimamisBackend.Negocio
         public List<EstadisticaInsumo> obtenerEstadisticaInsumo()
         {
             return insumoRepositorio.devolverEstadisticas();
+        }
+
+        public List<InsumoBajoStockMinimo> obtenerInsumosBajoStockMinimo()
+        {
+            return insumoRepositorio.obtenerInsumosBajoStockMinimo()
+                .Select(MapInsumoBajoStock)
+                .ToList();
+        }
+
+        public ResultadoAvisoStockMinimo enviarAvisoStockMinimo()
+        {
+            var insumos = obtenerInsumosBajoStockMinimo();
+            var resultado = new ResultadoAvisoStockMinimo
+            {
+                cantidadInsumosBajoMinimo = insumos.Count,
+                insumos = insumos
+            };
+
+            if (insumos.Count == 0)
+            {
+                resultado.mensaje = "No hay insumos bajo stock mínimo.";
+                return resultado;
+            }
+
+            var destinatarios = ResolverDestinatariosAvisoStock();
+            resultado.destinatarios = destinatarios;
+
+            if (destinatarios.Count == 0)
+            {
+                resultado.mensaje = "Hay insumos bajo mínimo pero no hay destinatarios configurados (Email:AvisoStockMinimo:Destinatarios o mails de coordinadoras).";
+                return resultado;
+            }
+
+            if (!negEnvioMail.EstaConfigurado())
+            {
+                resultado.mensaje = "Correo no configurado (Email:Enabled y Smtp). Revise appsettings o variables de entorno.";
+                return resultado;
+            }
+
+            var asunto = configuration["Email:AvisoStockMinimo:Asunto"]
+                ?? "Resimamis — insumos bajo stock mínimo";
+            var cuerpo = ArmarCuerpoAvisoStock(insumos);
+            var respuestaEnvio = negEnvioMail.EnviarMail(destinatarios, asunto, cuerpo);
+            resultado.correoEnviado = respuestaEnvio.StartsWith("Correo enviado", StringComparison.OrdinalIgnoreCase);
+            resultado.mensaje = respuestaEnvio;
+            return resultado;
+        }
+
+        private static InsumoBajoStockMinimo MapInsumoBajoStock(INSUMO i) => new()
+        {
+            idInsumo = i.idInsumo,
+            nombre = i.nombre,
+            stockActual = i.stockActual,
+            stockMinimo = i.stockMinimo,
+            stockMaximo = i.stockMaximo
+        };
+
+        private List<string> ResolverDestinatariosAvisoStock()
+        {
+            var desdeConfig = configuration.GetSection("Email:AvisoStockMinimo:Destinatarios").Get<string[]>() ?? Array.Empty<string>();
+            var lista = desdeConfig
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .Select(d => d.Trim())
+                .ToList();
+
+            if (lista.Count > 0)
+                return lista.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+            return voluntariaRepositorio.listarVoluntarias()
+                .Where(v => RolesVoluntaria.EsCoordinadora(v.IdRol, v.RolInfo?.Nombre))
+                .Select(v => v.Mail)
+                .Where(m => !string.IsNullOrWhiteSpace(m))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static string ArmarCuerpoAvisoStock(IReadOnlyList<InsumoBajoStockMinimo> insumos)
+        {
+            var sb = new StringBuilder();
+            sb.Append("<h2>Resimamis — aviso de stock mínimo</h2>");
+            sb.Append("<p>Los siguientes insumos están en o por debajo del stock mínimo configurado:</p>");
+            sb.Append("<table border=\"1\" cellpadding=\"6\" cellspacing=\"0\" style=\"border-collapse:collapse;\">");
+            sb.Append("<tr><th>Insumo</th><th>Stock actual</th><th>Stock mínimo</th><th>Stock máximo</th></tr>");
+            foreach (var i in insumos)
+            {
+                sb.Append("<tr>");
+                sb.Append($"<td>{System.Net.WebUtility.HtmlEncode(i.nombre)}</td>");
+                sb.Append($"<td>{i.stockActual}</td>");
+                sb.Append($"<td>{i.stockMinimo}</td>");
+                sb.Append($"<td>{i.stockMaximo}</td>");
+                sb.Append("</tr>");
+            }
+            sb.Append("</table>");
+            sb.Append($"<p><small>Generado: {NegConversorFecha.ObtenerFechaArgentina():yyyy-MM-dd HH:mm} (AR)</small></p>");
+            return sb.ToString();
         }
     }
 }

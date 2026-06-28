@@ -266,6 +266,15 @@ namespace ResimamisBackend.Datos
             return resultado;
         }
 
+        public List<INSUMO> obtenerInsumosBajoStockMinimo()
+        {
+            return QueryInsumosVisiblesAmbitoInsumos()
+                .AsNoTracking()
+                .Where(i => i.stockActual <= i.stockMinimo)
+                .OrderBy(i => i.nombre)
+                .ToList();
+        }
+
         /// <summary>Indica si un idEstado existe y pertenece al ámbito Insumos (cualquier nombre de estado).</summary>
         public bool IdEstadoEsDelAmbitoInsumos(int idEstado)
         {

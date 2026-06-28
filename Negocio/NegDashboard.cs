@@ -1,0 +1,55 @@
+using ResimamisBackend.Datos.Interfaces;
+using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
+
+namespace ResimamisBackend.Negocio
+{
+    public class NegDashboard : INegDashboard
+    {
+        private readonly IDashboardRepositorio dashboardRepositorio;
+
+        public NegDashboard(IDashboardRepositorio dashboardRepositorio)
+        {
+            this.dashboardRepositorio = dashboardRepositorio;
+        }
+
+        public EstadisticaAsignacionesPorDiaRespuesta ObtenerAsignacionesPorDia(DateTime fechaInicio, DateTime fechaFin) =>
+            dashboardRepositorio.ObtenerAsignacionesPorDia(fechaInicio, fechaFin);
+
+        public EstadisticaDuracionAbrazosRespuesta ObtenerDuracionAbrazos(DateTime? fechaInicio, DateTime? fechaFin) =>
+            dashboardRepositorio.ObtenerDuracionAbrazos(fechaInicio, fechaFin);
+
+        public EstadisticaRangoEdadesBebesRespuesta ObtenerRangoEdadesBebes() =>
+            dashboardRepositorio.ObtenerRangoEdadesBebes();
+
+        public EstadisticaPermanenciaBebesRespuesta ObtenerPermanenciaBebes() =>
+            dashboardRepositorio.ObtenerPermanenciaBebes();
+
+        public EstadisticaVisitasRespuesta ObtenerEstadisticasVisitas(DateTime fechaInicio, DateTime fechaFin) =>
+            dashboardRepositorio.ObtenerEstadisticasVisitas(fechaInicio, fechaFin);
+
+        public DashboardResumenRespuesta ObtenerResumen(DateTime fechaInicio, DateTime fechaFin) =>
+            dashboardRepositorio.ObtenerResumen(fechaInicio, fechaFin);
+
+        public AbrazosBebeDashboardRespuesta ObtenerAbrazosBebeHoy(int idBebe)
+        {
+            var (inicioUtc, finUtc) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
+            return dashboardRepositorio.ObtenerAbrazosBebe(idBebe, inicioUtc, finUtc, hoy);
+        }
+
+        public AbrazosBebeDashboardRespuesta ObtenerAbrazosBebeHistorial(int idBebe, DateTime? fechaInicio, DateTime? fechaFin)
+        {
+            DateTime? inicioUtc = null;
+            DateTime? finUtc = null;
+            if (fechaInicio.HasValue && fechaFin.HasValue)
+            {
+                var rango = NegConversorFecha.RangoFechasArgentinaEnUtc(fechaInicio.Value, fechaFin.Value);
+                inicioUtc = rango.InicioUtc;
+                finUtc = rango.FinUtcExclusivo;
+            }
+
+            return dashboardRepositorio.ObtenerAbrazosBebe(idBebe, inicioUtc, finUtc, null);
+        }
+    }
+}
