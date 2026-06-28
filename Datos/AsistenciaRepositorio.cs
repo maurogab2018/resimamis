@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
@@ -8,15 +9,15 @@ namespace ResimamisBackend.Datos
     /// Las consultas LINQ a EF no deben usar métodos estáticos (p. ej. EsAsistenciaOperativa) dentro de
     /// Where/Any: no se traducen a SQL. Filtrar bajas lógicas con (idEstado == null || idEstado != idEliminado).
     /// </remarks>
-    public class AsistenciaRepositorio
+    public class AsistenciaRepositorio : IAsistenciaRepositorio
     {
         private readonly ApplicationDbContext db;
-        private readonly EstadoRepositorio estadoRepositorio;
+        private readonly IEstadoRepositorio estadoRepositorio;
 
-        public AsistenciaRepositorio()
+        public AsistenciaRepositorio(ApplicationDbContext db, IEstadoRepositorio estadoRepositorio)
         {
-            db = new ApplicationDbContext();
-            estadoRepositorio = new EstadoRepositorio();
+            this.db = db;
+            this.estadoRepositorio = estadoRepositorio;
         }
 
         private static bool EsAsistenciaEliminada(ASISTENCIA a) =>

@@ -1,17 +1,18 @@
 using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
 
 namespace ResimamisBackend.Datos
 {
-    public class VisitaRepositorio
+    public class VisitaRepositorio : IVisitaRepositorio
     {
         private readonly ApplicationDbContext db;
-        private readonly BebeRepositorio bebeRepositorio;
+        private readonly IBebeRepositorio bebeRepositorio;
 
-        public VisitaRepositorio()
+        public VisitaRepositorio(ApplicationDbContext db, IBebeRepositorio bebeRepositorio)
         {
-            db = new ApplicationDbContext();
-            bebeRepositorio = new BebeRepositorio();
+            this.db = db;
+            this.bebeRepositorio = bebeRepositorio;
         }
 
         private IQueryable<VISITA> QueryVisitasActivas() =>

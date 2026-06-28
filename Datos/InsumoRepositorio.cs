@@ -1,20 +1,21 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
 {
-    public class InsumoRepositorio
+    public class InsumoRepositorio : IInsumoRepositorio
     {
         private readonly ApplicationDbContext db;
-        private readonly VoluntariaRepositorio voluntariaRepositorio;
-        private readonly EstadoRepositorio estadoRepositorio;
+        private readonly IVoluntariaRepositorio voluntariaRepositorio;
+        private readonly IEstadoRepositorio estadoRepositorio;
 
-        public InsumoRepositorio()
+        public InsumoRepositorio(ApplicationDbContext db, IVoluntariaRepositorio voluntariaRepositorio, IEstadoRepositorio estadoRepositorio)
         {
-            voluntariaRepositorio = new VoluntariaRepositorio();
-            db = new ApplicationDbContext();
-            estadoRepositorio = new EstadoRepositorio();
+            this.db = db;
+            this.voluntariaRepositorio = voluntariaRepositorio;
+            this.estadoRepositorio = estadoRepositorio;
         }
 
         /// <summary>Insumo con estado en ámbito Insumos y que no esté en estado Eliminado.</summary>

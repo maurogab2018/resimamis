@@ -1,15 +1,20 @@
 using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 using System.Text.RegularExpressions;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegMadres
+    public class NegMadres : INegMadres
     {
-        public readonly MadreRepositorio repositorioMadre;
-        public NegMadres()
+        public readonly IMadreRepositorio repositorioMadre;
+        private readonly INegBebes negBebes;
+
+        public NegMadres(IMadreRepositorio repositorioMadre, INegBebes negBebes)
         {
-            repositorioMadre = new MadreRepositorio();
+            this.repositorioMadre = repositorioMadre;
+            this.negBebes = negBebes;
         }
 
         public List<MADRE> listarMadres()
@@ -103,15 +108,15 @@ namespace ResimamisBackend.Negocio
             return combinada;
         }
 
-        private static void ValidarBebesAlta(MADRE madre, ResultadoValidacion resultado)
+        private void ValidarBebesAlta(MADRE madre, ResultadoValidacion resultado)
         {
             if (madre.Bebe == null || madre.Bebe.Count == 0)
                 return;
             for (var i = 0; i < madre.Bebe.Count; i++)
-                NegBebes.ValidarCamposBebe(madre.Bebe[i], resultado, $"Bebé (índice {i + 1}): ");
+                negBebes.ValidarCamposBebe(madre.Bebe[i], resultado, $"Bebé (índice {i + 1}): ");
         }
 
-        private static void ValidarBebesEnModificacion(MADRE parcial, MADRE existente, ResultadoValidacion resultado)
+        private void ValidarBebesEnModificacion(MADRE parcial, MADRE existente, ResultadoValidacion resultado)
         {
             if (parcial.Bebe == null || parcial.Bebe.Count == 0)
                 return;
@@ -128,7 +133,7 @@ namespace ResimamisBackend.Negocio
                 else
                     aValidar = bebeParcial;
 
-                NegBebes.ValidarCamposBebe(aValidar, resultado, $"Bebé (índice {i + 1}): ");
+                negBebes.ValidarCamposBebe(aValidar, resultado, $"Bebé (índice {i + 1}): ");
             }
         }
 

@@ -1,20 +1,25 @@
 ﻿using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 using System.Text.RegularExpressions;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegVoluntaria
+    public class NegVoluntaria : INegVoluntaria
     {
-        public readonly VoluntariaRepositorio voluntariaRepositorio;
-        private readonly HorarioRepositorio horarioRepositorio;
-        private readonly EstadoRepositorio estadoRepositorio;
+        private readonly IVoluntariaRepositorio voluntariaRepositorio;
+        private readonly IHorarioRepositorio horarioRepositorio;
+        private readonly IEstadoRepositorio estadoRepositorio;
 
-        public NegVoluntaria()
+        public NegVoluntaria(
+            IVoluntariaRepositorio voluntariaRepositorio,
+            IHorarioRepositorio horarioRepositorio,
+            IEstadoRepositorio estadoRepositorio)
         {
-            voluntariaRepositorio = new VoluntariaRepositorio();
-            horarioRepositorio = new HorarioRepositorio();
-            estadoRepositorio = new EstadoRepositorio();
+            this.voluntariaRepositorio = voluntariaRepositorio;
+            this.horarioRepositorio = horarioRepositorio;
+            this.estadoRepositorio = estadoRepositorio;
         }
 
         private void ValidarVoluntaria(VOLUNTARIA voluntaria, bool validarEstado = true)

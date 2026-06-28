@@ -2,22 +2,15 @@
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
-using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Controllers
 {
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class InsumoController : ControllerBase
+    public class InsumoController(INegInsumos negInsumos) : ControllerBase
     {
-        public readonly NegInsumos negInsumos;
-        public InsumoController()
-        {
-            negInsumos = new NegInsumos();
-        }
-
-
         [HttpGet]
         public IActionResult Get()
         {

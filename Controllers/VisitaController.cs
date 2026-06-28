@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
-using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio.Interfaces;
 using System.Text.Json;
 
 namespace ResimamisBackend.Controllers
@@ -10,15 +10,8 @@ namespace ResimamisBackend.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class VisitaController : ControllerBase
+    public class VisitaController(INegVisitas negVisitas) : ControllerBase
     {
-        private readonly NegVisitas negVisitas;
-
-        public VisitaController()
-        {
-            negVisitas = new NegVisitas();
-        }
-
         private static readonly JsonSerializerOptions VisitaJsonOptions = new()
         {
             PropertyNameCaseInsensitive = true,

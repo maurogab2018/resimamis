@@ -1,15 +1,17 @@
 using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegProveedores
+    public class NegProveedores : INegProveedores
     {
-        private readonly ProveedorRepositorio proveedorRepositorio;
+        private readonly IProveedorRepositorio proveedorRepositorio;
 
-        public NegProveedores()
+        public NegProveedores(IProveedorRepositorio proveedorRepositorio)
         {
-            proveedorRepositorio = new ProveedorRepositorio();
+            this.proveedorRepositorio = proveedorRepositorio;
         }
 
         private static void ValidarProveedor(PROVEEDOR proveedor)

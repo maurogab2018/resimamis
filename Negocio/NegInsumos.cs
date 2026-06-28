@@ -1,20 +1,22 @@
 ﻿using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegInsumos
+    public class NegInsumos : INegInsumos
     {
-        private readonly InsumoRepositorio insumoRepositorio;
-        private readonly NegProveedores negProveedores;
+        private readonly IInsumoRepositorio insumoRepositorio;
+        private readonly INegProveedores negProveedores;
 
-        public NegInsumos()
+        public NegInsumos(IInsumoRepositorio insumoRepositorio, INegProveedores negProveedores)
         {
-            insumoRepositorio = new InsumoRepositorio();
-            negProveedores = new NegProveedores();
+            this.insumoRepositorio = insumoRepositorio;
+            this.negProveedores = negProveedores;
         }
 
-        private static void ValidarDatosInsumo(INSUMO insumo, InsumoRepositorio repo)
+        private static void ValidarDatosInsumo(INSUMO insumo, IInsumoRepositorio repo)
         {
             if (insumo == null)
                 throw new ApplicationException("Insumo inválido.");

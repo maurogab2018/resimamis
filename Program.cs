@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ResimamisBackend;
 using ResimamisBackend.Datos;
+using ResimamisBackend.DependencyInjection;
 using ResimamisBackend.Entidades;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.Timeouts;
@@ -30,6 +31,8 @@ var connectionString = ConnectionStringResolver.Resolve(builder.Configuration);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql =>
         npgsql.CommandTimeout(dbCommandTimeoutSeconds)));
+
+builder.Services.AddResimamisServices();
 
 builder.Services.AddRequestTimeouts(options =>
 {

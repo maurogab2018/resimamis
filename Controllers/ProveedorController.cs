@@ -2,22 +2,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
-using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Controllers
 {
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class ProveedorController : ControllerBase
+    public class ProveedorController(INegProveedores negProveedores) : ControllerBase
     {
-        private readonly NegProveedores negProveedores;
-
-        public ProveedorController()
-        {
-            negProveedores = new NegProveedores();
-        }
-
         /// <summary>Catálogo completo de proveedores (ABM).</summary>
         [HttpGet]
         public IActionResult Get()

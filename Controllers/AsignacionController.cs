@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio.Interfaces;
 using System.Security.Claims;
 
 namespace ResimamisBackend.Controllers
@@ -10,15 +11,8 @@ namespace ResimamisBackend.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class AsignacionController: ControllerBase
+    public class AsignacionController(INegAsignacion negAsignacion) : ControllerBase
     {
-        public readonly NegAsignacion negAsignacion;
-
-        public AsignacionController()
-        {
-            negAsignacion = new NegAsignacion();
-        }
-
         private static int ObtenerDniAutenticado(ClaimsPrincipal user)
         {
             var claim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
@@ -156,6 +150,29 @@ namespace ResimamisBackend.Controllers
             catch (ConflictException ex)
             {
                 return ApiResults.Conflict(ex.Message);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        /// <summary>Historial de abrazos de un bebé (todas las asignaciones con ese idBebe, sin eliminadas).</summary>
+        [HttpGet("abrazosHistoricos/{idBebe}")]
+        public IActionResult GetAbrazosHistoricos(int idBebe)
+        {
+            try
+            {
+                var respuesta = negAsignacion.listarAbrazosHistoricos(idBebe);
+                return ApiResults.Success(respuesta);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
             }
             catch (ApplicationException ex)
             {

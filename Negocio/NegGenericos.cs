@@ -1,15 +1,17 @@
 ﻿using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegGenericos
+    public class NegGenericos : INegGenericos
     {
-        private readonly GenericosRepositorio genericosRepositorio;
+        private readonly IGenericosRepositorio genericosRepositorio;
 
-        public NegGenericos()
+        public NegGenericos(IGenericosRepositorio genericosRepositorio)
         {
-            genericosRepositorio= new GenericosRepositorio();
+            this.genericosRepositorio = genericosRepositorio;
         }
 
         public List<LOCALIDAD> obtenerLocalidades()

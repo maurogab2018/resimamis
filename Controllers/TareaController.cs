@@ -2,22 +2,15 @@
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
-using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Controllers
 {
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class TareaController : ControllerBase
+    public class TareaController(INegTareas negTareas) : ControllerBase
     {
-        private readonly NegTareas negTareas;
-
-        public TareaController()
-        {
-            negTareas = new NegTareas();
-        }
-
         /// <summary>Catálogo completo de tareas (ABM).</summary>
         [HttpGet]
         public IActionResult Get()

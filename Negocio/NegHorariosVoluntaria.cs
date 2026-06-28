@@ -1,14 +1,17 @@
 ﻿using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegHorariosVoluntaria
+    public class NegHorariosVoluntaria : INegHorariosVoluntaria
     {
-        public readonly HorarioRepositorio horarioRepositorio;
-        public NegHorariosVoluntaria()
+        private readonly IHorarioRepositorio horarioRepositorio;
+
+        public NegHorariosVoluntaria(IHorarioRepositorio horarioRepositorio)
         {
-            horarioRepositorio = new HorarioRepositorio();
+            this.horarioRepositorio = horarioRepositorio;
         }
 
         public List<HorarioVoluntariaRespuesta> registrarHoraraioVoluntaria(List<HorarioVoluntaria> horarioVoluntaria)

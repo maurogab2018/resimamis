@@ -1,20 +1,21 @@
 using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
 {
-    public class AsignacionRepositorio
+    public class AsignacionRepositorio : IAsignacionRepositorio
     {
         private readonly ApplicationDbContext db;
-        private readonly InsumoRepositorio insumoRepositorio;
-        private readonly EstadoRepositorio estadoRepositorio;
+        private readonly IInsumoRepositorio insumoRepositorio;
+        private readonly IEstadoRepositorio estadoRepositorio;
 
-        public AsignacionRepositorio()
+        public AsignacionRepositorio(ApplicationDbContext db, IInsumoRepositorio insumoRepositorio, IEstadoRepositorio estadoRepositorio)
         {
-            db = new ApplicationDbContext();
-            insumoRepositorio = new InsumoRepositorio();
-            estadoRepositorio = new EstadoRepositorio();
+            this.db = db;
+            this.insumoRepositorio = insumoRepositorio;
+            this.estadoRepositorio = estadoRepositorio;
         }
 
         public void registrarAsignacion(ASIGNACION asignacion)
@@ -121,6 +122,22 @@ namespace ResimamisBackend.Datos
             }).ToList();
 
             return asignaciones;
+        }
+
+        /// <summary>Asignaciones de abrazo de un bebé (idBebe), excluye eliminadas, más recientes primero.</summary>
+        public List<ASIGNACION> listarAbrazosHistoricosPorBebe(int idBebe)
+        {
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+            return db.ASIGNACION
+                .AsNoTracking()
+                .Include(a => a.bebe!).ThenInclude(b => b.Sala)
+                .Include(a => a.voluntaria)
+                .Include(a => a.tarea)
+                .Include(a => a.estado)
+                .Where(a => a.idBebe == idBebe && a.idEstado != idElim)
+                .OrderByDescending(a => a.fechaHoraAsignacion)
+                .ThenByDescending(a => a.idAsignacion)
+                .ToList();
         }
 
         public void registrarCambioaAsignacion()

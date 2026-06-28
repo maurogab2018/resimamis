@@ -1,23 +1,17 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
-using ResimamisBackend.Negocio;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Controllers
 {
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class AsistenciaController: ControllerBase
+    public class AsistenciaController(INegAsistencia negAsistencia) : ControllerBase
     {
-
-        public readonly NegAsistencia negAsistencia;
-        public AsistenciaController()
-        {
-            negAsistencia = new NegAsistencia();
-        }
-
         [HttpGet]
         public IActionResult GetAll()
         {

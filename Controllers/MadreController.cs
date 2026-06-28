@@ -3,23 +3,17 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
-using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Controllers
 {
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class MadreController : ControllerBase
+    public class MadreController(INegMadres neg_Madres) : ControllerBase
     {
         // GET: MadreController
-        public readonly NegMadres neg_Madres;
         // GET: api/<ErroresController>
-        public MadreController()
-        {
-            neg_Madres = new NegMadres();
-        }
-
         [HttpGet]
         public IActionResult Get()
         {

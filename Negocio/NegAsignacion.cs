@@ -1,27 +1,37 @@
 using Microsoft.EntityFrameworkCore;
 using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegAsignacion
+    public class NegAsignacion : INegAsignacion
     {
-        private readonly BebeRepositorio bebeRepositorio;
-        private readonly VoluntariaRepositorio voluntariaRepositorio;
-        private readonly AsignacionRepositorio asignacionRepositorio;
-        private readonly EstadoRepositorio estadoRepositorio;
-        private readonly NegTareas negTareas;
-        private readonly NegUsuarios negUsuarios;
+        private readonly IBebeRepositorio bebeRepositorio;
+        private readonly IVoluntariaRepositorio voluntariaRepositorio;
+        private readonly IAsignacionRepositorio asignacionRepositorio;
+        private readonly IEstadoRepositorio estadoRepositorio;
+        private readonly INegTareas negTareas;
+        private readonly INegUsuarios negUsuarios;
         private readonly ApplicationDbContext db;
-        public NegAsignacion()
+
+        public NegAsignacion(
+            IBebeRepositorio bebeRepositorio,
+            IVoluntariaRepositorio voluntariaRepositorio,
+            IAsignacionRepositorio asignacionRepositorio,
+            IEstadoRepositorio estadoRepositorio,
+            INegTareas negTareas,
+            INegUsuarios negUsuarios,
+            ApplicationDbContext db)
         {
-            bebeRepositorio = new BebeRepositorio();
-            voluntariaRepositorio = new VoluntariaRepositorio();
-            asignacionRepositorio= new AsignacionRepositorio();
-            estadoRepositorio = new EstadoRepositorio();
-            negTareas = new NegTareas();
-            negUsuarios = new NegUsuarios();
-            db = new ApplicationDbContext();
+            this.bebeRepositorio = bebeRepositorio;
+            this.voluntariaRepositorio = voluntariaRepositorio;
+            this.asignacionRepositorio = asignacionRepositorio;
+            this.estadoRepositorio = estadoRepositorio;
+            this.negTareas = negTareas;
+            this.negUsuarios = negUsuarios;
+            this.db = db;
         }
 
         private void AsegurarAsignacionNoEliminada(ASIGNACION asignacion)
@@ -717,6 +727,15 @@ namespace ResimamisBackend.Negocio
             AsegurarAsignacionNoEliminada(a);
 
             return MapearRespuestaAsignacion(a);
+        }
+
+        /// <summary>Historial de abrazos (asignaciones con bebé) para un bebé.</summary>
+        public List<RespuestaAsignaciones> listarAbrazosHistoricos(int idBebe)
+        {
+            bebeRepositorio.consultarBebe(idBebe);
+            return asignacionRepositorio.listarAbrazosHistoricosPorBebe(idBebe)
+                .Select(MapearRespuestaAsignacion)
+                .ToList();
         }
 
 

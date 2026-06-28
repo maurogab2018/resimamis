@@ -1,18 +1,20 @@
 using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 using System.Text.RegularExpressions;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegVisitas
+    public class NegVisitas : INegVisitas
     {
-        private readonly VisitaRepositorio visitaRepositorio;
-        private readonly BebeRepositorio bebeRepositorio;
+        private readonly IVisitaRepositorio visitaRepositorio;
+        private readonly IBebeRepositorio bebeRepositorio;
 
-        public NegVisitas()
+        public NegVisitas(IVisitaRepositorio visitaRepositorio, IBebeRepositorio bebeRepositorio)
         {
-            visitaRepositorio = new VisitaRepositorio();
-            bebeRepositorio = new BebeRepositorio();
+            this.visitaRepositorio = visitaRepositorio;
+            this.bebeRepositorio = bebeRepositorio;
         }
 
         private static void CombinarVisitaParaModificar(VISITA datos, VISITA existente)

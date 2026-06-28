@@ -3,19 +3,15 @@ using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Controllers
 {
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class HorarioController : ControllerBase
+    public class HorarioController(INegHorariosVoluntaria negHorariosVoluntaria) : ControllerBase
     {
-        public readonly NegHorariosVoluntaria negHorariosVoluntaria;
-        public HorarioController()
-        {
-            negHorariosVoluntaria = new NegHorariosVoluntaria();  
-        }
         [HttpGet("dias")]
 
         public IActionResult GetDias()

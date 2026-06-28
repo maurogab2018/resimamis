@@ -1,15 +1,17 @@
 using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegTareas
+    public class NegTareas : INegTareas
     {
-        private readonly TareaRepositorio tareaRepositorio;
+        private readonly ITareaRepositorio tareaRepositorio;
 
-        public NegTareas()
+        public NegTareas(ITareaRepositorio tareaRepositorio)
         {
-            tareaRepositorio = new TareaRepositorio();
+            this.tareaRepositorio = tareaRepositorio;
         }
 
         private static void ValidarTarea(TAREA tarea)

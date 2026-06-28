@@ -1,22 +1,26 @@
 ﻿using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 using System.Text.RegularExpressions;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegBebes
+    public class NegBebes : INegBebes
     {
-        private readonly BebeRepositorio repositorioBebe;
-        private readonly NegSalas negSalas;
+        private readonly IBebeRepositorio repositorioBebe;
+        private readonly INegSalas negSalas;
+        private readonly IGenericosRepositorio genericosRepositorio;
 
-        public NegBebes()
+        public NegBebes(IBebeRepositorio repositorioBebe, INegSalas negSalas, IGenericosRepositorio genericosRepositorio)
         {
-            repositorioBebe = new BebeRepositorio();
-            negSalas = new NegSalas();
+            this.repositorioBebe = repositorioBebe;
+            this.negSalas = negSalas;
+            this.genericosRepositorio = genericosRepositorio;
         }
 
         /// <summary>Reglas alineadas con modificar/registrar: nombre, apellido, sexo, dni opcional, fecha nacimiento.</summary>
-        public static void ValidarCamposBebe(BEBE bebe, ResultadoValidacion resultado, string prefijo = "")
+        public void ValidarCamposBebe(BEBE bebe, ResultadoValidacion resultado, string prefijo = "")
         {
             if (bebe == null)
             {
@@ -65,7 +69,7 @@ namespace ResimamisBackend.Negocio
             {
                 if (bebe.IdLocalidad.Value <= 0)
                     bebe.IdLocalidad = null;
-                else if (!new GenericosRepositorio().existeLocalidad(bebe.IdLocalidad.Value))
+                else if (!genericosRepositorio.existeLocalidad(bebe.IdLocalidad.Value))
                     resultado.Errores.Add(prefijo + "Localidad no existente con ese ID.");
             }
 
@@ -77,7 +81,7 @@ namespace ResimamisBackend.Negocio
                 {
                     try
                     {
-                        new NegSalas().ValidarSalaActivaParaBebe(bebe.IdSala);
+                        negSalas.ValidarSalaActivaParaBebe(bebe.IdSala);
                     }
                     catch (NotFoundException)
                     {

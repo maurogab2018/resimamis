@@ -3,21 +3,15 @@ using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio.Interfaces;
 using System.Security.Claims;
 
 namespace ResimamisBackend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class UsuarioController : ControllerBase
+    public class UsuarioController(INegUsuarios neg_Usuario) : ControllerBase
     {
-        public readonly NegUsuarios neg_Usuario;
-
-        public UsuarioController()
-        {
-            neg_Usuario = new NegUsuarios();
-        }
-
         private int ObtenerDniAutenticado()
         {
             var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value

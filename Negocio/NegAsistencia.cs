@@ -1,18 +1,24 @@
 ﻿using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegAsistencia
+    public class NegAsistencia : INegAsistencia
     {
-        public readonly AsistenciaRepositorio repositorioAsistencia;
-        public readonly VoluntariaRepositorio repositorioVoluntaria;
-        public readonly HorarioRepositorio repositorioHorario;
-        public NegAsistencia()
+        private readonly IAsistenciaRepositorio repositorioAsistencia;
+        private readonly IVoluntariaRepositorio repositorioVoluntaria;
+        private readonly IHorarioRepositorio repositorioHorario;
+
+        public NegAsistencia(
+            IAsistenciaRepositorio repositorioAsistencia,
+            IVoluntariaRepositorio repositorioVoluntaria,
+            IHorarioRepositorio repositorioHorario)
         {
-            repositorioAsistencia = new AsistenciaRepositorio();
-            repositorioVoluntaria = new VoluntariaRepositorio();
-            repositorioHorario=new HorarioRepositorio();
+            this.repositorioAsistencia = repositorioAsistencia;
+            this.repositorioVoluntaria = repositorioVoluntaria;
+            this.repositorioHorario = repositorioHorario;
         }
 
         public bool registrarAsistencia(int idVoluntaria )

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio.Interfaces;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -12,10 +13,8 @@ namespace ResimamisBackend.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class VoluntariaController : ControllerBase
+    public class VoluntariaController(INegVoluntaria negVoluntaria) : ControllerBase
     {
-        public readonly NegVoluntaria negVoluntaria;
-
         private static readonly JsonSerializerOptions VoluntariaJsonOptions = new()
         {
             PropertyNameCaseInsensitive = true,
@@ -27,11 +26,6 @@ namespace ResimamisBackend.Controllers
         {
             "horarios", "rol", "estado", "estadoDetalle", "rolInfo", "asignaciones", "asistencias"
         };
-
-        public VoluntariaController()
-        {
-            negVoluntaria = new NegVoluntaria();
-        }
 
         private static (VOLUNTARIA voluntaria, List<HorarioVoluntaria>? horarios) LeerVoluntariaDesdeBody(
             JsonElement body, bool esAlta)

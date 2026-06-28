@@ -1,11 +1,14 @@
-﻿namespace ResimamisBackend.Datos
+﻿using ResimamisBackend.Datos.Interfaces;
+
+namespace ResimamisBackend.Datos
 {
-    public class GenericosRepositorio
+    public class GenericosRepositorio : IGenericosRepositorio
     {
         private readonly ApplicationDbContext db;
-        public GenericosRepositorio()
+
+        public GenericosRepositorio(ApplicationDbContext db)
         {
-            db = new ApplicationDbContext();
+            this.db = db;
         }
 
         public List<LOCALIDAD> obtenerLocalidades()

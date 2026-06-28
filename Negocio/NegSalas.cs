@@ -1,15 +1,17 @@
 using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegSalas
+    public class NegSalas : INegSalas
     {
-        private readonly SalaRepositorio salaRepositorio;
+        private readonly ISalaRepositorio salaRepositorio;
 
-        public NegSalas()
+        public NegSalas(ISalaRepositorio salaRepositorio)
         {
-            salaRepositorio = new SalaRepositorio();
+            this.salaRepositorio = salaRepositorio;
         }
 
         private static void ValidarSala(SALA sala)

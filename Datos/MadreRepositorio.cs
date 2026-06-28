@@ -1,17 +1,18 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
 
 namespace ResimamisBackend.Datos
 {
-    public class MadreRepositorio
+    public class MadreRepositorio : IMadreRepositorio
     {
         private readonly ApplicationDbContext db;
-        private readonly EstadoRepositorio estadoRepositorio;
+        private readonly IEstadoRepositorio estadoRepositorio;
 
-        public MadreRepositorio()
+        public MadreRepositorio(ApplicationDbContext db, IEstadoRepositorio estadoRepositorio)
         {
-            db = new ApplicationDbContext();
-            estadoRepositorio = new EstadoRepositorio();
+            this.db = db;
+            this.estadoRepositorio = estadoRepositorio;
         }
 
         /// <summary>Madres activas y no marcadas como Eliminado (ámbito Madres).</summary>

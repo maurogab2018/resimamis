@@ -1,18 +1,19 @@
 using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
 {
-    public class VoluntariaRepositorio
+    public class VoluntariaRepositorio : IVoluntariaRepositorio
     {
         private readonly ApplicationDbContext db;
-        private readonly EstadoRepositorio estadoRepositorio;
+        private readonly IEstadoRepositorio estadoRepositorio;
 
-        public VoluntariaRepositorio()
+        public VoluntariaRepositorio(ApplicationDbContext db, IEstadoRepositorio estadoRepositorio)
         {
-            db = new ApplicationDbContext();
-            estadoRepositorio = new EstadoRepositorio();
+            this.db = db;
+            this.estadoRepositorio = estadoRepositorio;
         }
 
         private int? IdEstadoEliminadoVoluntarias()

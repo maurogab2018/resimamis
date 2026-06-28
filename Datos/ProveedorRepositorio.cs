@@ -1,15 +1,16 @@
 using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
 
 namespace ResimamisBackend.Datos
 {
-    public class ProveedorRepositorio
+    public class ProveedorRepositorio : IProveedorRepositorio
     {
         private readonly ApplicationDbContext db;
 
-        public ProveedorRepositorio()
+        public ProveedorRepositorio(ApplicationDbContext db)
         {
-            db = new ApplicationDbContext();
+            this.db = db;
         }
 
         public List<PROVEEDOR> listarProveedores()

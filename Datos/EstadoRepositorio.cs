@@ -1,14 +1,15 @@
 using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Datos.Interfaces;
 
 namespace ResimamisBackend.Datos
 {
-    public class EstadoRepositorio
+    public class EstadoRepositorio : IEstadoRepositorio
     {
         private readonly ApplicationDbContext db;
 
-        public EstadoRepositorio()
+        public EstadoRepositorio(ApplicationDbContext db)
         {
-            db = new ApplicationDbContext();
+            this.db = db;
         }
 
         /// <summary>Resuelve el id de ESTADO con nombre "Eliminado" para el ámbito indicado.</summary>

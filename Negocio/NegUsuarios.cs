@@ -1,26 +1,32 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ResimamisBackend.Datos;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
 namespace ResimamisBackend.Negocio
 {
-    public class NegUsuarios
+    public class NegUsuarios : INegUsuarios
     {
         private readonly ApplicationDbContext db;
-        private readonly EstadoRepositorio estadoRepositorio;
-        private readonly UsuarioRepositorio usuarioRepositorio;
-        private readonly VoluntariaRepositorio voluntariaRepositorio;
+        private readonly IEstadoRepositorio estadoRepositorio;
+        private readonly IUsuarioRepositorio usuarioRepositorio;
+        private readonly IVoluntariaRepositorio voluntariaRepositorio;
 
-        public NegUsuarios()
+        public NegUsuarios(
+            ApplicationDbContext db,
+            IEstadoRepositorio estadoRepositorio,
+            IUsuarioRepositorio usuarioRepositorio,
+            IVoluntariaRepositorio voluntariaRepositorio)
         {
-            db = new ApplicationDbContext();
-            estadoRepositorio = new EstadoRepositorio();
-            usuarioRepositorio = new UsuarioRepositorio();
-            voluntariaRepositorio = new VoluntariaRepositorio();
+            this.db = db;
+            this.estadoRepositorio = estadoRepositorio;
+            this.usuarioRepositorio = usuarioRepositorio;
+            this.voluntariaRepositorio = voluntariaRepositorio;
         }
 
         public bool EsCoordinadoraPorDni(int dni)

@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
-using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio.Interfaces;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -12,10 +12,8 @@ namespace ResimamisBackend.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class BebeController : ControllerBase
+    public class BebeController(INegBebes neg_Bebes) : ControllerBase
     {
-        public readonly NegBebes neg_Bebes;
-
         private static readonly JsonSerializerOptions BebeJsonOptions = new()
         {
             PropertyNameCaseInsensitive = true,
@@ -27,11 +25,6 @@ namespace ResimamisBackend.Controllers
         {
             "madre", "sala", "estado", "localidad", "asignaciones", "visitas", "nombreSala"
         };
-
-        public BebeController()
-        {
-            neg_Bebes = new NegBebes();
-        }
 
         private static BEBE LeerBebeDesdeBody(JsonElement body, bool esAlta)
         {

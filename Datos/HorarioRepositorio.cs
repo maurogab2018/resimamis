@@ -1,15 +1,17 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
 {
-    public class HorarioRepositorio
+    public class HorarioRepositorio : IHorarioRepositorio
     {
         private readonly ApplicationDbContext db;
-        public HorarioRepositorio()
+
+        public HorarioRepositorio(ApplicationDbContext db)
         {
-            db = new ApplicationDbContext();
+            this.db = db;
         }
 
         private static bool EsHorarioVoluntariaActivo(VOLUNTARIAHORARIO vh) => vh.Activa;

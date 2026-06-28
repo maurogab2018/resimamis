@@ -1,17 +1,18 @@
 using Microsoft.EntityFrameworkCore;
+using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
 
 namespace ResimamisBackend.Datos
 {
-    public class UsuarioRepositorio
+    public class UsuarioRepositorio : IUsuarioRepositorio
     {
         private readonly ApplicationDbContext db;
-        private readonly EstadoRepositorio estadoRepositorio;
+        private readonly IEstadoRepositorio estadoRepositorio;
 
-        public UsuarioRepositorio()
+        public UsuarioRepositorio(ApplicationDbContext db, IEstadoRepositorio estadoRepositorio)
         {
-            db = new ApplicationDbContext();
-            estadoRepositorio = new EstadoRepositorio();
+            this.db = db;
+            this.estadoRepositorio = estadoRepositorio;
         }
 
         internal static bool EsUsuarioEliminado(USUARIO u) =>

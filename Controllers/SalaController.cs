@@ -2,22 +2,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
-using ResimamisBackend.Negocio;
+using ResimamisBackend.Negocio.Interfaces;
 
 namespace ResimamisBackend.Controllers
 {
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class SalaController : ControllerBase
+    public class SalaController(INegSalas negSalas) : ControllerBase
     {
-        private readonly NegSalas negSalas;
-
-        public SalaController()
-        {
-            negSalas = new NegSalas();
-        }
-
         /// <summary>Catálogo completo de salas (ABM).</summary>
         [HttpGet]
         public IActionResult Get()
