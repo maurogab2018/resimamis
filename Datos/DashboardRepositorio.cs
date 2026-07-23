@@ -54,6 +54,7 @@ namespace ResimamisBackend.Datos
                 .Include(b => b.Estado!)
                 .ThenInclude(e => e!.ambito)
                 .Include(b => b.Sala)
+                .Where(b => b.FechaSalida == null)
                 .AsQueryable();
             if (idElim != null)
                 q = q.Where(b => b.IdEstado != idElim);

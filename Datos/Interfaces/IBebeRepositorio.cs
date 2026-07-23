@@ -9,6 +9,7 @@ public interface IBebeRepositorio
     BEBE consultarBebe(int id);
     bool modificarBebe(BEBE bebe, BEBE bebeModificar);
     bool eliminarBebeLogico(int idBebe);
+    List<ESTADO> listarEstadosBebes();
     List<BEBE> obtenerBebesAbrazar();
     List<BEBE> obtenerBebesAbrazarPorIds(IEnumerable<int> idsBebes);
     bool cambioEstadoBebe(BEBE bebe, int idEstado);

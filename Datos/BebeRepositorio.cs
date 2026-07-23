@@ -47,6 +47,7 @@ namespace ResimamisBackend.Datos
                 .Include(b => b.Madre)
                 .Include(b => b.LocalidadDetalle)
                 .Include(b => b.Estado!).ThenInclude(e => e!.ambito)
+                .Where(b => b.FechaSalida == null)
                 .AsQueryable();
             if (idEl != null)
                 q = q.Where(b => b.IdEstado != idEl);
@@ -87,6 +88,7 @@ namespace ResimamisBackend.Datos
             bebeModificar.LugarNacimiento = bebe.LugarNacimiento;
             bebeModificar.FechaNacimiento = bebe.FechaNacimiento;
             bebeModificar.FechaIngresoNEO = bebe.FechaIngresoNEO;
+            bebeModificar.FechaSalida = bebe.FechaSalida;
             bebeModificar.PesoNacimiento = bebe.PesoNacimiento;
             bebeModificar.PesoAlta = bebe.PesoAlta;
             bebeModificar.PesoIngresoNEO = bebe.PesoIngresoNEO;
@@ -96,6 +98,11 @@ namespace ResimamisBackend.Datos
             bebeModificar.IdSala = bebe.IdSala;
             bebeModificar.IdLocalidad = bebe.IdLocalidad;
             bebeModificar.IdMadre = madreBebe.IdMadre;
+
+            // Completar fecha de salida = egreso: baja lógica para que no figure pendiente de abrazo.
+            if (bebeModificar.FechaSalida.HasValue)
+                bebeModificar.IdEstado = estadoRepositorio.ObtenerIdEstadoEliminado("Bebes");
+
             db.SaveChanges();
             return true;
         }
@@ -112,6 +119,18 @@ namespace ResimamisBackend.Datos
             return true;
         }
 
+        public List<ESTADO> listarEstadosBebes()
+        {
+            return db.ESTADO
+                .AsNoTracking()
+                .Include(e => e.ambito)
+                .Where(e => e.ambito != null
+                            && e.ambito.nombre == "Bebes"
+                            && e.nombre != "Eliminado")
+                .OrderBy(e => e.nombre)
+                .ToList();
+        }
+
         public List<BEBE> obtenerBebesAbrazar()
         {
             var idElimBebe = IdEstadoEliminadoBebes();
@@ -126,6 +145,7 @@ namespace ResimamisBackend.Datos
                 .Include(b => b.Madre)
                 .Include(b => b.LocalidadDetalle)
                 .Where(v => v.Estado != null
+                            && v.FechaSalida == null
                             && (idElimBebe == null || v.IdEstado != idElimBebe)
                             && v.Estado.ambito.nombre == "Bebes"
                             && v.Estado.nombre == "Sin abrazar"

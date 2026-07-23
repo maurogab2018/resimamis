@@ -65,6 +65,13 @@ namespace ResimamisBackend.Negocio
             if (bebe.FechaNacimiento == null || bebe.FechaNacimiento == default)
                 resultado.Errores.Add(prefijo + "FechaNacimiento es obligatorio.");
 
+            if (bebe.FechaSalida.HasValue
+                && bebe.FechaIngresoNEO.HasValue
+                && bebe.FechaSalida.Value.Date < bebe.FechaIngresoNEO.Value.Date)
+            {
+                resultado.Errores.Add(prefijo + "FechaSalida no puede ser anterior a FechaIngresoNEO.");
+            }
+
             if (bebe.IdLocalidad.HasValue)
             {
                 if (bebe.IdLocalidad.Value <= 0)
@@ -140,6 +147,32 @@ namespace ResimamisBackend.Negocio
         public List<BEBE> listarBebesAbrazar()
         {
             return repositorioBebe.obtenerBebesAbrazar();
+        }
+
+        public List<ESTADO> listarEstadosBebes()
+        {
+            return repositorioBebe.listarEstadosBebes();
+        }
+
+        public BEBE actualizarEstadoBebe(int idBebe, int idEstado)
+        {
+            if (idEstado <= 0)
+                throw new ApplicationException("idEstado inválido.");
+
+            var estadosValidos = repositorioBebe.listarEstadosBebes()
+                .Select(e => e.idEstado)
+                .ToHashSet();
+            if (!estadosValidos.Contains(idEstado))
+                throw new ApplicationException(
+                    "Estado inválido para bebés. Use GET api/Bebe/estados. La baja lógica se hace con fechaSalida o POST delete.");
+
+            var bebe = repositorioBebe.consultarBebe(idBebe);
+            if (bebe.FechaSalida.HasValue)
+                throw new ApplicationException(
+                    "El bebé ya tiene fecha de salida; no se puede cambiar el estado operativo. Quedó dado de baja.");
+
+            repositorioBebe.cambioEstadoBebe(bebe, idEstado);
+            return repositorioBebe.consultarBebe(idBebe);
         }
     }
 }

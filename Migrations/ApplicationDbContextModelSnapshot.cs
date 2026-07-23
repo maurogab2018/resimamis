@@ -144,6 +144,9 @@ namespace ResimamisBackend.Migrations
                     b.Property<DateTime?>("FechaNacimiento")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<DateTime?>("FechaSalida")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<int?>("IdEstado")
                         .HasColumnType("integer");
 

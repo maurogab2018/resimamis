@@ -13,4 +13,6 @@ public interface INegBebes
     bool modificarBebe(BEBE bebe);
     bool eliminarBebe(int idBebe);
     List<BEBE> listarBebesAbrazar();
+    List<ESTADO> listarEstadosBebes();
+    BEBE actualizarEstadoBebe(int idBebe, int idEstado);
 }

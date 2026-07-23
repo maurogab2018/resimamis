@@ -137,6 +137,31 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        /// <summary>Estados operativos del ámbito Bebes (sin Eliminado). Para combo de ficha / actualización de estado.</summary>
+        [HttpGet("estados")]
+        public IActionResult GetEstados()
+        {
+            try
+            {
+                var lista = neg_Bebes.listarEstadosBebes();
+                return ApiResults.Success(lista.Select(e => new
+                {
+                    idEstado = e.idEstado,
+                    nombre = e.nombre,
+                    descripcion = e.descripcion,
+                    idAmbito = e.idAmbito
+                }).ToList());
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
         [HttpGet("id/{Dni}")]
         public IActionResult Get(int Dni)
         {
@@ -221,6 +246,40 @@ namespace ResimamisBackend.Controllers
                 return ApiResults.BadRequest(ex.Message);
             }
             catch (Exception ex)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        /// <summary>Actualiza el estado operativo del bebé (Sin abrazar / Asignado / Abrazado). No usa Eliminado.</summary>
+        [HttpPut("id/{idBebe}/estado")]
+        public IActionResult PutEstado(int idBebe, [FromBody] JsonElement body)
+        {
+            try
+            {
+                var payload = body.ValueKind == JsonValueKind.Object && body.TryGetProperty("data", out var data)
+                    ? data
+                    : body;
+
+                if (!payload.TryGetProperty("idEstado", out var idEstadoEl)
+                    || idEstadoEl.ValueKind != JsonValueKind.Number
+                    || !idEstadoEl.TryGetInt32(out var idEstado))
+                {
+                    return ApiResults.BadRequest("Debe enviar idEstado (número). Use GET api/Bebe/estados.");
+                }
+
+                var bebe = neg_Bebes.actualizarEstadoBebe(idBebe, idEstado);
+                return ApiResults.Success(bebe);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
             {
                 return ApiResults.InternalServerError();
             }

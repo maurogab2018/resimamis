@@ -20,6 +20,9 @@ namespace ResimamisBackend.Datos
 
         public DateTime? FechaIngresoNEO { get; set; }
 
+        /// <summary>Fecha de egreso/salida del NEO. Si tiene valor, el bebé queda en baja lógica (Eliminado).</summary>
+        public DateTime? FechaSalida { get; set; }
+
         public decimal? PesoNacimiento { get; set; }
         public decimal? PesoIngresoNEO { get; set; }
         public decimal? PesoDiaAbrazos { get; set; }
