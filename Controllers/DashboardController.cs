@@ -335,5 +335,32 @@ namespace ResimamisBackend.Controllers
                 return ApiResults.InternalServerError();
             }
         }
+
+        /// <summary>
+        /// Evolución de peso durante la permanencia: ingreso NEO vs egreso (PesoAlta) y diferencia.
+        /// Fechas opcionales (filtra por fechaSalida o, si no hay, fechaIngresoNEO).
+        /// </summary>
+        [HttpGet("bebes/evolucion-peso")]
+        public IActionResult GetEvolucionPesoBebes(
+            [FromQuery] string? fechaDesde,
+            [FromQuery] string? fechaHasta,
+            [FromQuery] string? fechaInicio,
+            [FromQuery] string? fechaFin)
+        {
+            try
+            {
+                var (inicio, fin) = ParseRangoFechasOpcional(fechaDesde, fechaHasta, fechaInicio, fechaFin);
+                var resultado = negDashboard.ObtenerEvolucionPesoBebes(inicio, fin);
+                return ApiResults.Success(resultado);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
     }
 }

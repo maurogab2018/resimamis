@@ -16,4 +16,5 @@ public interface IDashboardRepositorio
     EstadisticaBebesPorEstadoRespuesta ObtenerBebesPorEstado();
     EstadisticaBebesPorSalaRespuesta ObtenerBebesPorSala();
     RankingVoluntariasAbrazosRespuesta ObtenerRankingVoluntariasAbrazos(DateTime fechaInicio, DateTime fechaFin, int top);
+    EvolucionPesoBebesRespuesta ObtenerEvolucionPesoBebes(DateTime? fechaInicio, DateTime? fechaFin);
 }

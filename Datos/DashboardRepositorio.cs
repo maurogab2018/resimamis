@@ -525,5 +525,105 @@ namespace ResimamisBackend.Datos
                 Ranking = items
             };
         }
+
+        /// <summary>
+        /// Evolución de peso ingreso NEO vs egreso (PesoAlta).
+        /// Con fechas: filtra egresos (FechaSalida) en el período; si no hay salida, usa FechaIngresoNEO.
+        /// Sin fechas: todos los bebés con al menos un peso cargado.
+        /// </summary>
+        public EvolucionPesoBebesRespuesta ObtenerEvolucionPesoBebes(DateTime? fechaInicio, DateTime? fechaFin)
+        {
+            var q = db.BEBE.AsNoTracking()
+                .Include(b => b.Sala)
+                .Where(b => b.PesoIngresoNEO != null
+                            || b.PesoAlta != null
+                            || b.PesoNacimiento != null
+                            || b.PesoDiaAbrazos != null);
+
+            DateOnly? desde = null;
+            DateOnly? hasta = null;
+            if (fechaInicio.HasValue && fechaFin.HasValue)
+            {
+                var (inicioUtc, finUtc) = NegConversorFecha.RangoFechasArgentinaEnUtc(fechaInicio.Value, fechaFin.Value);
+                desde = DateOnly.FromDateTime(fechaInicio.Value.Date);
+                hasta = DateOnly.FromDateTime(fechaFin.Value.Date);
+                q = q.Where(b =>
+                    (b.FechaSalida != null && b.FechaSalida >= inicioUtc && b.FechaSalida < finUtc)
+                    || (b.FechaSalida == null
+                        && b.FechaIngresoNEO != null
+                        && b.FechaIngresoNEO >= inicioUtc
+                        && b.FechaIngresoNEO < finUtc));
+            }
+
+            var raw = q
+                .OrderByDescending(b => b.FechaSalida ?? b.FechaIngresoNEO)
+                .ThenBy(b => b.apellido)
+                .ThenBy(b => b.nombre)
+                .ToList();
+
+            var items = raw.Select(b =>
+            {
+                decimal? diferencia = null;
+                double? porcentaje = null;
+                var completa = b.PesoIngresoNEO.HasValue && b.PesoAlta.HasValue;
+                if (completa)
+                {
+                    diferencia = b.PesoAlta!.Value - b.PesoIngresoNEO!.Value;
+                    if (b.PesoIngresoNEO.Value != 0)
+                        porcentaje = (double)(diferencia.Value / b.PesoIngresoNEO.Value * 100m);
+                }
+
+                return new EvolucionPesoBebeItem
+                {
+                    IdBebe = b.ID,
+                    Nombre = b.nombre,
+                    Apellido = b.apellido,
+                    NombreSala = b.Sala?.Nombre,
+                    FechaIngresoNeo = b.FechaIngresoNEO,
+                    FechaSalida = b.FechaSalida,
+                    PesoNacimiento = b.PesoNacimiento,
+                    PesoIngresoNeo = b.PesoIngresoNEO,
+                    PesoDiaAbrazos = b.PesoDiaAbrazos,
+                    PesoEgreso = b.PesoAlta,
+                    DiferenciaIngresoEgreso = diferencia,
+                    PorcentajeVariacion = porcentaje.HasValue
+                        ? Math.Round(porcentaje.Value, 2)
+                        : null,
+                    TieneComparacionCompleta = completa
+                };
+            }).ToList();
+
+            var conComparacion = items.Where(x => x.TieneComparacionCompleta).ToList();
+            decimal? promIngreso = null;
+            decimal? promEgreso = null;
+            decimal? promDiff = null;
+            decimal? gananciaMin = null;
+            decimal? gananciaMax = null;
+            if (conComparacion.Count > 0)
+            {
+                promIngreso = Math.Round(conComparacion.Average(x => x.PesoIngresoNeo!.Value), 2);
+                promEgreso = Math.Round(conComparacion.Average(x => x.PesoEgreso!.Value), 2);
+                promDiff = Math.Round(conComparacion.Average(x => x.DiferenciaIngresoEgreso!.Value), 2);
+                gananciaMin = Math.Round(conComparacion.Min(x => x.DiferenciaIngresoEgreso!.Value), 2);
+                gananciaMax = Math.Round(conComparacion.Max(x => x.DiferenciaIngresoEgreso!.Value), 2);
+            }
+
+            return new EvolucionPesoBebesRespuesta
+            {
+                FechaInicio = desde,
+                FechaFin = hasta,
+                TotalBebes = items.Count,
+                BebesConComparacionCompleta = conComparacion.Count,
+                BebesConGanancia = conComparacion.Count(x => x.DiferenciaIngresoEgreso > 0),
+                BebesConPerdida = conComparacion.Count(x => x.DiferenciaIngresoEgreso < 0),
+                BebesSinCambio = conComparacion.Count(x => x.DiferenciaIngresoEgreso == 0),
+                PromedioPesoIngreso = promIngreso,
+                PromedioPesoEgreso = promEgreso,
+                PromedioDiferencia = promDiff,
+                GananciaMinima = gananciaMin,
+                GananciaMaxima = gananciaMax,
+                Bebes = items
+            };
+        }
     }
 }

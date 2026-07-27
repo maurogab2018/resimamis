@@ -77,5 +77,8 @@ namespace ResimamisBackend.Negocio
             DateTime fechaFin,
             int top) =>
             dashboardRepositorio.ObtenerRankingVoluntariasAbrazos(fechaInicio, fechaFin, top);
+
+        public EvolucionPesoBebesRespuesta ObtenerEvolucionPesoBebes(DateTime? fechaInicio, DateTime? fechaFin) =>
+            dashboardRepositorio.ObtenerEvolucionPesoBebes(fechaInicio, fechaFin);
     }
 }

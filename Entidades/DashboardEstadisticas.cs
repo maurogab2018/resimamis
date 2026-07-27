@@ -199,4 +199,45 @@ namespace ResimamisBackend.Entidades
         public int Top { get; set; }
         public List<RankingVoluntariaAbrazosItem> Ranking { get; set; } = new();
     }
+
+    public class EvolucionPesoBebeItem
+    {
+        public int IdBebe { get; set; }
+        public string? Nombre { get; set; }
+        public string? Apellido { get; set; }
+        public string? NombreSala { get; set; }
+        public DateTime? FechaIngresoNeo { get; set; }
+        public DateTime? FechaSalida { get; set; }
+        public decimal? PesoNacimiento { get; set; }
+        public decimal? PesoIngresoNeo { get; set; }
+        public decimal? PesoDiaAbrazos { get; set; }
+        public decimal? PesoEgreso { get; set; }
+        /// <summary>Peso egreso (PesoAlta) − peso ingreso NEO. Null si falta alguno.</summary>
+        public decimal? DiferenciaIngresoEgreso { get; set; }
+        /// <summary>Variación % respecto al peso de ingreso. Null si no hay base.</summary>
+        public double? PorcentajeVariacion { get; set; }
+        public bool TieneComparacionCompleta { get; set; }
+    }
+
+    public class EvolucionPesoBebesRespuesta
+    {
+        public DateOnly? FechaInicio { get; set; }
+        public DateOnly? FechaFin { get; set; }
+        public int TotalBebes { get; set; }
+        public int BebesConComparacionCompleta { get; set; }
+        public int BebesConGanancia { get; set; }
+        public int BebesConPerdida { get; set; }
+        public int BebesSinCambio { get; set; }
+        public decimal? PromedioPesoIngreso { get; set; }
+        public decimal? PromedioPesoEgreso { get; set; }
+        /// <summary>Ganancia de peso promedio en gramos (egreso − ingreso).</summary>
+        public decimal? PromedioDiferencia { get; set; }
+        /// <summary>Alias de <see cref="PromedioDiferencia"/> (gramos).</summary>
+        public decimal? PromedioGanancia => PromedioDiferencia;
+        /// <summary>Ganancia mínima en gramos (puede ser negativa si hubo pérdida).</summary>
+        public decimal? GananciaMinima { get; set; }
+        /// <summary>Ganancia máxima en gramos.</summary>
+        public decimal? GananciaMaxima { get; set; }
+        public List<EvolucionPesoBebeItem> Bebes { get; set; } = new();
+    }
 }
