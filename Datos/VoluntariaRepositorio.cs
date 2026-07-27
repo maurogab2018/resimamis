@@ -115,6 +115,8 @@ namespace ResimamisBackend.Datos
             voluntariaModificar.FechaInicio = voluntaria.FechaInicio;
             voluntariaModificar.Mail = voluntaria.Mail;
             voluntariaModificar.Dni = voluntaria.Dni;
+            if (voluntaria.IdEstado.HasValue && voluntaria.IdEstado.Value > 0)
+                voluntariaModificar.IdEstado = voluntaria.IdEstado;
             db.SaveChanges();
             return true;
         }
@@ -218,6 +220,32 @@ namespace ResimamisBackend.Datos
                 .OrderBy(v => v.Apellido)
                 .ThenBy(v => v.Nombre)
                 .ToList();
+        }
+
+        public bool existeOtraVoluntariaConDni(int dni, int? exceptIdVoluntaria = null)
+        {
+            var idEl = IdEstadoEliminadoVoluntarias();
+            var q = db.VOLUNTARIA.AsNoTracking().Where(v => v.Dni == dni);
+            if (exceptIdVoluntaria.HasValue)
+                q = q.Where(v => v.IdVoluntaria != exceptIdVoluntaria.Value);
+            if (idEl != null)
+                q = q.Where(v => v.IdEstado != idEl);
+            return q.Any();
+        }
+
+        public bool existeOtraVoluntariaConMail(string mail, int? exceptIdVoluntaria = null)
+        {
+            if (string.IsNullOrWhiteSpace(mail))
+                return false;
+            var mailNorm = mail.Trim().ToLowerInvariant();
+            var idEl = IdEstadoEliminadoVoluntarias();
+            var q = db.VOLUNTARIA.AsNoTracking()
+                .Where(v => v.Mail != null && v.Mail.ToLower() == mailNorm);
+            if (exceptIdVoluntaria.HasValue)
+                q = q.Where(v => v.IdVoluntaria != exceptIdVoluntaria.Value);
+            if (idEl != null)
+                q = q.Where(v => v.IdEstado != idEl);
+            return q.Any();
         }
     }
 }

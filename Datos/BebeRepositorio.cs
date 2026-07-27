@@ -81,7 +81,16 @@ namespace ResimamisBackend.Datos
 
         public bool modificarBebe(BEBE bebe ,BEBE bebeModificar)
         {
-            var madreBebe = madreRepositorio.consultarMadre(bebe.IdMadre!.Value);
+            if (!bebe.IdMadre.HasValue || bebe.IdMadre.Value <= 0)
+            {
+                // Conservar madre actual si no viene en el payload.
+            }
+            else
+            {
+                var madreBebe = madreRepositorio.consultarMadre(bebe.IdMadre.Value);
+                bebeModificar.IdMadre = madreBebe.IdMadre;
+            }
+
             bebeModificar.nombre = bebe.nombre;
             bebeModificar.apellido = bebe.apellido;
             bebeModificar.Sexo = bebe.Sexo;
@@ -97,7 +106,7 @@ namespace ResimamisBackend.Datos
             bebeModificar.DiagnosticoIngreso = bebe.DiagnosticoIngreso;
             bebeModificar.IdSala = bebe.IdSala;
             bebeModificar.IdLocalidad = bebe.IdLocalidad;
-            bebeModificar.IdMadre = madreBebe.IdMadre;
+            bebeModificar.Dni = bebe.Dni;
 
             // Completar fecha de salida = egreso: baja lógica para que no figure pendiente de abrazo.
             if (bebeModificar.FechaSalida.HasValue)
@@ -117,6 +126,11 @@ namespace ResimamisBackend.Datos
             bebe.IdEstado = idEliminado;
             db.SaveChanges();
             return true;
+        }
+
+        public bool existeOtroBebeConDni(int dni, int exceptIdBebe)
+        {
+            return db.BEBE.AsNoTracking().Any(b => b.Dni == dni && b.ID != exceptIdBebe);
         }
 
         public List<ESTADO> listarEstadosBebes()

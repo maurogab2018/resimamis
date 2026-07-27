@@ -14,11 +14,40 @@ namespace ResimamisBackend.Negocio
             this.horarioRepositorio = horarioRepositorio;
         }
 
+        private static void ValidarHorarios(IEnumerable<HorarioVoluntaria> horarios, int? forzarIdVoluntaria = null)
+        {
+            var lista = horarios?.ToList() ?? new List<HorarioVoluntaria>();
+            for (var i = 0; i < lista.Count; i++)
+            {
+                var h = lista[i];
+                var prefijo = $"Horario (índice {i + 1}): ";
+                if (forzarIdVoluntaria.HasValue)
+                    h.IdVoluntaria = forzarIdVoluntaria.Value;
+
+                if (h.IdVoluntaria <= 0)
+                    throw new ApplicationException(prefijo + "IdVoluntaria es obligatorio.");
+                if (h.IdDia <= 0)
+                    throw new ApplicationException(prefijo + "IdDia es obligatorio.");
+                if (string.IsNullOrWhiteSpace(h.Turno))
+                    throw new ApplicationException(prefijo + "Turno es obligatorio.");
+                h.Turno = h.Turno.Trim();
+            }
+
+            var duplicados = lista
+                .GroupBy(h => new { h.IdVoluntaria, h.IdDia, Turno = h.Turno.Trim().ToUpperInvariant() })
+                .Where(g => g.Count() > 1)
+                .Select(g => $"día {g.Key.IdDia} turno {g.Key.Turno}")
+                .ToList();
+            if (duplicados.Count > 0)
+                throw new ApplicationException("Hay horarios duplicados en la solicitud: " + string.Join(", ", duplicados) + ".");
+        }
+
         public List<HorarioVoluntariaRespuesta> registrarHoraraioVoluntaria(List<HorarioVoluntaria> horarioVoluntaria)
         {
             if (horarioVoluntaria == null || horarioVoluntaria.Count == 0)
                 throw new ApplicationException("Debe indicar al menos un horario.");
 
+            ValidarHorarios(horarioVoluntaria);
             horarioRepositorio.registrarHoraraioVoluntaria(horarioVoluntaria);
             return horarioVoluntaria
                 .Select(h => h.IdVoluntaria)
@@ -29,20 +58,17 @@ namespace ResimamisBackend.Negocio
                 .ThenBy(h => h.Turno)
                 .ToList();
         }
+
         public List<HorarioVoluntariaRespuesta> reemplazarHorarios(int idVoluntaria, List<HorarioVoluntaria> horarios)
         {
             if (idVoluntaria <= 0)
                 throw new ApplicationException("Id de voluntaria inválido.");
 
-            horarioRepositorio.reemplazarHorarios(idVoluntaria, horarios ?? new List<HorarioVoluntaria>());
+            var lista = horarios ?? new List<HorarioVoluntaria>();
+            ValidarHorarios(lista, forzarIdVoluntaria: idVoluntaria);
+            horarioRepositorio.reemplazarHorarios(idVoluntaria, lista);
 
-            return horarios?
-                .Select(h => h.IdVoluntaria)
-                .Distinct()
-                .SelectMany(id => horarioRepositorio.obtenerHorariosPorVoluntaria(id))
-                .OrderBy(h => h.IdDia)
-                .ThenBy(h => h.Turno)
-                .ToList() ?? horarioRepositorio.obtenerHorariosPorVoluntaria(idVoluntaria);
+            return horarioRepositorio.obtenerHorariosPorVoluntaria(idVoluntaria);
         }
 
         public List<DIA> obtenerDias()
@@ -63,6 +89,5 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("Id de horario de voluntaria inválido.");
             return horarioRepositorio.eliminarHorarioVoluntariaLogico(idHorarioVoluntaria);
         }
-
     }
 }

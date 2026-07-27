@@ -23,14 +23,25 @@ namespace ResimamisBackend.Negocio
 
         public bool registrarAsistencia(int idVoluntaria )
         {
+            if (idVoluntaria <= 0)
+                throw new ApplicationException("Id de voluntaria inválido.");
+
             var asistencia = new ASISTENCIA();
             var existeVoluntaria = repositorioVoluntaria.consultarVoluntaria(idVoluntaria);
-            //var existeHorario = repositorioHorario.consultarHorario(asistencia.IdHorario.Value);
-            //asistencia.IdHorario = existeHorario.IdHorario;
+            if (existeVoluntaria.Estado != null
+                && (string.Equals(existeVoluntaria.Estado.nombre, "Eliminado", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(existeVoluntaria.Estado.nombre, "Inactiva", StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new ApplicationException("La voluntaria no está disponible para registrar asistencia.");
+            }
+
             asistencia.IdVoluntaria = existeVoluntaria.IdVoluntaria;
             asistencia.FechaHoraIngreso=NegConversorFecha.ObtenerFechaArgentina();
             asistencia.FechaHoraSalida = null;
-            return repositorioAsistencia.registrarAsistencia(asistencia);
+            var ok = repositorioAsistencia.registrarAsistencia(asistencia);
+            if (!ok)
+                throw new ApplicationException("Ya existe un ingreso de asistencia para esta voluntaria hoy.");
+            return true;
         }
         public ASISTENCIA? consultarAsistencia(int idVoluntaria)
         {

@@ -36,10 +36,15 @@ namespace ResimamisBackend.Negocio
 
             if (string.IsNullOrWhiteSpace(insumo.nombre))
                 throw new ApplicationException("El nombre es obligatorio.");
+            insumo.nombre = insumo.nombre.Trim();
+            if (insumo.nombre.Length > 100)
+                throw new ApplicationException("El nombre no permite más de 100 caracteres.");
 
             insumo.descripcion = string.IsNullOrWhiteSpace(insumo.descripcion)
                 ? string.Empty
                 : insumo.descripcion.Trim();
+            if (insumo.descripcion.Length > 500)
+                throw new ApplicationException("La descripción no permite más de 500 caracteres.");
 
             if (insumo.stockMinimo < 0 || insumo.stockMaximo < 0 || insumo.stockActual < 0)
                 throw new ApplicationException("Los stocks no pueden ser negativos.");
@@ -91,9 +96,19 @@ namespace ResimamisBackend.Negocio
         {
             if (movimiento == null)
                 throw new ApplicationException("Movimiento inválido.");
+            if (movimiento.idInsumo <= 0)
+                throw new ApplicationException("Debe indicar el insumo.");
+            if (!movimiento.cantidad.HasValue || movimiento.cantidad.Value <= 0)
+                throw new ApplicationException("La cantidad debe ser mayor a 0.");
+            var esEntrada = (movimiento.esEntrada ?? "").Trim().ToUpperInvariant();
+            if (esEntrada is not ("S" or "N"))
+                throw new ApplicationException("esEntrada debe ser S (entrada) o N (salida).");
+            movimiento.esEntrada = esEntrada;
             movimiento.observacion = string.IsNullOrWhiteSpace(movimiento.observacion)
                 ? string.Empty
                 : movimiento.observacion.Trim();
+            if (movimiento.observacion.Length > 500)
+                throw new ApplicationException("La observación no permite más de 500 caracteres.");
             negProveedores.ValidarProveedorActivoParaMovimiento(movimiento.idProveedor);
             var ok = insumoRepositorio.registrarMovimientoStock(movimiento);
             if (ok)

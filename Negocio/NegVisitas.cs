@@ -85,7 +85,12 @@ namespace ResimamisBackend.Negocio
 
         private void AsegurarBebeValido(int idBebe)
         {
-            bebeRepositorio.consultarBebe(idBebe);
+            var bebe = bebeRepositorio.consultarBebe(idBebe);
+            if (bebe.FechaSalida.HasValue)
+                throw new ApplicationException("No se puede registrar/modificar visita: el bebé ya tiene fecha de salida.");
+            if (bebe.Estado != null
+                && string.Equals(bebe.Estado.nombre, "Eliminado", StringComparison.OrdinalIgnoreCase))
+                throw new ApplicationException("No se puede registrar/modificar visita: el bebé está dado de baja.");
         }
 
         public List<VisitaListado> listarVisitas()

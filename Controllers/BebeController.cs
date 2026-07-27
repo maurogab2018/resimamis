@@ -217,6 +217,10 @@ namespace ResimamisBackend.Controllers
             {
                 return ApiResults.NotFound(ex.Message);
             }
+            catch (ConflictException ex)
+            {
+                return ApiResults.Conflict(ex.Message);
+            }
             catch (ApplicationException ex)
             {
                 return ApiResults.BadRequest(ex.Message);
@@ -240,6 +244,10 @@ namespace ResimamisBackend.Controllers
             catch (NotFoundException ex)
             {
                 return ApiResults.NotFound(ex.Message);
+            }
+            catch (ConflictException ex)
+            {
+                return ApiResults.Conflict(ex.Message);
             }
             catch (ApplicationException ex)
             {

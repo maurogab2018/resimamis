@@ -83,6 +83,11 @@ namespace ResimamisBackend.Negocio
         {
             ValidarVoluntaria(voluntaria, validarEstado: false);
 
+            if (voluntariaRepositorio.existeOtraVoluntariaConDni(voluntaria.Dni))
+                throw new ConflictException("Ya existe una voluntaria con ese Dni.");
+            if (voluntariaRepositorio.existeOtraVoluntariaConMail(voluntaria.Mail))
+                throw new ConflictException("Ya existe una voluntaria con ese mail.");
+
             voluntaria.IdRol = RolesVoluntaria.IdVoluntaria;
             voluntaria.IdEstado = estadoRepositorio.ObtenerIdEstadoPorNombresYAmbito(
                 "Voluntarias", "Creada", "Activa");
@@ -170,7 +175,12 @@ namespace ResimamisBackend.Negocio
         public bool modificarVoluntaria(VOLUNTARIA voluntaria,int id)
         {
             var voluntariaModificar = voluntariaRepositorio.consultarVoluntaria(id);
-            ValidarVoluntaria(voluntaria, validarEstado: false);
+            ValidarVoluntaria(voluntaria, validarEstado: voluntaria.IdEstado.HasValue && voluntaria.IdEstado.Value > 0);
+
+            if (voluntariaRepositorio.existeOtraVoluntariaConDni(voluntaria.Dni, id))
+                throw new ConflictException("Ya existe otra voluntaria con ese Dni.");
+            if (voluntariaRepositorio.existeOtraVoluntariaConMail(voluntaria.Mail, id))
+                throw new ConflictException("Ya existe otra voluntaria con ese mail.");
 
             return voluntariaRepositorio.modificarVoluntaria(voluntaria, voluntariaModificar);
         }

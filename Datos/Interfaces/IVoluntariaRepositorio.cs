@@ -16,4 +16,6 @@ public interface IVoluntariaRepositorio
     VOLUNTARIA? asignarVoluntaria(int idVoluntaria);
     List<ESTADO> devolverEstadosVoluntarias();
     List<VOLUNTARIA> listarVoluntariasSinUsuario();
+    bool existeOtraVoluntariaConDni(int dni, int? exceptIdVoluntaria = null);
+    bool existeOtraVoluntariaConMail(string mail, int? exceptIdVoluntaria = null);
 }

@@ -10,11 +10,16 @@ namespace ResimamisBackend.Negocio
     {
         public readonly IMadreRepositorio repositorioMadre;
         private readonly INegBebes negBebes;
+        private readonly IGenericosRepositorio genericosRepositorio;
 
-        public NegMadres(IMadreRepositorio repositorioMadre, INegBebes negBebes)
+        public NegMadres(
+            IMadreRepositorio repositorioMadre,
+            INegBebes negBebes,
+            IGenericosRepositorio genericosRepositorio)
         {
             this.repositorioMadre = repositorioMadre;
             this.negBebes = negBebes;
+            this.genericosRepositorio = genericosRepositorio;
         }
 
         public List<MADRE> listarMadres()
@@ -137,7 +142,7 @@ namespace ResimamisBackend.Negocio
             }
         }
 
-        private static void ValidarCamposMadre(MADRE madre, ResultadoValidacion resultado)
+        private void ValidarCamposMadre(MADRE madre, ResultadoValidacion resultado)
         {
             madre.Nombre = ValidacionTextoPersona.Normalizar(madre.Nombre) ?? madre.Nombre;
             madre.Apellido = ValidacionTextoPersona.Normalizar(madre.Apellido) ?? madre.Apellido;
@@ -164,6 +169,8 @@ namespace ResimamisBackend.Negocio
 
             if (madre.FechaNacimiento == default)
                 resultado.Errores.Add("FechaNacimiento es obligatorio.");
+            else if (madre.FechaNacimiento.Date > DateTime.UtcNow.Date)
+                resultado.Errores.Add("FechaNacimiento no puede ser futura.");
 
             if (madre.Dni == 0)
                 resultado.Errores.Add("Dni es obligatorio.");
@@ -172,12 +179,13 @@ namespace ResimamisBackend.Negocio
 
             if (madre.Localidad <= 0)
                 resultado.Errores.Add("Localidad es obligatorio.");
-            else if (!ExisteLocalidadStatic(madre.Localidad))
+            else if (!genericosRepositorio.existeLocalidad(madre.Localidad))
                 resultado.Errores.Add("Localidad no existente con ese ID.");
 
+            // Alineado a GET api/Genericos/estadosCiviles (ids 1..6).
             if (madre.EstadoCivil <= 0)
                 resultado.Errores.Add("EstadoCivil es obligatorio.");
-            else if (!ExisteEstadoCivilStatic(madre.EstadoCivil))
+            else if (madre.EstadoCivil < 1 || madre.EstadoCivil > 6)
                 resultado.Errores.Add("EstadoCivil no existente con ese ID.");
 
             if (madre.CantidadHijos <= 0)
@@ -196,10 +204,6 @@ namespace ResimamisBackend.Negocio
             else if (!Regex.IsMatch(celularStr, @"^\d{10,13}$"))
                 resultado.Errores.Add("Celular tiene que tener entre 10 y 13 dígitos.");
         }
-
-        private static bool ExisteLocalidadStatic(int id) => id >= 1 && id <= 100;
-
-        private static bool ExisteEstadoCivilStatic(int id) => id >= 1 && id <= 5;
 
         public ResultadoValidacion modificarMadre(MADRE madre, int Id, out MADRE? madreActualizada)
         {

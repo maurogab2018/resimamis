@@ -22,6 +22,8 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("El nombre es obligatorio.");
             if (proveedor.nombre.Trim().Length > 200)
                 throw new ApplicationException("El nombre no permite más de 200 caracteres.");
+            if (!string.IsNullOrWhiteSpace(proveedor.descripcion) && proveedor.descripcion.Trim().Length > 500)
+                throw new ApplicationException("La descripción no permite más de 500 caracteres.");
         }
 
         public List<PROVEEDOR> listarProveedores()

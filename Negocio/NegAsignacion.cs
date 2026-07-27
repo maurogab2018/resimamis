@@ -767,6 +767,19 @@ namespace ResimamisBackend.Negocio
 
         public bool registrarDetalleAsignacion(List<RequestDetalleAsignacion> request)
         {
+            if (request == null || request.Count == 0)
+                throw new ApplicationException("Debe indicar al menos un detalle de insumos.");
+
+            foreach (var r in request)
+            {
+                if (!r.cantidadInsumo.HasValue || r.cantidadInsumo.Value <= 0)
+                    throw new ApplicationException("Cada detalle debe tener cantidadInsumo mayor a 0.");
+                if (!r.idAsignacion.HasValue || r.idAsignacion.Value <= 0)
+                    throw new ApplicationException("Cada detalle debe indicar idAsignacion.");
+                if (!r.idInsumo.HasValue || r.idInsumo.Value <= 0)
+                    throw new ApplicationException("Cada detalle debe indicar idInsumo.");
+            }
+
             return asignacionRepositorio.registrarDetalleAsignacion(request);
         }
 
