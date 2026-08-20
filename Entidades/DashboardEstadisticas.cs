@@ -240,4 +240,30 @@ namespace ResimamisBackend.Entidades
         public decimal? GananciaMaxima { get; set; }
         public List<EvolucionPesoBebeItem> Bebes { get; set; } = new();
     }
+
+    public class AbrazosVoluntariaDashboardRespuesta
+    {
+        public int IdVoluntaria { get; set; }
+        public string NombreVoluntaria { get; set; } = "";
+        public DateOnly? FechaConsulta { get; set; }
+        public DateOnly? FechaInicio { get; set; }
+        public DateOnly? FechaFin { get; set; }
+        public int TotalAbrazos { get; set; }
+        public int AbrazosFinalizados { get; set; }
+        public List<AbrazoVoluntariaDashboardItem> Abrazos { get; set; } = new();
+    }
+
+    public class AbrazoVoluntariaDashboardItem
+    {
+        public int IdAsignacion { get; set; }
+        public int? IdBebe { get; set; }
+        public string? NombreBebe { get; set; }
+        public string? ApellidoBebe { get; set; }
+        public DateTime FechaHoraAsignacion { get; set; }
+        public DateTime? FechaHoraInicio { get; set; }
+        public DateTime? FechaHoraFin { get; set; }
+        public double? DuracionMinutos { get; set; }
+        public string EstadoAsignacion { get; set; } = "";
+        public string? Comentario { get; set; }
+    }
 }

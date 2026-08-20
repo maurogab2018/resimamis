@@ -52,6 +52,30 @@ namespace ResimamisBackend.Negocio
             return dashboardRepositorio.ObtenerAbrazosBebe(idBebe, inicioUtc, finUtc, null);
         }
 
+        public AbrazosVoluntariaDashboardRespuesta ObtenerAbrazosVoluntariaHoy(int idVoluntaria)
+        {
+            var (inicioUtc, finUtc) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
+            return dashboardRepositorio.ObtenerAbrazosVoluntaria(idVoluntaria, inicioUtc, finUtc, hoy);
+        }
+
+        public AbrazosVoluntariaDashboardRespuesta ObtenerAbrazosVoluntariaHistorial(
+            int idVoluntaria,
+            DateTime? fechaInicio,
+            DateTime? fechaFin)
+        {
+            DateTime? inicioUtc = null;
+            DateTime? finUtc = null;
+            if (fechaInicio.HasValue && fechaFin.HasValue)
+            {
+                var rango = NegConversorFecha.RangoFechasArgentinaEnUtc(fechaInicio.Value, fechaFin.Value);
+                inicioUtc = rango.InicioUtc;
+                finUtc = rango.FinUtcExclusivo;
+            }
+
+            return dashboardRepositorio.ObtenerAbrazosVoluntaria(idVoluntaria, inicioUtc, finUtc, null);
+        }
+
         public DashboardCoordinacionHoyRespuesta ObtenerCoordinacionHoy()
         {
             var (inicioUtc, finUtc) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();

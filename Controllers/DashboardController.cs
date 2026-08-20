@@ -146,6 +146,58 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        /// <summary>Abrazos del día (Argentina) para una voluntaria.</summary>
+        [HttpGet("voluntaria/{idVoluntaria}/abrazos-hoy")]
+        public IActionResult GetAbrazosVoluntariaHoy(int idVoluntaria)
+        {
+            try
+            {
+                var resultado = negDashboard.ObtenerAbrazosVoluntariaHoy(idVoluntaria);
+                return ApiResults.Success(resultado);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        /// <summary>Historial de abrazos de una voluntaria. Filtro opcional por fechaDesde/fechaHasta.</summary>
+        [HttpGet("voluntaria/{idVoluntaria}/abrazos-historial")]
+        public IActionResult GetAbrazosVoluntariaHistorial(
+            int idVoluntaria,
+            [FromQuery] string? fechaDesde,
+            [FromQuery] string? fechaHasta,
+            [FromQuery] string? fechaInicio,
+            [FromQuery] string? fechaFin)
+        {
+            try
+            {
+                var (inicio, fin) = ParseRangoFechasOpcional(fechaDesde, fechaHasta, fechaInicio, fechaFin);
+                var resultado = negDashboard.ObtenerAbrazosVoluntariaHistorial(idVoluntaria, inicio, fin);
+                return ApiResults.Success(resultado);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
         /// <summary>Distribución de bebés activos por rango de edad (días desde nacimiento).</summary>
         [HttpGet("bebes/rango-edades")]
         public IActionResult GetRangoEdadesBebes()

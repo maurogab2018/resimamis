@@ -43,6 +43,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INegAsignacion, NegAsignacion>();
         services.AddScoped<INegEnvioMail, NegEnvioMail>();
         services.AddScoped<INegDashboard, NegDashboard>();
+        services.AddScoped<INegAsistente, NegAsistente>();
+        services.AddHttpClient("OpenAI", client =>
+        {
+            client.BaseAddress = new Uri("https://api.openai.com/v1/");
+            client.Timeout = TimeSpan.FromSeconds(90);
+        });
 
         return services;
     }

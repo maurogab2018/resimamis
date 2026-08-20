@@ -22,6 +22,10 @@ Backend **ASP.NET Core 8** (API + Swagger en la raíz), **EF Core + Npgsql**, mi
 | `Email__Smtp__User` o `EMAIL_SMTP_USER` | Sí (mail) | Usuario SMTP. |
 | `Email__Smtp__Password` o `EMAIL_SMTP_PASSWORD` | Sí (mail) | Contraseña o clave SMTP. |
 | `Email__AvisoStockMinimo__Destinatarios__0` | No | Primer destinatario del aviso de stock (Render: índices 0, 1, …). |
+| `Asistente__Enabled` | No (bot) | `true` para activar el asistente de coordinadora. |
+| `apiKey` | Sí (bot) | Clave de OpenAI en Render (`sk-...`). Preferida en producción. |
+| `OPENAI_API_KEY` o `Asistente__ApiKey` | Sí (bot) | Alternativas si no usás `apiKey`. No la subas al repo. |
+| `Asistente__Model` | No | Default `gpt-4o-mini`. |
 
 En local podés seguir usando `appsettings.json`; en Render conviene **no** depender de secretos en el repo: usá solo `DATABASE_URL` y rotá credenciales si alguna vez quedó commiteada.
 
@@ -32,6 +36,20 @@ El backend usa SMTP estándar (`System.Net.Mail.SmtpClient`). Con `Email:Enabled
 Para activar en Render, configurá host, usuario, contraseña y remitente. Destinatarios del aviso de stock: `Email:AvisoStockMinimo:Destinatarios` o, si está vacío, mails de coordinadoras en la BD.
 
 Probar: `POST /api/Insumo/avisoStockMinimo` (con JWT). También se dispara solo tras un movimiento de stock que deje un insumo bajo el mínimo.
+
+## Asistente IA (coordinadora)
+
+Chat de solo lectura: interpreta la pregunta y consulta dashboard / bebés / stock vía OpenAI (`gpt-4o-mini`).
+
+1. Cuenta en [platform.openai.com](https://platform.openai.com) → **API keys** → Create key (`sk-proj-...` o `sk-...`).
+2. Cargá crédito mínimo (Billing).
+3. En Render: `Asistente__Enabled=true` y `apiKey=sk-...` (o `OPENAI_API_KEY`).
+4. Front: JWT de coordinadora.
+   - `GET /api/Asistente/estado`
+   - `POST /api/Asistente/preguntar` body `{ "pregunta": "¿Cuántos abrazos hubo hoy?" }`
+   - Opcional: `historial: [{ "rol": "user"|"assistant", "contenido": "..." }]`
+
+Voluntaria recibe 403. Sin clave o con `Enabled=false` responde 400.
 
 ## Pasos en Render (Docker)
 

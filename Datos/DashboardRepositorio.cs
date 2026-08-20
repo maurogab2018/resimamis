@@ -312,6 +312,67 @@ namespace ResimamisBackend.Datos
             };
         }
 
+        public AbrazosVoluntariaDashboardRespuesta ObtenerAbrazosVoluntaria(
+            int idVoluntaria,
+            DateTime? inicioUtc,
+            DateTime? finUtcExclusivo,
+            DateOnly? fechaConsulta)
+        {
+            var voluntaria = db.VOLUNTARIA.AsNoTracking()
+                .FirstOrDefault(v => v.IdVoluntaria == idVoluntaria);
+            if (voluntaria == null)
+                throw new NotFoundException("Voluntaria no encontrada con ese Id.");
+
+            var q = QueryAsignacionesActivas()
+                .Include(a => a.bebe)
+                .Include(a => a.estado)
+                .Where(a => a.idVoluntaria == idVoluntaria && a.idBebe != null);
+
+            if (inicioUtc.HasValue && finUtcExclusivo.HasValue)
+                q = q.Where(a => a.fechaHoraAsignacion >= inicioUtc && a.fechaHoraAsignacion < finUtcExclusivo);
+
+            var asignaciones = q
+                .OrderByDescending(a => a.fechaHoraAsignacion)
+                .ThenByDescending(a => a.idAsignacion)
+                .Take(50)
+                .ToList();
+
+            var abrazos = asignaciones.Select(a =>
+            {
+                double? minutos = null;
+                if (a.fechaHoraInicio.HasValue && a.fechaHoraFin.HasValue)
+                    minutos = (a.fechaHoraFin.Value - a.fechaHoraInicio.Value).TotalMinutes;
+
+                return new AbrazoVoluntariaDashboardItem
+                {
+                    IdAsignacion = a.idAsignacion,
+                    IdBebe = a.idBebe,
+                    NombreBebe = a.bebe?.nombre,
+                    ApellidoBebe = a.bebe?.apellido,
+                    FechaHoraAsignacion = a.fechaHoraAsignacion,
+                    FechaHoraInicio = a.fechaHoraInicio,
+                    FechaHoraFin = a.fechaHoraFin,
+                    DuracionMinutos = minutos,
+                    EstadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
+                    Comentario = a.comentario
+                };
+            }).ToList();
+
+            return new AbrazosVoluntariaDashboardRespuesta
+            {
+                IdVoluntaria = voluntaria.IdVoluntaria,
+                NombreVoluntaria = FormatearNombre(voluntaria.Nombre, voluntaria.Apellido),
+                FechaConsulta = fechaConsulta,
+                FechaInicio = inicioUtc.HasValue ? NegConversorFecha.FechaCalendarioArgentina(inicioUtc.Value) : null,
+                FechaFin = finUtcExclusivo.HasValue
+                    ? NegConversorFecha.FechaCalendarioArgentina(finUtcExclusivo.Value.AddTicks(-1))
+                    : null,
+                TotalAbrazos = abrazos.Count,
+                AbrazosFinalizados = abrazos.Count(a => a.FechaHoraInicio.HasValue && a.FechaHoraFin.HasValue),
+                Abrazos = abrazos
+            };
+        }
+
         private static string FormatearNombre(string? nombre, string? apellido)
         {
             var n = nombre?.Trim() ?? "";
