@@ -8,8 +8,8 @@ namespace ResimamisBackend.Negocio
 {
     public class NegAsistente : INegAsistente
     {
-        private const int MaxVueltasHerramientas = 4;
-        private const int MaxHistorial = 10;
+        private const int MaxVueltasHerramientas = 8;
+        private const int MaxHistorial = 20;
         private const int MaxPregunta = 2000;
 
         private static readonly string[] EjemplosPregunta =
@@ -106,7 +106,7 @@ namespace ResimamisBackend.Negocio
                         Model = model,
                         Messages = mensajes,
                         Tools = DefinirHerramientas(),
-                        MaxTokens = 800,
+                        MaxTokens = 1500,
                         Temperature = 0.2
                     },
                     CancellationToken.None);
@@ -146,7 +146,24 @@ namespace ResimamisBackend.Negocio
                 }
             }
 
-            throw new ApplicationException("El asistente superó el máximo de consultas internas. Reformulá la pregunta.");
+            var cierre = await openAi.CompletarAsync(
+                apiKey,
+                new OpenAiChatRequest
+                {
+                    Model = model,
+                    Messages = mensajes,
+                    MaxTokens = 1500,
+                    Temperature = 0.2
+                },
+                CancellationToken.None);
+            var textoCierre = cierre.Choices[0].Message.Content?.Trim();
+            if (string.IsNullOrWhiteSpace(textoCierre))
+                throw new ApplicationException("El asistente no pudo completar la investigación. Reformulá la pregunta.");
+            return new AsistentePreguntaRespuesta
+            {
+                Respuesta = textoCierre,
+                HerramientasUsadas = usadas.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            };
         }
 
         private (bool Enabled, string Model, string? ApiKey) LeerConfig()
@@ -196,8 +213,13 @@ namespace ResimamisBackend.Negocio
             Preguntas de números, nombres o rankings: usá herramientas. No inventes cantidades, ids ni nombres.
             Si no hay herramienta para ese dato, decilo y ofrecé qué sí podés consultar. No fuerces otra herramienta parecida.
 
-            Si una herramienta devuelve lista vacía, decí explícitamente 0 según el criterio de ESA herramienta; no lo traduzcas a otro concepto.
-            Si falta un dato (id de bebé o voluntaria, rango de fechas), preguntá o buscá por nombre con buscar_bebes / buscar_voluntarias.
+            Investigá antes de responder:
+            - Podés usar varias herramientas en la misma pregunta (hoy + cobertura + ranking, buscar y después abrazos, etc.).
+            - Si una herramienta da lista vacía, NO cierres en 0 de inmediato: ampliá el rango (rankings: últimos 365 días) o buscá por nombre y reintentá.
+            - Si el ranking de abrazos viene vacío, llamá de nuevo ranking_abrazos_voluntarias SIN fechas (usa 365 días).
+            - Recién si el segundo intento también está vacío, decí 0 según el criterio de ESA herramienta.
+            - No mezcles conceptos: un ranking vacío de abrazos no es ranking de asistencias.
+            Si falta un dato (id de bebé o voluntaria), buscá por nombre con buscar_bebes / buscar_voluntarias.
             Fechas: interpretá en calendario Argentina. Si no dan rango en reportes de período, usá los últimos 30 días; en rankings de voluntarias, los últimos 365 días.
             Pesos y ganancias están en gramos. Duraciones de abrazo están en minutos.
             No ejecutes altas, bajas ni cambios de estado. Solo consulta.
@@ -519,13 +541,28 @@ namespace ResimamisBackend.Negocio
         private object ResumirRankingAbrazos(DateTime desde, DateTime hasta, int top)
         {
             var ranking = negDashboard.ObtenerRankingVoluntariasAbrazos(desde, hasta, top);
+            var amplio = false;
+            if (ranking.Ranking.Count == 0)
+            {
+                var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow).ToDateTime(TimeOnly.MinValue);
+                var amplioDesde = hoy.AddDays(-364);
+                if (desde.Date > amplioDesde.Date || hasta.Date < hoy.Date)
+                {
+                    ranking = negDashboard.ObtenerRankingVoluntariasAbrazos(amplioDesde, hoy, top);
+                    amplio = true;
+                }
+            }
+
             return new
             {
                 criterio = "abrazos_finalizados",
-                aclaracion = "Ranking por abrazos finalizados (fechaHoraFin en el período). No es ranking de asistencias/fichajes.",
+                aclaracion = amplio
+                    ? "El rango pedido no tenía abrazos finalizados; se amplió a los últimos 365 días."
+                    : "Ranking por abrazos finalizados (fechaHoraFin en el período). No es ranking de asistencias/fichajes.",
                 ranking.FechaInicio,
                 ranking.FechaFin,
                 ranking.Top,
+                rangoAmpliado = amplio,
                 totalVoluntarias = ranking.Ranking.Count,
                 ranking.Ranking
             };
