@@ -198,7 +198,7 @@ namespace ResimamisBackend.Negocio
 
             Si una herramienta devuelve lista vacía, decí explícitamente 0 según el criterio de ESA herramienta; no lo traduzcas a otro concepto.
             Si falta un dato (id de bebé o voluntaria, rango de fechas), preguntá o buscá por nombre con buscar_bebes / buscar_voluntarias.
-            Fechas: interpretá en calendario Argentina. Si no dan rango, usá los últimos 30 días en reportes de período.
+            Fechas: interpretá en calendario Argentina. Si no dan rango en reportes de período, usá los últimos 30 días; en rankings de voluntarias, los últimos 365 días.
             Pesos y ganancias están en gramos. Duraciones de abrazo están en minutos.
             No ejecutes altas, bajas ni cambios de estado. Solo consulta.
 
@@ -221,8 +221,8 @@ namespace ResimamisBackend.Negocio
             ToolPeriodo("asignaciones_por_dia", "Cantidad de asignaciones y abrazos por día en un rango."),
             ToolPeriodo("visitas_periodo", "Estadísticas de visitas en un rango: total, por día y por familiar."),
             ToolPeriodoOpcional("evolucion_peso", "Evolución de peso ingreso vs egreso (gramos): promedio, mínima y máxima ganancia."),
-            ToolPeriodoOpcional("ranking_abrazos_voluntarias", "Ranking de voluntarias por ABRAZOS FINALIZADOS (no fichajes). Parámetro extra: top (1-20)."),
-            ToolPeriodoOpcional("ranking_asistencias", "Ranking de voluntarias por FICHAJES de asistencia (ingresos al hospital, no abrazos). Parámetro extra: top (1-20)."),
+            ToolPeriodoOpcional("ranking_abrazos_voluntarias", "Ranking de voluntarias por ABRAZOS FINALIZADOS (no fichajes). Sin fechas: últimos 365 días. Parámetro extra: top (1-20)."),
+            ToolPeriodoOpcional("ranking_asistencias", "Ranking de voluntarias por FICHAJES de asistencia (ingresos al hospital, no abrazos). Sin fechas: últimos 365 días. Parámetro extra: top (1-20)."),
             ToolPeriodoOpcional("duracion_abrazos", "Duración de abrazos finalizados: promedio, mínimo y máximo en minutos."),
             Tool("bebes_rango_edades", "Distribución de bebés activos por rango de edad en días."),
             Tool("bebes_permanencia", "Tiempo de permanencia en NEO de bebés activos (días desde ingreso)."),
@@ -333,7 +333,7 @@ namespace ResimamisBackend.Negocio
                 type = "object",
                 properties = new
                 {
-                    fecha_desde = new { type = "string", description = "Inicio yyyy-MM-dd. Si falta, últimos 30 días." },
+                    fecha_desde = new { type = "string", description = "Inicio yyyy-MM-dd. Si falta, últimos 30 días (rankings: 365 días)." },
                     fecha_hasta = new { type = "string", description = "Fin yyyy-MM-dd." },
                     top = new { type = "integer", description = "Solo ranking: cantidad de voluntarias (default 10)." }
                 }
@@ -359,9 +359,9 @@ namespace ResimamisBackend.Negocio
                     "asignaciones_por_dia" => Json(negDashboard.ObtenerAsignacionesPorDia(Desde(args), Hasta(args))),
                     "visitas_periodo" => Json(negDashboard.ObtenerEstadisticasVisitas(Desde(args), Hasta(args))),
                     "evolucion_peso" => Json(ResumirPeso(negDashboard.ObtenerEvolucionPesoBebes(DesdeOpcional(args), HastaOpcional(args)))),
-                    "ranking_abrazos_voluntarias" => Json(ResumirRankingAbrazos(Desde(args), Hasta(args), Top(args))),
-                    "ranking_voluntarias" => Json(ResumirRankingAbrazos(Desde(args), Hasta(args), Top(args))),
-                    "ranking_asistencias" => Json(ResumirRankingAsistencias(Desde(args), Hasta(args), Top(args))),
+                    "ranking_abrazos_voluntarias" => Json(ResumirRankingAbrazos(Desde(args, 364), Hasta(args, 364), Top(args))),
+                    "ranking_voluntarias" => Json(ResumirRankingAbrazos(Desde(args, 364), Hasta(args, 364), Top(args))),
+                    "ranking_asistencias" => Json(ResumirRankingAsistencias(Desde(args, 364), Hasta(args, 364), Top(args))),
                     "duracion_abrazos" => Json(negDashboard.ObtenerDuracionAbrazos(DesdeOpcional(args), HastaOpcional(args))),
                     "bebes_rango_edades" => Json(negDashboard.ObtenerRangoEdadesBebes()),
                     "bebes_permanencia" => Json(negDashboard.ObtenerPermanenciaBebes()),
@@ -522,10 +522,11 @@ namespace ResimamisBackend.Negocio
             return new
             {
                 criterio = "abrazos_finalizados",
-                aclaracion = "Ranking por abrazos finalizados. No es ranking de asistencias/fichajes.",
+                aclaracion = "Ranking por abrazos finalizados (fechaHoraFin en el período). No es ranking de asistencias/fichajes.",
                 ranking.FechaInicio,
                 ranking.FechaFin,
                 ranking.Top,
+                totalVoluntarias = ranking.Ranking.Count,
                 ranking.Ranking
             };
         }
@@ -593,8 +594,8 @@ namespace ResimamisBackend.Negocio
                 })
             };
 
-        private static DateTime Desde(JsonDocument args) => ResolverRango(args).Inicio;
-        private static DateTime Hasta(JsonDocument args) => ResolverRango(args).Fin;
+        private static DateTime Desde(JsonDocument args, int diasDefault = 29) => ResolverRango(args, diasDefault).Inicio;
+        private static DateTime Hasta(JsonDocument args, int diasDefault = 29) => ResolverRango(args, diasDefault).Fin;
 
         private static DateTime? DesdeOpcional(JsonDocument args)
         {
@@ -614,20 +615,22 @@ namespace ResimamisBackend.Negocio
             return ResolverRango(args).Fin;
         }
 
-        private static (DateTime Inicio, DateTime Fin) ResolverRango(JsonDocument args)
+        private static (DateTime Inicio, DateTime Fin) ResolverRango(JsonDocument args, int diasDefault = 29)
         {
             var desdeRaw = LeerString(args, "fecha_desde") ?? LeerString(args, "fechaDesde");
             var hastaRaw = LeerString(args, "fecha_hasta") ?? LeerString(args, "fechaHasta");
             var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow).ToDateTime(TimeOnly.MinValue);
             if (string.IsNullOrWhiteSpace(desdeRaw) && string.IsNullOrWhiteSpace(hastaRaw))
-                return (hoy.AddDays(-29), hoy);
+                return (hoy.AddDays(-diasDefault), hoy);
 
             var inicio = string.IsNullOrWhiteSpace(desdeRaw)
-                ? hoy.AddDays(-29)
+                ? hoy.AddDays(-diasDefault)
                 : NegConversorFecha.ParseFechaCalendarioReporte(desdeRaw);
             var fin = string.IsNullOrWhiteSpace(hastaRaw)
                 ? hoy
                 : NegConversorFecha.ParseFechaCalendarioReporte(hastaRaw);
+            if (fin < inicio)
+                (inicio, fin) = (fin, inicio);
             return (inicio, fin);
         }
 
