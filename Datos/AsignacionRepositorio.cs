@@ -199,24 +199,14 @@ namespace ResimamisBackend.Datos
                 .ToList();
             estadisticaResultado.listadoDuracionesAbrazos = resultados;
 
-            if (asignaciones.Count > 0)
-            {
-                double sumaTotalMinutos = 0;
-                var asignacionesValidas = asignaciones
-                .Where(a => a.fechaHoraInicio != null && a.fechaHoraFin != null);
-
-                foreach (var asignacion in asignacionesValidas)
-                {
-                    var diferenciaEnMinutos = (asignacion.fechaHoraFin.Value - asignacion.fechaHoraInicio.Value).TotalMinutes;
-                    sumaTotalMinutos += diferenciaEnMinutos;
-                }
-                var promedioEnMinutos = sumaTotalMinutos / asignaciones.Count;
-                estadisticaResultado.promedioDuracionAbrazos = promedioEnMinutos;
-            }
-            else
-            {
+            if (asignaciones.Count == 0)
                 throw new ApplicationException("No hay asignaciones");
-            }
+
+            // El promedio va sobre los abrazos finalizados: dividir por el total de
+            // asignaciones lo diluía con las que nunca se iniciaron.
+            estadisticaResultado.promedioDuracionAbrazos = resultados.Count > 0
+                ? resultados.Average(r => r.Minutos + (r.Segundos / 60.0))
+                : 0;
             return estadisticaResultado;
         }
 
