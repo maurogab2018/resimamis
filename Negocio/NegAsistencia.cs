@@ -40,7 +40,7 @@ namespace ResimamisBackend.Negocio
             asistencia.FechaHoraSalida = null;
             var ok = repositorioAsistencia.registrarAsistencia(asistencia);
             if (!ok)
-                throw new ApplicationException("Ya existe un ingreso de asistencia para esta voluntaria hoy.");
+                throw new ApplicationException("Ya hay una jornada abierta: registrá la salida antes de marcar una nueva entrada.");
             return true;
         }
         public ASISTENCIA? consultarAsistencia(int idVoluntaria)

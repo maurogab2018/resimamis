@@ -32,17 +32,20 @@ namespace ResimamisBackend.Datos
         {
             var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
-            var yaExisteAsistencia = db.ASISTENCIA
+            // Solo bloquea si hay una jornada abierta: una vez registrada la
+            // salida, la voluntaria puede volver a marcar entrada el mismo día.
+            var jornadaAbierta = db.ASISTENCIA
                 .Include(a => a.Estado!)
                 .ThenInclude(e => e!.ambito)
                 .FirstOrDefault(a =>
                     a.FechaHoraIngreso != null
                     && a.FechaHoraIngreso >= inicioDia
                     && a.FechaHoraIngreso < finDia
+                    && a.FechaHoraSalida == null
                     && a.IdVoluntaria == asistencia.IdVoluntaria
                     && (a.idEstado == null || a.idEstado != idElim));
 
-            if (yaExisteAsistencia != null)
+            if (jornadaAbierta != null)
                 return false;
 
             var idCreada = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Creada", "Asistencias");
@@ -61,15 +64,19 @@ namespace ResimamisBackend.Datos
         {
             var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            // Puede haber más de una jornada en el día: interesa la última, que
+            // es la que define si la voluntaria está adentro o ya salió.
             var asistenciaHoy = db.ASISTENCIA
                 .Include(a => a.Estado!)
                 .ThenInclude(e => e!.ambito)
-                .FirstOrDefault(a =>
+                .Where(a =>
                     a.FechaHoraIngreso != null
                     && a.FechaHoraIngreso >= inicioDia
                     && a.FechaHoraIngreso < finDia
                     && a.IdVoluntaria == idVoluntaria
-                    && (a.idEstado == null || a.idEstado != idElim));
+                    && (a.idEstado == null || a.idEstado != idElim))
+                .OrderByDescending(a => a.FechaHoraIngreso)
+                .FirstOrDefault();
             if (asistenciaHoy == null || !EsAsistenciaOperativa(asistenciaHoy))
                 return null;
             return asistenciaHoy;
