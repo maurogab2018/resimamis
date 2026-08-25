@@ -248,10 +248,12 @@ namespace ResimamisBackend.Datos
                 .GroupBy(a => new { Mes = a.fechaHoraAsignacion.Month, Año = a.fechaHoraAsignacion.Year })
                 .Select(g => new EstadsiticaCantidadAsignacion()
                 {
-                    Mes =  g.Key.Mes, // El primer día del mes
+                    Mes = g.Key.Mes,
+                    Anio = g.Key.Año,
                     CantidadAsignaciones = g.Count()
                 })
-                .OrderBy(r => r.Mes)
+                .OrderBy(r => r.Anio)
+                .ThenBy(r => r.Mes)
                 .ToList();
 
             return cantidadAsignacionesPorMes;
