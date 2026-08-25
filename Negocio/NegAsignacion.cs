@@ -505,6 +505,13 @@ namespace ResimamisBackend.Negocio
             if (asignacion.fechaHoraInicio != null)
                 throw new ConflictException("Abrazo ya inicializado");
 
+            // Una voluntaria no puede estar abrazando a dos bebés al mismo tiempo.
+            var yaTieneAbrazoEnCurso = asignacionRepositorio
+                .listarAsignacionesHoyVoluntaria(asignacion.idVoluntaria)
+                .Any(a => a.fechaHoraInicio != null && a.fechaHoraFin == null);
+            if (yaTieneAbrazoEnCurso)
+                throw new ConflictException("La voluntaria ya tiene un abrazo en curso. Debe finalizarlo antes de iniciar otro.");
+
             var idEstadoVoluntaria = asignacion.idBebe.HasValue
                 ? estadoRepositorio.ObtenerIdVoluntariaAbrazando()
                 : estadoRepositorio.ObtenerIdVoluntariaEnTarea();
