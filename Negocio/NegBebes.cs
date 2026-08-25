@@ -59,8 +59,8 @@ namespace ResimamisBackend.Negocio
 
             if (string.IsNullOrWhiteSpace(bebe.Sexo))
                 resultado.Errores.Add(prefijo + "Sexo es obligatorio.");
-            else if (!Regex.IsMatch(bebe.Sexo.Trim(), @"^(M|F|m|f)$"))
-                resultado.Errores.Add(prefijo + "Sexo debe ser M o F.");
+            else if (!Regex.IsMatch(bebe.Sexo.Trim(), @"^(M|F|O|m|f|o)$"))
+                resultado.Errores.Add(prefijo + "Sexo debe ser M, F u O.");
 
             if (bebe.Dni.HasValue && bebe.Dni.Value > 0)
             {
