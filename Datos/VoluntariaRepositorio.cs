@@ -190,7 +190,14 @@ namespace ResimamisBackend.Datos
 
         public List<ESTADO> devolverEstadosVoluntarias()
         {
-            return db.ESTADO.Where(e => e.ambito.nombre == "Voluntarias" && (e.nombre== "Carpeta médica" || e.nombre == "Inactiva" || e.nombre == "Licencia" || e.nombre == "Activa")).ToList();
+            return db.ESTADO
+                .AsNoTracking()
+                .Include(e => e.ambito)
+                .Where(e => e.ambito != null
+                            && e.ambito.nombre == "Voluntarias"
+                            && e.nombre != "Eliminado")
+                .OrderBy(e => e.nombre)
+                .ToList();
         }
 
         public List<VOLUNTARIA> listarVoluntariasSinUsuario()
