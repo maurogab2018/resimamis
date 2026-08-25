@@ -115,8 +115,12 @@ namespace ResimamisBackend.Negocio
 
         private void ValidarBebesAlta(MADRE madre, ResultadoValidacion resultado)
         {
+            // Una madre sin bebé no tiene sentido en el programa: el alta es de las dos cosas juntas.
             if (madre.Bebe == null || madre.Bebe.Count == 0)
+            {
+                resultado.Errores.Add("Debe registrar al menos un bebé junto con la madre.");
                 return;
+            }
             for (var i = 0; i < madre.Bebe.Count; i++)
                 negBebes.ValidarCamposBebe(madre.Bebe[i], resultado, $"Bebé (índice {i + 1}): ");
         }

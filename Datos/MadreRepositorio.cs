@@ -46,6 +46,20 @@ namespace ResimamisBackend.Datos
             if (existeMadre != null)
                 throw new ApplicationException("Madre existente con ese Dni");
             madre.Estado = true;
+
+            // Los bebés que vienen con el alta se insertan en el mismo SaveChanges, así que no
+            // pasan por registrarBebe y hay que darles acá el estado inicial y el chequeo de DNI.
+            if (madre.Bebe != null && madre.Bebe.Count > 0)
+            {
+                var idEstadoInicial = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Sin abrazar", "Bebes");
+                foreach (var bebe in madre.Bebe)
+                {
+                    if (bebe.Dni.HasValue && db.BEBE.Any(b => b.Dni == bebe.Dni))
+                        throw new ApplicationException($"Bebe existente con ese Dni ({bebe.Dni}).");
+                    bebe.IdEstado = idEstadoInicial;
+                }
+            }
+
             db.MADRE.Add(madre);
             db.SaveChanges();
             return true;
