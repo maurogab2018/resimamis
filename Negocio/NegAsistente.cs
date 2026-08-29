@@ -23,7 +23,8 @@ namespace ResimamisBackend.Negocio
             "¿Qué abrazos hizo la voluntaria María?",
             "¿Cuál es la duración promedio de los abrazos?",
             "Buscá al bebé Luca y decime sus abrazos",
-            "¿Cómo está el peso de los bebés al egreso?"
+            "¿Cómo está el peso de los bebés al egreso?",
+            "Mostrame bebés disponibles y voluntarias libres, y generá las asignaciones"
         ];
 
         private static readonly JsonSerializerOptions JsonDatos = new()
@@ -39,6 +40,7 @@ namespace ResimamisBackend.Negocio
         private readonly INegInsumos negInsumos;
         private readonly INegAsistencia negAsistencia;
         private readonly INegVoluntaria negVoluntaria;
+        private readonly INegAsignacion negAsignacion;
         private readonly OpenAiChatCompletions openAi;
 
         public NegAsistente(
@@ -49,6 +51,7 @@ namespace ResimamisBackend.Negocio
             INegInsumos negInsumos,
             INegAsistencia negAsistencia,
             INegVoluntaria negVoluntaria,
+            INegAsignacion negAsignacion,
             IHttpClientFactory httpClientFactory)
         {
             this.configuration = configuration;
@@ -58,6 +61,7 @@ namespace ResimamisBackend.Negocio
             this.negInsumos = negInsumos;
             this.negAsistencia = negAsistencia;
             this.negVoluntaria = negVoluntaria;
+            this.negAsignacion = negAsignacion;
             openAi = new OpenAiChatCompletions(httpClientFactory);
         }
 
@@ -226,7 +230,16 @@ namespace ResimamisBackend.Negocio
             Si falta un dato (id de bebé o voluntaria), buscá por nombre con buscar_bebes / buscar_voluntarias.
             Fechas: interpretá en calendario Argentina. Si no dan rango en reportes de período, usá los últimos 30 días; en rankings de voluntarias, los últimos 365 días.
             Pesos y ganancias están en gramos. Duraciones de abrazo están en minutos.
-            No ejecutes altas, bajas ni cambios de estado. Solo consulta.
+
+            Única acción de escritura permitida:
+            - Generar asignaciones de abrazo del día (parea bebés disponibles con voluntarias libres).
+            Flujo obligatorio:
+            1) Llamá bebes_disponibles_abrazo y voluntarias_libres.
+            2) Mostrá a la coordinadora cuántos y quiénes hay (nombres).
+            3) Pedí confirmación explícita (“¿Confirmás que genere las asignaciones?”).
+            4) Solo si ella confirma, llamá generar_asignaciones_abrazos con confirmar=true.
+            Nunca generes sin confirmación. No hagas altas, bajas ni otras escrituras.
+            No ejecutes altas, bajas ni cambios de estado fuera de generar_asignaciones_abrazos.
 
             Vocabulario (no mezclar):
             - Asistencia / fichaje: ingreso y salida de la voluntaria en el hospital. Herramientas: asistencias_hoy, ranking_asistencias.
@@ -252,6 +265,29 @@ namespace ResimamisBackend.Negocio
             ToolPeriodoOpcional("duracion_abrazos", "Duración de abrazos finalizados: promedio, mínimo y máximo en minutos."),
             Tool("bebes_rango_edades", "Distribución de bebés activos por rango de edad en días."),
             Tool("bebes_permanencia", "Tiempo de permanencia en NEO de bebés activos (días desde ingreso)."),
+            Tool("bebes_disponibles_abrazo", "Lista de bebés disponibles para abrazo HOY (sin abrazo iniciado). Solo lectura."),
+            Tool("voluntarias_libres", "Lista de voluntarias libres HOY para asignar abrazo. Solo lectura."),
+            new OpenAiTool
+            {
+                Function = new OpenAiFunction
+                {
+                    Name = "generar_asignaciones_abrazos",
+                    Description = "ÚNICA escritura: genera asignaciones del día emparejando bebés disponibles con voluntarias libres (misma lógica que POST /api/Asignacion/generar). Requiere confirmar=true después de mostrar listas y pedir OK a la coordinadora.",
+                    Parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            confirmar = new
+                            {
+                                type = "boolean",
+                                description = "true solo si la coordinadora confirmó explícitamente generar las asignaciones."
+                            }
+                        },
+                        required = new[] { "confirmar" }
+                    }
+                }
+            },
             new OpenAiTool
             {
                 Function = new OpenAiFunction
@@ -391,6 +427,9 @@ namespace ResimamisBackend.Negocio
                     "duracion_abrazos" => Json(negDashboard.ObtenerDuracionAbrazos(DesdeOpcional(args), HastaOpcional(args))),
                     "bebes_rango_edades" => Json(negDashboard.ObtenerRangoEdadesBebes()),
                     "bebes_permanencia" => Json(negDashboard.ObtenerPermanenciaBebes()),
+                    "bebes_disponibles_abrazo" => Json(ResumirBebesDisponiblesAbrazo()),
+                    "voluntarias_libres" => Json(ResumirVoluntariasLibres()),
+                    "generar_asignaciones_abrazos" => Json(GenerarAsignacionesAbrazos(args)),
                     "buscar_bebes" => Json(BuscarBebes(LeerString(args, "texto"))),
                     "abrazos_bebe" => Json(AbrazosBebe(args)),
                     "buscar_voluntarias" => Json(BuscarVoluntarias(LeerString(args, "texto"))),
@@ -398,7 +437,7 @@ namespace ResimamisBackend.Negocio
                     _ => Json(new { error = $"Herramienta desconocida: {nombre}" })
                 };
             }
-            catch (Exception ex) when (ex is ApplicationException or NotFoundException or JsonException)
+            catch (Exception ex) when (ex is ApplicationException or NotFoundException or ConflictException or JsonException)
             {
                 return Json(new { error = ex.Message });
             }
@@ -519,6 +558,82 @@ namespace ResimamisBackend.Negocio
                 fechaIngresoNeo = b.FechaIngresoNEO,
                 fechaSalida = b.FechaSalida
             };
+
+        private object ResumirBebesDisponiblesAbrazo()
+        {
+            var lista = negBebes.listarBebesAbrazar() ?? new List<BEBE>();
+            var items = lista.Select(b => new
+            {
+                idBebe = b.ID,
+                nombre = b.nombre,
+                apellido = b.apellido,
+                sala = b.Sala?.Nombre,
+                estado = b.Estado?.nombre
+            }).ToList();
+
+            return new
+            {
+                criterio = "bebes_disponibles_abrazo_hoy",
+                aclaracion = "Bebés elegibles para generar asignación de abrazo hoy. Solo lectura.",
+                total = items.Count,
+                bebes = items
+            };
+        }
+
+        private object ResumirVoluntariasLibres()
+        {
+            var lista = negVoluntaria.listarVoluntariasLibres1() ?? new List<VOLUNTARIA>();
+            var items = lista.Select(v => new
+            {
+                idVoluntaria = v.IdVoluntaria,
+                nombre = v.Nombre,
+                apellido = v.Apellido,
+                estado = v.Estado?.nombre,
+                rol = v.rol
+            }).ToList();
+
+            return new
+            {
+                criterio = "voluntarias_libres_hoy",
+                aclaracion = "Voluntarias libres hoy para asignar abrazo. Solo lectura.",
+                total = items.Count,
+                voluntarias = items
+            };
+        }
+
+        private object GenerarAsignacionesAbrazos(JsonDocument args)
+        {
+            if (LeerBool(args, "confirmar") != true)
+            {
+                var bebes = ResumirBebesDisponiblesAbrazo();
+                var vols = ResumirVoluntariasLibres();
+                return new
+                {
+                    generada = false,
+                    error = "Falta confirmación. Mostrá las listas a la coordinadora y pedí OK. Luego llamá de nuevo con confirmar=true.",
+                    preview = new { bebes, voluntarias = vols }
+                };
+            }
+
+            var creadas = negAsignacion.generarAsiganaciones() ?? new List<RespuestaAsignaciones>();
+            return new
+            {
+                generada = true,
+                aclaracion = "Asignaciones creadas (estado Creada). Misma lógica que POST /api/Asignacion/generar.",
+                total = creadas.Count,
+                asignaciones = creadas.Select(a => new
+                {
+                    a.idAsignacion,
+                    a.idBebe,
+                    a.nombreBebe,
+                    a.idVoluntaria,
+                    a.nombreVoluntaria,
+                    a.nombreSala,
+                    a.estadoAsignacion,
+                    a.fechaHoraAsignacion
+                }).ToList()
+            };
+        }
 
         private object ResumirAsistenciasHoy()
         {
