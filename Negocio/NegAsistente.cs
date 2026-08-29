@@ -25,7 +25,8 @@ namespace ResimamisBackend.Negocio
             "Buscá al bebé Luca y decime sus abrazos",
             "¿Cómo está el peso de los bebés al egreso?",
             "Mostrame bebés disponibles y voluntarias libres, y generá las asignaciones",
-            "Dame los datos de las visitas de hoy"
+            "Dame los datos de las visitas de hoy",
+            "Qué asignaciones de abrazo hay hoy"
         ];
 
         private static readonly JsonSerializerOptions JsonDatos = new()
@@ -44,6 +45,7 @@ namespace ResimamisBackend.Negocio
         private readonly INegAsignacion negAsignacion;
         private readonly INegVisitas negVisitas;
         private readonly OpenAiChatCompletions openAi;
+        private int? dniSolicitanteActual;
 
         public NegAsistente(
             IConfiguration configuration,
@@ -84,6 +86,7 @@ namespace ResimamisBackend.Negocio
         public async Task<AsistentePreguntaRespuesta> Preguntar(int dniSolicitante, AsistentePreguntaRequest request)
         {
             negUsuarios.ValidarCoordinadora(dniSolicitante);
+            dniSolicitanteActual = dniSolicitante;
 
             var pregunta = request?.Pregunta?.Trim() ?? "";
             if (string.IsNullOrWhiteSpace(pregunta))
@@ -209,31 +212,43 @@ namespace ResimamisBackend.Negocio
             }
         }
 
-        private static string PromptSistema() =>
-            """
+        private string PromptSistema()
+        {
+            var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
+            return $"""
             Sos el asistente de Resimamis para coordinadoras de un programa de abrazos en neonatología.
             Respondé siempre en español, claro y útil.
+
+            Contexto de fecha (obligatorio):
+            - Hoy en calendario Argentina es {hoy:yyyy-MM-dd}. Usá SIEMPRE esa fecha para "hoy".
+            - Nunca uses la fecha UTC del servidor si difiere. Si una tool *_hoy ya trae la fecha, citá esa.
 
             Cómo hablar (más completo, sin inventar):
             La coordinadora pregunta en castellano cotidiano. Vos elegís las herramientas. Nunca le pidas nombres de funciones ni endpoints.
             No respondas con una sola oración corta si hay datos: armá una respuesta de 1 párrafo introductorio + viñetas con números +, si aplica, una lectura corta (qué destaca o qué falta hoy).
             Indicá el período o la fecha que usaste (hoy / últimos 30 días / últimos 365 días).
-            Cuando haya listas (bebés sin abrazo, ranking, stock), mostrá al menos los primeros ítems con nombre y número; no digas solo "hay N".
-            Al final, ofrecé 1 o 2 seguimientos concretos (ej. cobertura, abrazos de una voluntaria, stock, un bebé).
-            Si pregunta qué podés hacer, listá ejemplos de consulta (hoy, cobertura, stock, asistencias, ranking de fichajes, ranking de abrazos, un bebé, peso).
-            Preguntas de cómo usar el sistema o qué significa un estado: respondé sin herramientas, con un poco de detalle.
+            Cuando haya listas (bebés sin abrazo, ranking, stock, visitas), mostrá al menos los primeros ítems con nombre y número; no digas solo "hay N".
+            Al final, ofrecé 1 o 2 seguimientos concretos (ej. cobertura, abrazos de una voluntaria, stock, un bebé, visitas).
+            Si pregunta qué podés hacer, listá ejemplos de consulta.
             Preguntas de números, nombres o rankings: usá herramientas. No inventes cantidades, ids ni nombres.
-            Si no hay herramienta para ese dato, decilo y ofrecé qué sí podés consultar. No fuerces otra herramienta parecida.
+            Si no hay herramienta para ese dato, decilo y ofrecé qué sí podés consultar.
+
+            Routing de "hoy" (no improvises fechas en tools de período):
+            - Visitas de hoy → visitas_hoy
+            - Asistencias / quién fichó hoy → asistencias_hoy
+            - Asignaciones / abrazos creados hoy (lista) → asignaciones_hoy
+            - Snapshot general del día → coordinacion_hoy (+ cobertura_hoy si preguntan cobertura)
+            - Bebés disponibles / voluntarias libres → bebes_disponibles_abrazo / voluntarias_libres
+            - Visitas de un rango (semana, mes) → visitas_periodo con yyyy-MM-dd Argentina
 
             Investigá antes de responder:
-            - Podés usar varias herramientas en la misma pregunta (hoy + cobertura + ranking, buscar y después abrazos, etc.).
+            - Podés usar varias herramientas en la misma pregunta.
             - Si una herramienta da lista vacía, NO cierres en 0 de inmediato: ampliá el rango (rankings: últimos 365 días) o buscá por nombre y reintentá.
             - Si el ranking de abrazos viene vacío, llamá de nuevo ranking_abrazos_voluntarias SIN fechas (usa 365 días).
             - Recién si el segundo intento también está vacío, decí 0 según el criterio de ESA herramienta.
             - No mezcles conceptos: un ranking vacío de abrazos no es ranking de asistencias.
             Si falta un dato (id de bebé o voluntaria), buscá por nombre con buscar_bebes / buscar_voluntarias.
-            Fechas: interpretá en calendario Argentina (no UTC). Si no dan rango en reportes de período, usá los últimos 30 días; en rankings de voluntarias, los últimos 365 días.
-            Para "visitas de hoy / visitas hoy": usá SIEMPRE visitas_hoy (nunca visitas_periodo con fechas inventadas).
+            Fechas en tools de período: yyyy-MM-dd o "hoy"/"ayer" (Argentina). Rankings sin fechas = 365 días; otros períodos sin fechas = 30 días.
             Pesos y ganancias están en gramos. Duraciones de abrazo están en minutos.
 
             Única acción de escritura permitida:
@@ -244,14 +259,15 @@ namespace ResimamisBackend.Negocio
             3) Pedí confirmación explícita (“¿Confirmás que genere las asignaciones?”).
             4) Solo si ella confirma, llamá generar_asignaciones_abrazos con confirmar=true.
             Nunca generes sin confirmación. No hagas altas, bajas ni otras escrituras.
-            No ejecutes altas, bajas ni cambios de estado fuera de generar_asignaciones_abrazos.
 
             Vocabulario (no mezclar):
-            - Asistencia / fichaje: ingreso y salida de la voluntaria en el hospital. Herramientas: asistencias_hoy, ranking_asistencias.
-            - Abrazo: asignación a un bebé. Un abrazo finalizado NO es una asistencia.
-            - ranking_abrazos_voluntarias cuenta SOLO abrazos finalizados. Nunca la uses para ranking de asistencias.
+            - Asistencia / fichaje: ingreso y salida de la voluntaria. Tools: asistencias_hoy, ranking_asistencias.
+            - Abrazo / asignación: vínculo voluntaria-bebé. Un abrazo finalizado NO es una asistencia.
+            - Visita: familiar que visita al bebé. No es abrazo ni asistencia.
+            - ranking_abrazos_voluntarias cuenta SOLO abrazos finalizados.
             - Para "qué abrazos hizo tal voluntaria": buscar_voluntarias y después abrazos_voluntaria.
             """;
+        }
 
         private static List<OpenAiTool> DefinirHerramientas() =>
         [
@@ -262,8 +278,9 @@ namespace ResimamisBackend.Negocio
             Tool("insumos_bajo_stock", "Insumos con stock actual menor o igual al mínimo."),
             Tool("asistencias_hoy", "Lista de fichajes de asistencia de HOY: quién ingresó/salió. No son abrazos."),
             Tool("visitas_hoy", "Visitas familiares de HOY (calendario Argentina): total, bebés visitados y detalle (visitante, familiar, bebé, hora). Usá esta para 'visitas de hoy'."),
+            Tool("asignaciones_hoy", "Lista de asignaciones/abrazos del día HOY (bebe, voluntaria, estado, sala). Para detalle del día, no uses solo el contador de coordinacion_hoy."),
             ToolPeriodo("resumen_periodo", "KPIs del período: asignaciones, abrazos finalizados, visitas, promedios."),
-            ToolPeriodo("asignaciones_por_dia", "Cantidad de asignaciones y abrazos por día en un rango."),
+            ToolPeriodo("asignaciones_por_dia", "Cantidad de asignaciones y abrazos por día en un rango (NO detalle de hoy: para lista de hoy usá asignaciones_hoy)."),
             ToolPeriodo("visitas_periodo", "Estadísticas de visitas en un rango (NO para solo hoy: para hoy usá visitas_hoy). Total, por día y por familiar."),
             ToolPeriodoOpcional("evolucion_peso", "Evolución de peso ingreso vs egreso (gramos): promedio, mínima y máxima ganancia."),
             ToolPeriodoOpcional("ranking_abrazos_voluntarias", "Ranking de voluntarias por ABRAZOS FINALIZADOS (no fichajes). Sin fechas: últimos 365 días. Parámetro extra: top (1-20)."),
@@ -401,8 +418,8 @@ namespace ResimamisBackend.Negocio
                 type = "object",
                 properties = new
                 {
-                    fecha_desde = new { type = "string", description = "Inicio yyyy-MM-dd. Si falta, últimos 30 días (rankings: 365 días)." },
-                    fecha_hasta = new { type = "string", description = "Fin yyyy-MM-dd." },
+                    fecha_desde = new { type = "string", description = "Inicio yyyy-MM-dd o 'hoy'/'ayer' (Argentina). Si falta, últimos 30 días (rankings: 365)." },
+                    fecha_hasta = new { type = "string", description = "Fin yyyy-MM-dd o 'hoy'/'ayer' (Argentina)." },
                     top = new { type = "integer", description = "Solo ranking: cantidad de voluntarias (default 10)." }
                 }
             };
@@ -417,13 +434,14 @@ namespace ResimamisBackend.Negocio
 
                 return nombre switch
                 {
-                    "coordinacion_hoy" => Json(negDashboard.ObtenerCoordinacionHoy()),
+                    "coordinacion_hoy" => Json(ResumirCoordinacionHoy()),
                     "cobertura_hoy" => Json(negDashboard.ObtenerCoberturaHoy()),
                     "bebes_por_estado" => Json(negDashboard.ObtenerBebesPorEstado()),
                     "bebes_por_sala" => Json(negDashboard.ObtenerBebesPorSala()),
                     "insumos_bajo_stock" => Json(negInsumos.obtenerInsumosBajoStockMinimo()),
                     "asistencias_hoy" => Json(ResumirAsistenciasHoy()),
                     "visitas_hoy" => Json(ResumirVisitasHoy()),
+                    "asignaciones_hoy" => Json(ResumirAsignacionesHoy()),
                     "resumen_periodo" => Json(negDashboard.ObtenerResumen(Desde(args), Hasta(args))),
                     "asignaciones_por_dia" => Json(negDashboard.ObtenerAsignacionesPorDia(Desde(args), Hasta(args))),
                     "visitas_periodo" => Json(ResumirVisitasPeriodo(Desde(args), Hasta(args))),
@@ -642,6 +660,58 @@ namespace ResimamisBackend.Negocio
             };
         }
 
+        private object ResumirCoordinacionHoy()
+        {
+            var data = negDashboard.ObtenerCoordinacionHoy();
+            return new
+            {
+                aclaracion = $"Snapshot del día {data.Fecha:yyyy-MM-dd} (calendario Argentina). Para detalle de visitas usá visitas_hoy; para lista de asignaciones usá asignaciones_hoy.",
+                data.Fecha,
+                data.BebesActivos,
+                data.BebesDisponiblesAbrazo,
+                data.BebesAsignados,
+                data.AbrazosHoy,
+                data.VoluntariasConAsistenciaHoy,
+                data.AbrazosColgados,
+                data.VisitasHoy
+            };
+        }
+
+        private object ResumirAsignacionesHoy()
+        {
+            if (dniSolicitanteActual is null)
+                return new { error = "No se pudo identificar a la coordinadora." };
+
+            var lista = negAsignacion.listarAsignacionesHoy(dniSolicitanteActual.Value)
+                ?? new List<RespuestaAsignaciones>();
+            var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
+
+            return new
+            {
+                criterio = "asignaciones_hoy_argentina",
+                aclaracion = "Asignaciones/abrazos del día calendario Argentina.",
+                fecha = hoy,
+                total = lista.Count,
+                finalizados = lista.Count(a =>
+                    string.Equals(a.estadoAsignacion, "Finalizado", StringComparison.OrdinalIgnoreCase)),
+                enCurso = lista.Count(a =>
+                    a.fechaHoraInicio.HasValue && !a.fechaHoraFin.HasValue),
+                asignaciones = lista.Select(a => new
+                {
+                    a.idAsignacion,
+                    a.idBebe,
+                    a.nombreBebe,
+                    a.idVoluntaria,
+                    a.nombreVoluntaria,
+                    a.nombreSala,
+                    a.estadoAsignacion,
+                    a.fechaHoraAsignacion,
+                    a.fechaHoraInicio,
+                    a.fechaHoraFin
+                }).ToList()
+            };
+        }
+
         private object ResumirVisitasHoy()
         {
             var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
@@ -679,6 +749,25 @@ namespace ResimamisBackend.Negocio
             var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
             var esSoloHoy = DateOnly.FromDateTime(desde.Date) == hoy
                             && DateOnly.FromDateTime(hasta.Date) == hoy;
+
+            object? pistaHoy = null;
+            if (stats.TotalVisitas == 0 && !esSoloHoy)
+            {
+                // Si el rango quedó vacío por fecha UTC mal puesta, avisamos si hoy AR sí tiene datos.
+                var hoyStats = negDashboard.ObtenerEstadisticasVisitas(
+                    hoy.ToDateTime(TimeOnly.MinValue),
+                    hoy.ToDateTime(TimeOnly.MinValue));
+                if (hoyStats.TotalVisitas > 0)
+                {
+                    pistaHoy = new
+                    {
+                        mensaje = $"El rango pedido dio 0, pero hoy Argentina ({hoy:yyyy-MM-dd}) tiene {hoyStats.TotalVisitas} visita(s). Usá visitas_hoy.",
+                        hoyStats.TotalVisitas,
+                        hoyStats.BebesVisitados
+                    };
+                }
+            }
+
             return new
             {
                 aclaracion = esSoloHoy
@@ -689,7 +778,8 @@ namespace ResimamisBackend.Negocio
                 stats.TotalVisitas,
                 stats.BebesVisitados,
                 stats.PorDia,
-                stats.PorFamiliar
+                stats.PorFamiliar,
+                pistaHoy
             };
         }
 
@@ -833,19 +923,43 @@ namespace ResimamisBackend.Negocio
         {
             var desdeRaw = LeerString(args, "fecha_desde") ?? LeerString(args, "fechaDesde");
             var hastaRaw = LeerString(args, "fecha_hasta") ?? LeerString(args, "fechaHasta");
-            var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow).ToDateTime(TimeOnly.MinValue);
+            var hoyAr = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
+            var hoy = hoyAr.ToDateTime(TimeOnly.MinValue);
             if (string.IsNullOrWhiteSpace(desdeRaw) && string.IsNullOrWhiteSpace(hastaRaw))
                 return (hoy.AddDays(-diasDefault), hoy);
 
             var inicio = string.IsNullOrWhiteSpace(desdeRaw)
                 ? hoy.AddDays(-diasDefault)
-                : NegConversorFecha.ParseFechaCalendarioReporte(desdeRaw);
+                : ParseFechaFlexible(desdeRaw, hoy);
             var fin = string.IsNullOrWhiteSpace(hastaRaw)
                 ? hoy
-                : NegConversorFecha.ParseFechaCalendarioReporte(hastaRaw);
+                : ParseFechaFlexible(hastaRaw, hoy);
             if (fin < inicio)
                 (inicio, fin) = (fin, inicio);
+
+            // Si el modelo mandó el día UTC (adelantado respecto de Argentina), corregir a hoy AR.
+            var diaUtc = DateOnly.FromDateTime(DateTime.UtcNow);
+            if (DateOnly.FromDateTime(inicio.Date) == DateOnly.FromDateTime(fin.Date))
+            {
+                var diaPedido = DateOnly.FromDateTime(inicio.Date);
+                if (diaPedido == diaUtc && diaUtc != hoyAr)
+                {
+                    inicio = hoy;
+                    fin = hoy;
+                }
+            }
+
             return (inicio, fin);
+        }
+
+        private static DateTime ParseFechaFlexible(string raw, DateTime hoyAr)
+        {
+            var t = raw.Trim().ToLowerInvariant();
+            if (t is "hoy" or "today" or "ahora")
+                return hoyAr.Date;
+            if (t is "ayer" or "yesterday")
+                return hoyAr.Date.AddDays(-1);
+            return NegConversorFecha.ParseFechaCalendarioReporte(raw);
         }
 
         private static int Top(JsonDocument args)
