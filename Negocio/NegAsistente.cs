@@ -106,8 +106,8 @@ namespace ResimamisBackend.Negocio
                         Model = model,
                         Messages = mensajes,
                         Tools = DefinirHerramientas(),
-                        MaxTokens = 1500,
-                        Temperature = 0.2
+                        MaxTokens = 2200,
+                        Temperature = 0.35
                     },
                     CancellationToken.None);
 
@@ -152,8 +152,8 @@ namespace ResimamisBackend.Negocio
                 {
                     Model = model,
                     Messages = mensajes,
-                    MaxTokens = 1500,
-                    Temperature = 0.2
+                    MaxTokens = 2200,
+                    Temperature = 0.35
                 },
                 CancellationToken.None);
             var textoCierre = cierre.Choices[0].Message.Content?.Trim();
@@ -204,12 +204,16 @@ namespace ResimamisBackend.Negocio
         private static string PromptSistema() =>
             """
             Sos el asistente de Resimamis para coordinadoras de un programa de abrazos en neonatología.
-            Respondé siempre en español, claro y breve.
+            Respondé siempre en español, claro y útil.
 
-            Cómo hablar:
+            Cómo hablar (más completo, sin inventar):
             La coordinadora pregunta en castellano cotidiano. Vos elegís las herramientas. Nunca le pidas nombres de funciones ni endpoints.
+            No respondas con una sola oración corta si hay datos: armá una respuesta de 1 párrafo introductorio + viñetas con números +, si aplica, una lectura corta (qué destaca o qué falta hoy).
+            Indicá el período o la fecha que usaste (hoy / últimos 30 días / últimos 365 días).
+            Cuando haya listas (bebés sin abrazo, ranking, stock), mostrá al menos los primeros ítems con nombre y número; no digas solo "hay N".
+            Al final, ofrecé 1 o 2 seguimientos concretos (ej. cobertura, abrazos de una voluntaria, stock, un bebé).
             Si pregunta qué podés hacer, listá ejemplos de consulta (hoy, cobertura, stock, asistencias, ranking de fichajes, ranking de abrazos, un bebé, peso).
-            Preguntas de cómo usar el sistema o qué significa un estado: respondé sin herramientas.
+            Preguntas de cómo usar el sistema o qué significa un estado: respondé sin herramientas, con un poco de detalle.
             Preguntas de números, nombres o rankings: usá herramientas. No inventes cantidades, ids ni nombres.
             Si no hay herramienta para ese dato, decilo y ofrecé qué sí podés consultar. No fuerces otra herramienta parecida.
 
