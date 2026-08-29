@@ -24,7 +24,8 @@ namespace ResimamisBackend.Negocio
             "¿Cuál es la duración promedio de los abrazos?",
             "Buscá al bebé Luca y decime sus abrazos",
             "¿Cómo está el peso de los bebés al egreso?",
-            "Mostrame bebés disponibles y voluntarias libres, y generá las asignaciones"
+            "Mostrame bebés disponibles y voluntarias libres, y generá las asignaciones",
+            "Dame los datos de las visitas de hoy"
         ];
 
         private static readonly JsonSerializerOptions JsonDatos = new()
@@ -41,6 +42,7 @@ namespace ResimamisBackend.Negocio
         private readonly INegAsistencia negAsistencia;
         private readonly INegVoluntaria negVoluntaria;
         private readonly INegAsignacion negAsignacion;
+        private readonly INegVisitas negVisitas;
         private readonly OpenAiChatCompletions openAi;
 
         public NegAsistente(
@@ -52,6 +54,7 @@ namespace ResimamisBackend.Negocio
             INegAsistencia negAsistencia,
             INegVoluntaria negVoluntaria,
             INegAsignacion negAsignacion,
+            INegVisitas negVisitas,
             IHttpClientFactory httpClientFactory)
         {
             this.configuration = configuration;
@@ -62,6 +65,7 @@ namespace ResimamisBackend.Negocio
             this.negAsistencia = negAsistencia;
             this.negVoluntaria = negVoluntaria;
             this.negAsignacion = negAsignacion;
+            this.negVisitas = negVisitas;
             openAi = new OpenAiChatCompletions(httpClientFactory);
         }
 
@@ -228,7 +232,8 @@ namespace ResimamisBackend.Negocio
             - Recién si el segundo intento también está vacío, decí 0 según el criterio de ESA herramienta.
             - No mezcles conceptos: un ranking vacío de abrazos no es ranking de asistencias.
             Si falta un dato (id de bebé o voluntaria), buscá por nombre con buscar_bebes / buscar_voluntarias.
-            Fechas: interpretá en calendario Argentina. Si no dan rango en reportes de período, usá los últimos 30 días; en rankings de voluntarias, los últimos 365 días.
+            Fechas: interpretá en calendario Argentina (no UTC). Si no dan rango en reportes de período, usá los últimos 30 días; en rankings de voluntarias, los últimos 365 días.
+            Para "visitas de hoy / visitas hoy": usá SIEMPRE visitas_hoy (nunca visitas_periodo con fechas inventadas).
             Pesos y ganancias están en gramos. Duraciones de abrazo están en minutos.
 
             Única acción de escritura permitida:
@@ -256,9 +261,10 @@ namespace ResimamisBackend.Negocio
             Tool("bebes_por_sala", "Bebés activos por sala y promedio de permanencia en NEO."),
             Tool("insumos_bajo_stock", "Insumos con stock actual menor o igual al mínimo."),
             Tool("asistencias_hoy", "Lista de fichajes de asistencia de HOY: quién ingresó/salió. No son abrazos."),
+            Tool("visitas_hoy", "Visitas familiares de HOY (calendario Argentina): total, bebés visitados y detalle (visitante, familiar, bebé, hora). Usá esta para 'visitas de hoy'."),
             ToolPeriodo("resumen_periodo", "KPIs del período: asignaciones, abrazos finalizados, visitas, promedios."),
             ToolPeriodo("asignaciones_por_dia", "Cantidad de asignaciones y abrazos por día en un rango."),
-            ToolPeriodo("visitas_periodo", "Estadísticas de visitas en un rango: total, por día y por familiar."),
+            ToolPeriodo("visitas_periodo", "Estadísticas de visitas en un rango (NO para solo hoy: para hoy usá visitas_hoy). Total, por día y por familiar."),
             ToolPeriodoOpcional("evolucion_peso", "Evolución de peso ingreso vs egreso (gramos): promedio, mínima y máxima ganancia."),
             ToolPeriodoOpcional("ranking_abrazos_voluntarias", "Ranking de voluntarias por ABRAZOS FINALIZADOS (no fichajes). Sin fechas: últimos 365 días. Parámetro extra: top (1-20)."),
             ToolPeriodoOpcional("ranking_asistencias", "Ranking de voluntarias por FICHAJES de asistencia (ingresos al hospital, no abrazos). Sin fechas: últimos 365 días. Parámetro extra: top (1-20)."),
@@ -417,9 +423,10 @@ namespace ResimamisBackend.Negocio
                     "bebes_por_sala" => Json(negDashboard.ObtenerBebesPorSala()),
                     "insumos_bajo_stock" => Json(negInsumos.obtenerInsumosBajoStockMinimo()),
                     "asistencias_hoy" => Json(ResumirAsistenciasHoy()),
+                    "visitas_hoy" => Json(ResumirVisitasHoy()),
                     "resumen_periodo" => Json(negDashboard.ObtenerResumen(Desde(args), Hasta(args))),
                     "asignaciones_por_dia" => Json(negDashboard.ObtenerAsignacionesPorDia(Desde(args), Hasta(args))),
-                    "visitas_periodo" => Json(negDashboard.ObtenerEstadisticasVisitas(Desde(args), Hasta(args))),
+                    "visitas_periodo" => Json(ResumirVisitasPeriodo(Desde(args), Hasta(args))),
                     "evolucion_peso" => Json(ResumirPeso(negDashboard.ObtenerEvolucionPesoBebes(DesdeOpcional(args), HastaOpcional(args)))),
                     "ranking_abrazos_voluntarias" => Json(ResumirRankingAbrazos(Desde(args, 364), Hasta(args, 364), Top(args))),
                     "ranking_voluntarias" => Json(ResumirRankingAbrazos(Desde(args, 364), Hasta(args, 364), Top(args))),
@@ -632,6 +639,57 @@ namespace ResimamisBackend.Negocio
                     a.estadoAsignacion,
                     a.fechaHoraAsignacion
                 }).ToList()
+            };
+        }
+
+        private object ResumirVisitasHoy()
+        {
+            var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
+            var (inicioUtc, finUtc) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var lista = (negVisitas.listarVisitas() ?? new List<VisitaListado>())
+                .Where(v => v.activa
+                            && v.fechaHoraVisita >= inicioUtc
+                            && v.fechaHoraVisita < finUtc)
+                .OrderByDescending(v => v.fechaHoraVisita)
+                .ToList();
+
+            return new
+            {
+                criterio = "visitas_hoy_argentina",
+                aclaracion = "Visitas del día calendario Argentina. No uses UTC para decidir 'hoy'.",
+                fecha = hoy,
+                totalVisitas = lista.Count,
+                bebesVisitados = lista.Select(v => v.idBebe).Distinct().Count(),
+                visitas = lista.Select(v => new
+                {
+                    v.idVisita,
+                    v.idBebe,
+                    nombreBebe = $"{v.nombreBebe} {v.apellidoBebe}".Trim(),
+                    v.nombreVisitante,
+                    v.familiar,
+                    v.fechaHoraVisita,
+                    v.observacion
+                }).ToList()
+            };
+        }
+
+        private object ResumirVisitasPeriodo(DateTime desde, DateTime hasta)
+        {
+            var stats = negDashboard.ObtenerEstadisticasVisitas(desde, hasta);
+            var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
+            var esSoloHoy = DateOnly.FromDateTime(desde.Date) == hoy
+                            && DateOnly.FromDateTime(hasta.Date) == hoy;
+            return new
+            {
+                aclaracion = esSoloHoy
+                    ? "Rango de un solo día (hoy Argentina). Preferí visitas_hoy para el detalle."
+                    : "Estadísticas agregadas del período. Para el detalle de HOY usá visitas_hoy.",
+                stats.FechaInicio,
+                stats.FechaFin,
+                stats.TotalVisitas,
+                stats.BebesVisitados,
+                stats.PorDia,
+                stats.PorFamiliar
             };
         }
 
