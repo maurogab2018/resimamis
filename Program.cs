@@ -15,6 +15,7 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
 
 var requestTimeoutSeconds = builder.Configuration.GetValue("RequestTimeouts:DefaultSeconds", 120);
+var asistenteTimeoutSeconds = builder.Configuration.GetValue("RequestTimeouts:AsistenteSeconds", 600);
 var dbCommandTimeoutSeconds = builder.Configuration.GetValue("Database:CommandTimeoutSeconds", 120);
 
 // Render (y otros PaaS) suele setear PORT. Esto asegura que Kestrel escuche en el puerto correcto.
@@ -40,6 +41,10 @@ builder.Services.AddRequestTimeouts(options =>
     {
         Timeout = TimeSpan.FromSeconds(requestTimeoutSeconds)
     };
+    options.AddPolicy("AsistenteLargo", new RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromSeconds(Math.Max(requestTimeoutSeconds, asistenteTimeoutSeconds))
+    });
 });
 
 // Add Swagger service

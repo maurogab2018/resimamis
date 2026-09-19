@@ -36,21 +36,29 @@ internal sealed class OpenAiChatCompletions
             Encoding.UTF8,
             "application/json");
 
-        using var response = await client.SendAsync(
-            httpRequest,
-            cancellationToken);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            var detalle = ExtraerErrorOpenAi(body);
-            throw new ApplicationException(
-                $"Error al consultar OpenAI ({(int)response.StatusCode}): {detalle}");
-        }
+            using var response = await client.SendAsync(
+                httpRequest,
+                cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var detalle = ExtraerErrorOpenAi(body);
+                throw new ApplicationException(
+                    $"Error al consultar OpenAI ({(int)response.StatusCode}): {detalle}");
+            }
 
-        var parsed = JsonSerializer.Deserialize<OpenAiChatResponse>(body, JsonOptions);
-        if (parsed?.Choices == null || parsed.Choices.Count == 0)
-            throw new ApplicationException("OpenAI no devolvió una respuesta.");
-        return parsed;
+            var parsed = JsonSerializer.Deserialize<OpenAiChatResponse>(body, JsonOptions);
+            if (parsed?.Choices == null || parsed.Choices.Count == 0)
+                throw new ApplicationException("OpenAI no devolvió una respuesta.");
+            return parsed;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new ApplicationException(
+                "OpenAI tardó demasiado en responder. Reintentá la pregunta.");
+        }
     }
 
     private static string ExtraerErrorOpenAi(string body)

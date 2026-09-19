@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Timeouts;
 using Microsoft.AspNetCore.Mvc;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio.Interfaces;
@@ -36,13 +37,22 @@ namespace ResimamisBackend.Controllers
 
         /// <summary>Interpreta una pregunta de la coordinadora y consulta el sistema (solo lectura).</summary>
         [HttpPost("preguntar")]
+        [RequestTimeout("AsistenteLargo")]
         public async Task<IActionResult> Preguntar([FromBody] AsistentePreguntaRequest request)
         {
             try
             {
                 var dni = ObtenerDniAutenticado(User);
-                var resultado = await negAsistente.Preguntar(dni, request);
+                var resultado = await negAsistente.Preguntar(dni, request, HttpContext.RequestAborted);
                 return ApiResults.Success(resultado);
+            }
+            catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                return StatusCode(StatusCodes.Status504GatewayTimeout, new ApiResponse
+                {
+                    message = "La consulta al asistente tardó demasiado. Probá de nuevo o acortá la pregunta.",
+                    errors = new List<string> { "Timeout del asistente." }
+                });
             }
             catch (ForbiddenException ex)
             {

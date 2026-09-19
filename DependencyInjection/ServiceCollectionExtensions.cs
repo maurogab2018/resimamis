@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Datos.Interfaces;
@@ -44,10 +45,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INegEnvioMail, NegEnvioMail>();
         services.AddScoped<INegDashboard, NegDashboard>();
         services.AddScoped<INegAsistente, NegAsistente>();
-        services.AddHttpClient("OpenAI", client =>
+        services.AddHttpClient("OpenAI", (sp, client) =>
         {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var timeoutSeconds = config.GetValue("Asistente:HttpTimeoutSeconds", 180);
+            if (timeoutSeconds < 30)
+                timeoutSeconds = 30;
             client.BaseAddress = new Uri("https://api.openai.com/v1/");
-            client.Timeout = TimeSpan.FromSeconds(90);
+            client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
         });
 
         return services;

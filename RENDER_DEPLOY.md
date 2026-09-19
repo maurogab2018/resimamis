@@ -26,6 +26,8 @@ Backend **ASP.NET Core 8** (API + Swagger en la raíz), **EF Core + Npgsql**, mi
 | `apiKey` | Sí (bot) | Clave de OpenAI en Render (`sk-...`). Preferida en producción. |
 | `OPENAI_API_KEY` o `Asistente__ApiKey` | Sí (bot) | Alternativas si no usás `apiKey`. No la subas al repo. |
 | `Asistente__Model` | No | Default `gpt-4o-mini`. |
+| `Asistente__HttpTimeoutSeconds` | No | Timeout de cada llamada a OpenAI. Default `180`. |
+| `RequestTimeouts__AsistenteSeconds` | No | Timeout total de `POST /preguntar`. Default `600` (10 min). |
 
 En local podés seguir usando `appsettings.json`; en Render conviene **no** depender de secretos en el repo: usá solo `DATABASE_URL` y rotá credenciales si alguna vez quedó commiteada.
 
