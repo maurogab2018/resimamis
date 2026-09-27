@@ -109,6 +109,10 @@ namespace ResimamisBackend.Negocio
             var normalizados = new List<HorarioVoluntaria>();
             foreach (var h in horarios)
             {
+                var tieneAlgo = h.IdDia > 0 || h.IdHorario > 0 || !string.IsNullOrWhiteSpace(h.Turno);
+                if (!tieneAlgo)
+                    continue;
+
                 if (h.IdDia > 0 && !string.IsNullOrWhiteSpace(h.Turno))
                 {
                     normalizados.Add(new HorarioVoluntaria

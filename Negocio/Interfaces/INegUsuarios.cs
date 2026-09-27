@@ -7,6 +7,7 @@ namespace ResimamisBackend.Negocio.Interfaces;
 public interface INegUsuarios
 {
     bool EsCoordinadoraPorDni(int dni);
+    bool EsSesionOperativaPorDni(int dni);
     void ValidarCoordinadora(int dniSolicitante);
     RespuestaLogin Loguear(RequestLogin usuario);
     bool RegistrarUsuario(int dniSolicitante, USUARIO usuario);

@@ -29,6 +29,15 @@ namespace ResimamisBackend.Negocio
             this.voluntariaRepositorio = voluntariaRepositorio;
         }
 
+        // AUTH ref:L — sesión JWT: el DNI del token debe ser un USUARIO operativo (no inventado ni dado de baja).
+        public bool EsSesionOperativaPorDni(int dni)
+        {
+            if (dni <= 0)
+                return false;
+            var usuario = usuarioRepositorio.ObtenerPorDni(dni, asNoTracking: true);
+            return usuario != null && UsuarioRepositorio.EsUsuarioOperativo(usuario);
+        }
+
         public bool EsCoordinadoraPorDni(int dni)
         {
             var usuario = usuarioRepositorio.ObtenerPorDni(dni);
@@ -106,6 +115,9 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("El usuario ingresado a registrar es nulo");
 
             ValidarContrasenaNueva(usuario.Contrasena);
+
+            if (!ValidacionTextoPersona.EsDniValido(usuario.Dni))
+                throw new ApplicationException("Dni tiene que tener entre 7 y 8 dígitos.");
 
             if (usuario.IdVoluntaria <= 0)
                 throw new ApplicationException("Debe asociar el usuario a una voluntaria.");
@@ -201,6 +213,9 @@ namespace ResimamisBackend.Negocio
                 throw new NotFoundException("Usuario no existente con ese Id");
             if (UsuarioRepositorio.EsUsuarioEliminado(existente))
                 throw new ApplicationException("No se puede modificar un usuario dado de baja.");
+
+            if (!ValidacionTextoPersona.EsDniValido(datos.Dni))
+                throw new ApplicationException("Dni tiene que tener entre 7 y 8 dígitos.");
 
             if (datos.Dni != existente.Dni && usuarioRepositorio.ExisteUsuarioOperativoConDni(datos.Dni, idUsuario))
                 throw new ConflictException("Ya existe otro usuario con ese Dni.");

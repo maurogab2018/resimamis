@@ -89,18 +89,32 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("Debe indicar al menos una voluntaria.");
             if (requestAsignacion.idTareas == null || requestAsignacion.idTareas.Count == 0)
                 throw new ApplicationException("Debe indicar al menos una tarea.");
+            if (requestAsignacion.idVoluntarias.Any(id => id <= 0))
+                throw new ApplicationException("Hay voluntarias con id inválido.");
+            if (requestAsignacion.idTareas.Any(id => id <= 0))
+                throw new ApplicationException("Hay tareas con id inválido.");
 
             var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
             var (diaInicio, diaFin) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
 
-            // Traemos las tareas y voluntarias desde la base
-            var tareas = db.TAREA.Where(t => requestAsignacion.idTareas.Contains(t.idTarea)).ToList();
-            var voluntarias = voluntariaRepositorio.consultarVoluntarias(requestAsignacion.idVoluntarias);
+            var idsTareas = requestAsignacion.idTareas.Distinct().ToList();
+            var idsVoluntarias = requestAsignacion.idVoluntarias.Distinct().ToList();
 
-            if (tareas == null || tareas.Count == 0)
+            var tareas = db.TAREA.Where(t => idsTareas.Contains(t.idTarea)).ToList();
+            var voluntarias = voluntariaRepositorio.consultarVoluntarias(idsVoluntarias);
+
+            var tareasFaltantes = idsTareas.Where(id => tareas.All(t => t.idTarea != id)).ToList();
+            if (tareasFaltantes.Count > 0)
+                throw new ApplicationException("Tarea(s) inexistentes: " + string.Join(", ", tareasFaltantes) + ".");
+
+            var voluntariasFaltantes = idsVoluntarias.Where(id => voluntarias.All(v => v.IdVoluntaria != id)).ToList();
+            if (voluntariasFaltantes.Count > 0)
+                throw new ApplicationException("Voluntaria(s) inexistentes: " + string.Join(", ", voluntariasFaltantes) + ".");
+
+            if (tareas.Count == 0)
                 throw new ApplicationException("No se encontraron tareas válidas.");
 
-            if (voluntarias == null || voluntarias.Count == 0)
+            if (voluntarias.Count == 0)
                 throw new ApplicationException("No se encontraron voluntarias válidas.");
 
             var idEstadoAsignacionCreada = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Creada", "Asignaciones");
@@ -178,6 +192,10 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("Debe indicar al menos una voluntaria.");
             if (requestAsignacion.idTareas == null || requestAsignacion.idTareas.Count == 0)
                 throw new ApplicationException("Debe indicar al menos un bebé.");
+            if (requestAsignacion.idVoluntarias.Any(id => id <= 0))
+                throw new ApplicationException("Hay voluntarias con id inválido.");
+            if (requestAsignacion.idTareas.Any(id => id <= 0))
+                throw new ApplicationException("Hay bebés con id inválido.");
 
             var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
             var fechaMesAnterior = fechaHoy.AddMonths(-1);
@@ -647,15 +665,20 @@ namespace ResimamisBackend.Negocio
 
             voluntariaRepositorio.consultarVoluntaria(datos.idVoluntaria);
 
-            if (datos.idTarea.HasValue)
+            if (datos.idTarea.HasValue && datos.idTarea.Value > 0)
             {
                 var tarea = db.TAREA.FirstOrDefault(t => t.idTarea == datos.idTarea.Value);
                 if (tarea == null)
                     throw new NotFoundException("Tarea no encontrada");
             }
 
-            if (datos.idBebe.HasValue)
+            if (datos.idBebe.HasValue && datos.idBebe.Value > 0)
                 bebeRepositorio.consultarBebe(datos.idBebe.Value);
+
+            var fechaInicio = datos.fechaHoraInicio ?? existentePrevio.fechaHoraInicio;
+            var fechaFin = datos.fechaHoraFin ?? existentePrevio.fechaHoraFin;
+            if (fechaFin != null && fechaInicio == null)
+                throw new ApplicationException("No se puede finalizar un abrazo que nunca fue iniciado.");
 
             var idIniciado = estadoRepositorio.ObtenerIdEstadoAsignacionIniciado();
             var idFinalizado = estadoRepositorio.ObtenerIdEstadoAsignacionFinalizado();
@@ -671,12 +694,12 @@ namespace ResimamisBackend.Negocio
 
             var patch = new ASIGNACION
             {
-                idTarea = datos.idTarea,
-                idBebe = datos.idBebe,
+                idTarea = datos.idTarea ?? existentePrevio.idTarea,
+                idBebe = datos.idBebe ?? existentePrevio.idBebe,
                 idVoluntaria = datos.idVoluntaria,
-                comentario = datos.comentario,
-                fechaHoraInicio = datos.fechaHoraInicio,
-                fechaHoraFin = datos.fechaHoraFin,
+                comentario = datos.comentario ?? existentePrevio.comentario,
+                fechaHoraInicio = fechaInicio,
+                fechaHoraFin = fechaFin,
                 idEstado = idEstado,
             };
             asignacionRepositorio.modificarAsignacion(patch, existentePrevio);
@@ -785,6 +808,9 @@ namespace ResimamisBackend.Negocio
                     throw new ApplicationException("Cada detalle debe indicar idAsignacion.");
                 if (!r.idInsumo.HasValue || r.idInsumo.Value <= 0)
                     throw new ApplicationException("Cada detalle debe indicar idInsumo.");
+
+                var asignacion = asignacionRepositorio.consultarAsignacion(r.idAsignacion.Value);
+                AsegurarAsignacionNoEliminada(asignacion);
             }
 
             return asignacionRepositorio.registrarDetalleAsignacion(request);

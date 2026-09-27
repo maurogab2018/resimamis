@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio.Interfaces;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 
@@ -43,6 +46,26 @@ namespace ResimamisBackend
                 };
                 options.Events = new JwtBearerEvents
                 {
+                    // AUTH ref:H — OnTokenValidated: el JWT firmado no alcanza; el DNI debe existir y no estar eliminado.
+                    OnTokenValidated = context =>
+                    {
+                        var claim = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                            ?? context.Principal?.FindFirst(ClaimTypes.Name)?.Value;
+                        if (string.IsNullOrWhiteSpace(claim) || !int.TryParse(claim, out var dni) || dni <= 0)
+                        {
+                            context.Fail("No autenticado.");
+                            return Task.CompletedTask;
+                        }
+
+                        var negUsuarios = context.HttpContext.RequestServices.GetRequiredService<INegUsuarios>();
+                        if (!negUsuarios.EsSesionOperativaPorDni(dni))
+                        {
+                            context.Fail("No autenticado.");
+                            return Task.CompletedTask;
+                        }
+
+                        return Task.CompletedTask;
+                    },
                     OnChallenge = async context =>
                     {
                         context.HandleResponse();

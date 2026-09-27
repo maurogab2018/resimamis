@@ -59,7 +59,10 @@ namespace ResimamisBackend.Negocio
         }
         public bool registrarAsistenciaSalida(int idVoluntaria)
         {
-            var existeVoluntaria = repositorioVoluntaria.consultarVoluntaria(idVoluntaria);
+            if (idVoluntaria <= 0)
+                throw new ApplicationException("Id de voluntaria inválido.");
+
+            repositorioVoluntaria.consultarVoluntaria(idVoluntaria);
             return repositorioAsistencia.registrarAsistenciaSalida(idVoluntaria);
         }
 

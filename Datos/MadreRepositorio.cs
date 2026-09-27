@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
+using ResimamisBackend.Negocio;
 
 namespace ResimamisBackend.Datos
 {
@@ -83,17 +84,18 @@ namespace ResimamisBackend.Datos
 
             foreach (var prop in propiedades)
             {
-                // Evitamos tocar la lista de bebés acá
-                if (prop.Name == nameof(MADRE.Bebe))
+                if (prop.Name is nameof(MADRE.Bebe) or nameof(MADRE.EstadoDetalle) or nameof(MADRE.LocalidadDetalle))
+                    continue;
+                if (!prop.CanWrite)
                     continue;
 
                 var nuevoValor = prop.GetValue(madre);
-                var valorActual = prop.GetValue(madreModificar);
+                if (ParchePropiedades.EsAusente(nuevoValor))
+                    continue;
 
+                var valorActual = prop.GetValue(madreModificar);
                 if (nuevoValor != null && !nuevoValor.Equals(valorActual))
-                {
                     prop.SetValue(madreModificar, nuevoValor);
-                }
             }
 
             // Procesamos los bebés
@@ -109,13 +111,20 @@ namespace ResimamisBackend.Datos
 
                         foreach (var prop in propiedadesBebe)
                         {
-                            var nuevoValor = prop.GetValue(bebeNuevo);
-                            var valorActual = prop.GetValue(bebeExistente);
+                            if (!prop.CanWrite)
+                                continue;
+                            if (prop.Name is nameof(BEBE.Madre) or nameof(BEBE.Sala) or nameof(BEBE.Estado)
+                                or nameof(BEBE.LocalidadDetalle) or nameof(BEBE.Asignaciones) or nameof(BEBE.Visitas)
+                                or nameof(BEBE.NombreSala))
+                                continue;
 
+                            var nuevoValor = prop.GetValue(bebeNuevo);
+                            if (ParchePropiedades.EsAusente(nuevoValor))
+                                continue;
+
+                            var valorActual = prop.GetValue(bebeExistente);
                             if (nuevoValor != null && !nuevoValor.Equals(valorActual))
-                            {
                                 prop.SetValue(bebeExistente, nuevoValor);
-                            }
                         }
                     }
                     else
@@ -127,7 +136,7 @@ namespace ResimamisBackend.Datos
             }
 
             db.SaveChanges();
-            return madre;
+            return madreModificar;
 
         }
 

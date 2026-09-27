@@ -60,7 +60,7 @@ namespace ResimamisBackend.Negocio
         /// Misma regla de fusión que <see cref="MadreRepositorio.modificarMadre"/> para validar el estado resultante.
         /// </summary>
         private static bool PropiedadMadreIgnorar(string name) =>
-            name is nameof(MADRE.Bebe) or nameof(MADRE.EstadoDetalle);
+            name is nameof(MADRE.Bebe) or nameof(MADRE.EstadoDetalle) or nameof(MADRE.LocalidadDetalle);
 
         private static MADRE CombinarParcheMadre(MADRE existente, MADRE parcial)
         {
@@ -72,16 +72,7 @@ namespace ResimamisBackend.Negocio
                 prop.SetValue(combinada, prop.GetValue(existente));
             }
 
-            foreach (var prop in typeof(MADRE).GetProperties())
-            {
-                if (PropiedadMadreIgnorar(prop.Name) || !prop.CanWrite)
-                    continue;
-                var nuevoValor = prop.GetValue(parcial);
-                var valorActual = prop.GetValue(existente);
-                if (nuevoValor != null && !nuevoValor.Equals(valorActual))
-                    prop.SetValue(combinada, nuevoValor);
-            }
-
+            ParchePropiedades.CopiarPresentes(parcial, combinada, PropiedadMadreIgnorar);
             return combinada;
         }
 
@@ -100,16 +91,7 @@ namespace ResimamisBackend.Negocio
                 prop.SetValue(combinada, prop.GetValue(existente));
             }
 
-            foreach (var prop in typeof(BEBE).GetProperties())
-            {
-                if (PropiedadBebeIgnorar(prop.Name) || !prop.CanWrite)
-                    continue;
-                var nuevoValor = prop.GetValue(parcial);
-                var valorActual = prop.GetValue(existente);
-                if (nuevoValor != null && !nuevoValor.Equals(valorActual))
-                    prop.SetValue(combinada, nuevoValor);
-            }
-
+            ParchePropiedades.CopiarPresentes(parcial, combinada, PropiedadBebeIgnorar);
             return combinada;
         }
 
@@ -157,8 +139,8 @@ namespace ResimamisBackend.Negocio
             {
                 if (!ValidacionTextoPersona.EsNombreApellidoValido(madre.Nombre))
                     resultado.Errores.Add("Nombre solo permite letras, espacios y tildes.");
-                if (madre.Nombre.Length > 15)
-                    resultado.Errores.Add("Nombre no permite más de 15 caracteres.");
+                if (madre.Nombre.Length > 50)
+                    resultado.Errores.Add("Nombre no permite más de 50 caracteres.");
             }
 
             if (string.IsNullOrWhiteSpace(madre.Apellido))
@@ -167,18 +149,27 @@ namespace ResimamisBackend.Negocio
             {
                 if (!ValidacionTextoPersona.EsNombreApellidoValido(madre.Apellido))
                     resultado.Errores.Add("Apellido solo permite letras, espacios y tildes.");
-                if (madre.Apellido.Length > 20)
-                    resultado.Errores.Add("Apellido no permite más de 20 caracteres.");
+                if (madre.Apellido.Length > 50)
+                    resultado.Errores.Add("Apellido no permite más de 50 caracteres.");
             }
 
             if (madre.FechaNacimiento == default)
                 resultado.Errores.Add("FechaNacimiento es obligatorio.");
             else if (madre.FechaNacimiento.Date > DateTime.UtcNow.Date)
                 resultado.Errores.Add("FechaNacimiento no puede ser futura.");
+            else
+            {
+                var hoy = DateTime.UtcNow.Date;
+                var edad = hoy.Year - madre.FechaNacimiento.Date.Year;
+                if (madre.FechaNacimiento.Date > hoy.AddYears(-edad))
+                    edad--;
+                if (edad < 10 || edad > 80)
+                    resultado.Errores.Add("FechaNacimiento no corresponde a una edad válida.");
+            }
 
             if (madre.Dni == 0)
                 resultado.Errores.Add("Dni es obligatorio.");
-            else if (!Regex.IsMatch(madre.Dni.ToString(), @"^\d{7,8}$"))
+            else if (!ValidacionTextoPersona.EsDniValido(madre.Dni))
                 resultado.Errores.Add("Dni tiene que tener entre 7 y 8 dígitos.");
 
             if (madre.Localidad <= 0)

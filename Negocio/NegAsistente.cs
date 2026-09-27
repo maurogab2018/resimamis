@@ -234,10 +234,13 @@ namespace ResimamisBackend.Negocio
                     continue;
                 if (string.IsNullOrWhiteSpace(item.Contenido))
                     continue;
+                var contenido = item.Contenido.Trim();
+                if (contenido.Length > MaxPregunta)
+                    contenido = contenido[..MaxPregunta];
                 mensajes.Add(new OpenAiMessage
                 {
                     Role = rol is "usuario" or "user" ? "user" : "assistant",
-                    Content = item.Contenido.Trim()
+                    Content = contenido
                 });
             }
         }

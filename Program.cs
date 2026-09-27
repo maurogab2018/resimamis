@@ -1,11 +1,12 @@
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http.Timeouts;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using ResimamisBackend;
 using ResimamisBackend.Datos;
 using ResimamisBackend.DependencyInjection;
 using ResimamisBackend.Entidades;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http.Timeouts;
-using Microsoft.OpenApi.Models;
 using System.Text.Json;
 
 // Npgsql 6+: timestamptz solo acepta UTC por defecto; este switch tolera DateTime Local (p. ej. del cliente JSON).
@@ -73,7 +74,7 @@ builder.Services.AddControllers()
                 .Where(e => e.Value?.Errors.Count > 0)
                 .SelectMany(e => e.Value!.Errors.Select(err =>
                     string.IsNullOrWhiteSpace(err.ErrorMessage)
-                        ? err.Exception?.Message ?? "Error de validaci�n"
+                        ? err.Exception?.Message ?? "Error de validación"
                         : err.ErrorMessage))
                 .Where(msg => !string.IsNullOrWhiteSpace(msg))
                 .ToList();
@@ -108,6 +109,15 @@ app.UseExceptionHandler(errApp =>
 {
     errApp.Run(async context =>
     {
+        var error = context.Features.Get<IExceptionHandlerPathFeature>()?.Error
+            ?? context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        if (error != null)
+        {
+            var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("ExceptionHandler");
+            logger.LogError(error, "Error no controlado.");
+        }
+
         context.Response.StatusCode = 500;
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync(JsonSerializer.Serialize(new ApiResponse
