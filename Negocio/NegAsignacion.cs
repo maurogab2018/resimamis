@@ -197,16 +197,13 @@ namespace ResimamisBackend.Negocio
             if (requestAsignacion.idTareas.Any(id => id <= 0))
                 throw new ApplicationException("Hay bebés con id inválido.");
 
-            var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
-            var fechaMesAnterior = fechaHoy.AddMonths(-1);
             var (diaInicio, diaFin) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
 
             var bebesAbrazar = CargarBebesPorIdsParaGenerar(requestAsignacion.idTareas);
             var voluntariasActivas = CargarVoluntariasPorIdsParaGenerar(
                 requestAsignacion.idVoluntarias,
                 diaInicio,
-                diaFin,
-                fechaMesAnterior);
+                diaFin);
 
             return EjecutarGeneracionAsignacionesAbrazos(bebesAbrazar, voluntariasActivas);
         }
@@ -273,49 +270,129 @@ namespace ResimamisBackend.Negocio
         }
         public List<RespuestaAsignaciones> generarAsiganaciones()
         {
-            var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
-            var fechaMesAnterior = fechaHoy.AddMonths(-1);
             var (diaInicio, diaFin) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
 
             var bebesAbrazar = CargarBebesAbrazarParaGenerar();
             if (bebesAbrazar.Count == 0)
                 throw new ApplicationException("No hay bebes para abrazar para el día de hoy");
 
-            var voluntariasActivas = CargarVoluntariasLibresParaGenerar(inicioDia: diaInicio, finDia: diaFin, fechaMesAnterior);
+            var voluntariasActivas = CargarVoluntariasLibresParaGenerar(diaInicio, diaFin);
             if (voluntariasActivas.Count == 0)
                 throw new ApplicationException("No hay voluntarias disponibles para el día de hoy");
 
             return EjecutarGeneracionAsignacionesAbrazos(bebesAbrazar, voluntariasActivas);
         }
 
-        private static VOLUNTARIA ElegirVoluntariaConMenorConteo(
+        /// <summary>
+        /// Menos abrazos hoy, después menos en el mes, después apellido, nombre e id.
+        /// </summary>
+        private static VOLUNTARIA ElegirVoluntariaParaAbrazo(
             IReadOnlyList<VOLUNTARIA> candidatas,
-            Func<VOLUNTARIA, int> conteo)
+            Dictionary<int, int> hoy,
+            Dictionary<int, int> mes)
         {
-            var min = candidatas.Min(conteo);
-            return candidatas.First(v => conteo(v) == min);
+            var mejor = candidatas[0];
+            var mejorHoy = hoy.GetValueOrDefault(mejor.IdVoluntaria);
+            var mejorMes = mes.GetValueOrDefault(mejor.IdVoluntaria);
+
+            for (var i = 1; i < candidatas.Count; i++)
+            {
+                var actual = candidatas[i];
+                var actualHoy = hoy.GetValueOrDefault(actual.IdVoluntaria);
+                var actualMes = mes.GetValueOrDefault(actual.IdVoluntaria);
+                if (EsMejorCandidata(actual, actualHoy, actualMes, mejor, mejorHoy, mejorMes))
+                {
+                    mejor = actual;
+                    mejorHoy = actualHoy;
+                    mejorMes = actualMes;
+                }
+            }
+
+            return mejor;
         }
 
-        private Dictionary<int, int> ContarAsignacionesPorVoluntaria(
-            IEnumerable<int> idsVoluntarias,
-            DateTime desde,
-            DateTime hasta,
+        /// <summary>Menos abrazos en el mes; empate por apellido, nombre e id. Una sola por voluntaria.</summary>
+        private static VOLUNTARIA ElegirVoluntariaPorMes(
+            IReadOnlyList<VOLUNTARIA> candidatas,
+            Dictionary<int, int> mes)
+        {
+            var mejor = candidatas[0];
+            var mejorMes = mes.GetValueOrDefault(mejor.IdVoluntaria);
+
+            for (var i = 1; i < candidatas.Count; i++)
+            {
+                var actual = candidatas[i];
+                var actualMes = mes.GetValueOrDefault(actual.IdVoluntaria);
+                if (actualMes < mejorMes
+                    || (actualMes == mejorMes && CompararNombre(actual, mejor) < 0))
+                {
+                    mejor = actual;
+                    mejorMes = actualMes;
+                }
+            }
+
+            return mejor;
+        }
+
+        private static bool EsMejorCandidata(
+            VOLUNTARIA actual, int actualHoy, int actualMes,
+            VOLUNTARIA mejor, int mejorHoy, int mejorMes)
+        {
+            if (actualHoy != mejorHoy)
+                return actualHoy < mejorHoy;
+            if (actualMes != mejorMes)
+                return actualMes < mejorMes;
+            return CompararNombre(actual, mejor) < 0;
+        }
+
+        private static int CompararNombre(VOLUNTARIA a, VOLUNTARIA b)
+        {
+            var porApellido = string.Compare(a.Apellido, b.Apellido, StringComparison.OrdinalIgnoreCase);
+            if (porApellido != 0)
+                return porApellido;
+            var porNombre = string.Compare(a.Nombre, b.Nombre, StringComparison.OrdinalIgnoreCase);
+            if (porNombre != 0)
+                return porNombre;
+            return a.IdVoluntaria.CompareTo(b.IdVoluntaria);
+        }
+
+        /// <summary>Un solo viaje: abrazos (con bebé), no tareas. Hoy y último mes.</summary>
+        private (Dictionary<int, int> Hoy, Dictionary<int, int> Mes) ContarAbrazosPorVoluntaria(
+            List<int> idsVoluntarias,
+            DateTime diaInicio,
+            DateTime diaFin,
+            DateTime mesDesde,
+            DateTime mesHastaExclusivo,
             int idEstadoAsignacionEliminado)
         {
-            var ids = idsVoluntarias.Distinct().ToList();
-            var conteos = db.ASIGNACION
+            var hoy = idsVoluntarias.ToDictionary(id => id, _ => 0);
+            var mes = idsVoluntarias.ToDictionary(id => id, _ => 0);
+            if (idsVoluntarias.Count == 0)
+                return (hoy, mes);
+
+            var filas = db.ASIGNACION
                 .AsNoTracking()
-                .Where(a => ids.Contains(a.idVoluntaria)
-                            && a.fechaHoraAsignacion >= desde
-                            && a.fechaHoraAsignacion < hasta
-                            && a.idEstado != idEstadoAsignacionEliminado)
+                .Where(a => idsVoluntarias.Contains(a.idVoluntaria)
+                            && a.idBebe != null
+                            && a.idEstado != idEstadoAsignacionEliminado
+                            && a.fechaHoraAsignacion >= mesDesde
+                            && a.fechaHoraAsignacion < diaFin)
                 .GroupBy(a => a.idVoluntaria)
-                .ToDictionary(g => g.Key, g => g.Count());
+                .Select(g => new
+                {
+                    Id = g.Key,
+                    Hoy = g.Count(a => a.fechaHoraAsignacion >= diaInicio && a.fechaHoraAsignacion < diaFin),
+                    Mes = g.Count(a => a.fechaHoraAsignacion >= mesDesde && a.fechaHoraAsignacion < mesHastaExclusivo)
+                })
+                .ToList();
 
-            foreach (var id in ids)
-                conteos.TryAdd(id, 0);
+            foreach (var fila in filas)
+            {
+                hoy[fila.Id] = fila.Hoy;
+                mes[fila.Id] = fila.Mes;
+            }
 
-            return conteos;
+            return (hoy, mes);
         }
 
         private List<RespuestaAsignaciones> EjecutarGeneracionAsignacionesAbrazos(
@@ -346,6 +423,7 @@ namespace ResimamisBackend.Negocio
                 var idsVoluntarias = voluntariasActivas.Select(v => v.IdVoluntaria).ToList();
 
                 var bebes = db.BEBE
+                    .Include(b => b.Sala)
                     .Where(b => idsBebes.Contains(b.ID))
                     .ToList()
                     .OrderBy(b => idsBebes.IndexOf(b.ID))
@@ -353,16 +431,12 @@ namespace ResimamisBackend.Negocio
 
                 var voluntarias = db.VOLUNTARIA
                     .Where(v => idsVoluntarias.Contains(v.IdVoluntaria))
-                    .ToList()
-                    .OrderBy(v => idsVoluntarias.IndexOf(v.IdVoluntaria))
                     .ToList();
 
-                var asignacionesHoyPorVol = ContarAsignacionesPorVoluntaria(
-                    idsVoluntarias, diaInicio, diaFin, idEstadoAsignacionEliminado);
-                var asignacionesMesPorVol = ContarAsignacionesPorVoluntaria(
-                    idsVoluntarias, fechaMesAnterior, fechaHoy, idEstadoAsignacionEliminado);
+                var (asignacionesHoyPorVol, asignacionesMesPorVol) = ContarAbrazosPorVoluntaria(
+                    idsVoluntarias, diaInicio, diaFin, fechaMesAnterior, fechaHoy, idEstadoAsignacionEliminado);
 
-                var asignaciones = new List<ASIGNACION>();
+                var asignaciones = new List<ASIGNACION>(bebes.Count);
 
                 void RegistrarAsignacion(BEBE bebe, VOLUNTARIA voluntaria)
                 {
@@ -374,7 +448,9 @@ namespace ResimamisBackend.Negocio
                         idVoluntaria = voluntaria.IdVoluntaria,
                         idBebe = bebe.ID,
                         fechaHoraAsignacion = fechaHoy,
-                        idEstado = idEstadoAsignacionCreada
+                        idEstado = idEstadoAsignacionCreada,
+                        bebe = bebe,
+                        voluntaria = voluntaria
                     };
 
                     db.ASIGNACION.Add(asignacion);
@@ -386,27 +462,13 @@ namespace ResimamisBackend.Negocio
                         asignacionesMesPorVol.GetValueOrDefault(voluntaria.IdVoluntaria, 0) + 1;
                 }
 
-                if (bebes.Count == voluntarias.Count)
-                {
-                    for (var i = 0; i < bebes.Count; i++)
-                        RegistrarAsignacion(bebes[i], voluntarias[i]);
-                }
-                else if (bebes.Count > voluntarias.Count)
+                if (bebes.Count >= voluntarias.Count)
                 {
                     foreach (var bebe in bebes)
                     {
-                        var minHoy = voluntarias.Min(v => asignacionesHoyPorVol.GetValueOrDefault(v.IdVoluntaria, 0));
-                        var candidatasHoy = voluntarias
-                            .Where(v => asignacionesHoyPorVol.GetValueOrDefault(v.IdVoluntaria, 0) == minHoy)
-                            .ToList();
-
-                        var voluntaria = candidatasHoy.Count == 1
-                            ? candidatasHoy[0]
-                            : ElegirVoluntariaConMenorConteo(
-                                candidatasHoy,
-                                v => asignacionesMesPorVol.GetValueOrDefault(v.IdVoluntaria, 0));
-
-                        RegistrarAsignacion(bebe, voluntaria);
+                        RegistrarAsignacion(
+                            bebe,
+                            ElegirVoluntariaParaAbrazo(voluntarias, asignacionesHoyPorVol, asignacionesMesPorVol));
                     }
                 }
                 else
@@ -414,10 +476,7 @@ namespace ResimamisBackend.Negocio
                     var pool = voluntarias.ToList();
                     foreach (var bebe in bebes)
                     {
-                        var voluntaria = ElegirVoluntariaConMenorConteo(
-                            pool,
-                            v => asignacionesMesPorVol.GetValueOrDefault(v.IdVoluntaria, 0));
-
+                        var voluntaria = ElegirVoluntariaPorMes(pool, asignacionesMesPorVol);
                         RegistrarAsignacion(bebe, voluntaria);
                         pool.Remove(voluntaria);
                     }
@@ -425,17 +484,7 @@ namespace ResimamisBackend.Negocio
 
                 db.SaveChanges();
 
-                var idsCreados = asignaciones.Select(a => a.idAsignacion).ToHashSet();
-                var asignacionesConDatos = db.ASIGNACION
-                    .AsSplitQuery()
-                    .Include(a => a.bebe!)
-                        .ThenInclude(b => b.Sala)
-                    .Include(a => a.voluntaria)
-                    .Include(a => a.estado)
-                    .Where(a => idsCreados.Contains(a.idAsignacion))
-                    .ToList();
-
-                var asignacionesRespuesta = asignacionesConDatos.Select(a => new RespuestaAsignaciones()
+                var asignacionesRespuesta = asignaciones.Select(a => new RespuestaAsignaciones()
                 {
                     idAsignacion = a.idAsignacion,
                     idBebe = a.idBebe,
@@ -445,7 +494,7 @@ namespace ResimamisBackend.Negocio
                     fechaHoraAsignacion = a.fechaHoraAsignacion,
                     fechaHoraFin = a.fechaHoraFin,
                     fechaHoraInicio = a.fechaHoraInicio,
-                    estadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
+                    estadoAsignacion = "Creada",
                     sala = a.bebe?.IdSala,
                     nombreSala = NombreSalaBebe(a.bebe)
                 }).ToList();
@@ -483,11 +532,10 @@ namespace ResimamisBackend.Negocio
         private List<VOLUNTARIA> CargarVoluntariasPorIdsParaGenerar(
             List<int> idsVoluntarias,
             DateTime inicioDia,
-            DateTime finDia,
-            DateTime fechaMesAnterior)
+            DateTime finDia)
         {
             var ids = idsVoluntarias.Distinct().ToList();
-            var libres = CargarVoluntariasLibresParaGenerar(inicioDia, finDia, fechaMesAnterior)
+            var libres = CargarVoluntariasLibresParaGenerar(inicioDia, finDia)
                 .Where(v => ids.Contains(v.IdVoluntaria))
                 .ToDictionary(v => v.IdVoluntaria);
 
@@ -499,14 +547,11 @@ namespace ResimamisBackend.Negocio
             return ids.Select(id => libres[id]).ToList();
         }
 
-        /// <summary>Misma regla que obtenerVoluntariasLibres; Include filtrado de asignaciones (~1 mes) para evitar cargar todo el historial.</summary>
-        private List<VOLUNTARIA> CargarVoluntariasLibresParaGenerar(DateTime inicioDia, DateTime finDia, DateTime fechaMesAnterior)
+        /// <summary>Voluntarias con entrada de hoy sin salida y estado operativo.</summary>
+        private List<VOLUNTARIA> CargarVoluntariasLibresParaGenerar(DateTime inicioDia, DateTime finDia)
         {
             return db.VOLUNTARIA
                 .AsNoTracking()
-                .AsSplitQuery()
-                .Include(v => v.RolInfo)
-                .Include(v => v.Asignaciones.Where(a => a.fechaHoraAsignacion >= fechaMesAnterior))
                 .Where(v => v.Asistencias != null
                             && v.Asistencias.Any(a => a.FechaHoraIngreso != null && a.FechaHoraIngreso >= inicioDia && a.FechaHoraIngreso < finDia && a.FechaHoraSalida == null)
                             && v.Estado.nombre != "Inactiva"
