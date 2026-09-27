@@ -190,7 +190,9 @@ namespace ResimamisBackend.Datos
             var estadisticaResultado= new EstadisticaDuracionesAbrazos();
             List<ASIGNACION> asignaciones= db.ASIGNACION.ToList(); // Puedes reemplazar esto con la obtención real de datos desde tu base de datos.
             var resultados = asignaciones
-                .Where(a => a.fechaHoraInicio != null && a.fechaHoraFin != null)
+                .Where(a => a.fechaHoraInicio != null
+                            && a.fechaHoraFin != null
+                            && (a.comentario == null || !a.comentario.Contains(AbrazoAtipico.MarcaCierreAutomatico)))
                 .Select(a => new DuracionAbrazos()
                 {
                     Minutos = (int)(a.fechaHoraFin.Value - a.fechaHoraInicio.Value).TotalMinutes,

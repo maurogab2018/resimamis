@@ -655,7 +655,8 @@ namespace ResimamisBackend.Negocio
             if (asignaciones.Count == 0)
                 return 0;
 
-            const string comentarioAuto = "Cierre automático: abrazo iniciado en día anterior sin finalizar.";
+            const string comentarioAuto = AbrazoAtipico.MarcaCierreAutomatico
+                + ": abrazo iniciado en día anterior sin finalizar.";
             var ahora = NegConversorFecha.ObtenerFechaArgentina();
 
             using var tx = db.Database.BeginTransaction();
@@ -678,7 +679,7 @@ namespace ResimamisBackend.Negocio
                     asignacion.idEstado = idEstadoFinalizado;
                     asignacion.comentario = string.IsNullOrWhiteSpace(asignacion.comentario)
                         ? comentarioAuto
-                        : (asignacion.comentario.Contains("Cierre automático", StringComparison.Ordinal)
+                        : (asignacion.comentario.Contains(AbrazoAtipico.MarcaCierreAutomatico, StringComparison.Ordinal)
                             ? asignacion.comentario
                             : $"{comentarioAuto} | {asignacion.comentario}");
                 }

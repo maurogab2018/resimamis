@@ -95,7 +95,8 @@ namespace ResimamisBackend.Datos
             var q = QueryAsignacionesActivas()
                 .Where(a => a.idBebe != null
                             && a.fechaHoraInicio != null
-                            && a.fechaHoraFin != null);
+                            && a.fechaHoraFin != null
+                            && (a.comentario == null || !a.comentario.Contains(AbrazoAtipico.MarcaCierreAutomatico)));
 
             DateOnly? dInicio = null;
             DateOnly? dFin = null;
