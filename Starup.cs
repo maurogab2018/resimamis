@@ -40,7 +40,10 @@ namespace ResimamisBackend
                 {
                     ValidateIssuer = false,
                     ValidateAudience = false,
-                    //ValidateLifetime = true,
+                    // El token dura 30 días (NegUsuarios.GenerateJwtToken). Sin esto un token
+                    // filtrado servía para siempre; al vencer, el 401 manda al login.
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromMinutes(5),
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("b5c3a9d1e8f0d2c4b9e1f8a0d2c4b9e1f8a0d2c4b9e1f8a0d2c4b9e1f8a0d2c"))
                 };

@@ -675,11 +675,16 @@ namespace ResimamisBackend.Negocio
                             bebe.IdEstado = idBebeSinAbrazar;
                     }
 
+                    // Se lee antes de marcarlo: el reset es idempotente y no debe volver a
+                    // prependear el aviso sobre un comentario que ya lo tiene.
+                    var yaCerradoAutomaticamente = asignacion.cierreAutomatico;
+
                     asignacion.fechaHoraFin = ahora;
                     asignacion.idEstado = idEstadoFinalizado;
+                    asignacion.cierreAutomatico = true;
                     asignacion.comentario = string.IsNullOrWhiteSpace(asignacion.comentario)
                         ? comentarioAuto
-                        : (asignacion.comentario.Contains(AbrazoAtipico.MarcaCierreAutomatico, StringComparison.Ordinal)
+                        : (yaCerradoAutomaticamente
                             ? asignacion.comentario
                             : $"{comentarioAuto} | {asignacion.comentario}");
                 }
@@ -721,18 +726,26 @@ namespace ResimamisBackend.Negocio
             if (datos.idBebe.HasValue && datos.idBebe.Value > 0)
                 bebeRepositorio.consultarBebe(datos.idBebe.Value);
 
-            var fechaInicio = datos.fechaHoraInicio ?? existentePrevio.fechaHoraInicio;
-            var fechaFin = datos.fechaHoraFin ?? existentePrevio.fechaHoraFin;
+            // Un campo ausente se conserva; uno enviado en null se borra. Ver los flags
+            // `*Presente` de RespuestaAsignaciones.
+            var idTarea = datos.idTareaPresente ? datos.idTarea : existentePrevio.idTarea;
+            var idBebe = datos.idBebePresente ? datos.idBebe : existentePrevio.idBebe;
+            var comentario = datos.comentarioPresente ? datos.comentario : existentePrevio.comentario;
+            var fechaInicio = datos.fechaHoraInicioPresente ? datos.fechaHoraInicio : existentePrevio.fechaHoraInicio;
+            var fechaFin = datos.fechaHoraFinPresente ? datos.fechaHoraFin : existentePrevio.fechaHoraFin;
+
             if (fechaFin != null && fechaInicio == null)
                 throw new ApplicationException("No se puede finalizar un abrazo que nunca fue iniciado.");
 
             var idIniciado = estadoRepositorio.ObtenerIdEstadoAsignacionIniciado();
             var idFinalizado = estadoRepositorio.ObtenerIdEstadoAsignacionFinalizado();
 
+            // El estado sale de las fechas resultantes, no de las que vinieron en el body:
+            // si se limpia el fin, el abrazo vuelve a Iniciado en vez de quedar Finalizado.
             var idEstado = existentePrevio.idEstado;
-            if (datos.fechaHoraFin != null)
+            if (fechaFin != null)
                 idEstado = idFinalizado;
-            else if (datos.fechaHoraInicio != null)
+            else if (fechaInicio != null)
                 idEstado = idIniciado;
 
             var pasoAFinalizado = idEstado == idFinalizado && existentePrevio.idEstado != idFinalizado;
@@ -740,10 +753,10 @@ namespace ResimamisBackend.Negocio
 
             var patch = new ASIGNACION
             {
-                idTarea = datos.idTarea ?? existentePrevio.idTarea,
-                idBebe = datos.idBebe ?? existentePrevio.idBebe,
+                idTarea = idTarea,
+                idBebe = idBebe,
                 idVoluntaria = datos.idVoluntaria,
-                comentario = datos.comentario ?? existentePrevio.comentario,
+                comentario = comentario,
                 fechaHoraInicio = fechaInicio,
                 fechaHoraFin = fechaFin,
                 idEstado = idEstado,
@@ -757,7 +770,7 @@ namespace ResimamisBackend.Negocio
                 voluntaria.IdEstado = idVolDisponible;
                 voluntariaRepositorio.cambioEstadoVoluntaria(voluntaria);
 
-                var idBebe = datos.idBebe ?? existentePrevio.idBebe;
+                // idBebe ya resuelto arriba contra el flag de presencia.
                 if (idBebe.HasValue)
                 {
                     var idBebeSinAbrazar = estadoRepositorio.ObtenerIdBebeSinAbrazar();
@@ -768,14 +781,14 @@ namespace ResimamisBackend.Negocio
             }
             else if (pasoAIniciado)
             {
-                var idEstadoVoluntaria = datos.idBebe.HasValue || existentePrevio.idBebe.HasValue
+                var idEstadoVoluntaria = idBebe.HasValue
                     ? estadoRepositorio.ObtenerIdVoluntariaAbrazando()
                     : estadoRepositorio.ObtenerIdVoluntariaEnTarea();
                 var voluntaria = voluntariaRepositorio.consultarVoluntaria(datos.idVoluntaria);
                 voluntaria.IdEstado = idEstadoVoluntaria;
                 voluntariaRepositorio.cambioEstadoVoluntaria(voluntaria);
 
-                var idBebe = datos.idBebe ?? existentePrevio.idBebe;
+                // idBebe ya resuelto arriba contra el flag de presencia.
                 if (idBebe.HasValue)
                 {
                     var idBebeAbrazado = estadoRepositorio.ObtenerIdBebeAbrazado();

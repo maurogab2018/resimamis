@@ -192,7 +192,7 @@ namespace ResimamisBackend.Datos
             var resultados = asignaciones
                 .Where(a => a.fechaHoraInicio != null
                             && a.fechaHoraFin != null
-                            && (a.comentario == null || !a.comentario.Contains(AbrazoAtipico.MarcaCierreAutomatico)))
+                            && !a.cierreAutomatico)
                 .Select(a => new DuracionAbrazos()
                 {
                     Minutos = (int)(a.fechaHoraFin.Value - a.fechaHoraInicio.Value).TotalMinutes,

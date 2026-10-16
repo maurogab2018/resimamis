@@ -22,6 +22,12 @@ namespace ResimamisBackend.Datos
 
         public string? comentario { get; set; }
 
+        /// <summary>
+        /// La cerró <c>resetearAbrazosColgados</c>, no la voluntaria: el fin se grabó al
+        /// momento del cierre, así que la duración no es real y no entra en estadísticas.
+        /// </summary>
+        public bool cierreAutomatico { get; set; }
+
         public virtual VOLUNTARIA? voluntaria { get; set; }
 
         public virtual ESTADO? estado { get; set; }

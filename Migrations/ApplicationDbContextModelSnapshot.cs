@@ -51,6 +51,9 @@ namespace ResimamisBackend.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("idAsignacion"));
 
+                    b.Property<bool>("cierreAutomatico")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("comentario")
                         .HasColumnType("text");
 

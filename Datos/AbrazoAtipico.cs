@@ -1,8 +1,9 @@
 namespace ResimamisBackend.Datos
 {
     /// <summary>
-    /// Abrazo cerrado por el reset de días anteriores. La duración no es real
-    /// (el fin se graba al momento del cierre) y no entra en estadísticas de duración.
+    /// Texto con el que el reset de días anteriores avisa en el comentario que cerró el
+    /// abrazo. Es solo para el usuario: quién entra o no en las estadísticas de duración
+    /// lo decide la columna <c>ASIGNACION.cierreAutomatico</c>, no este texto.
     /// </summary>
     public static class AbrazoAtipico
     {
