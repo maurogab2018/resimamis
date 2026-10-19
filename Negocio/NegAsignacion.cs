@@ -631,32 +631,55 @@ namespace ResimamisBackend.Negocio
         }
 
         /// <summary>
-        /// Cierra asignaciones con bebé donde el abrazo se inició antes del día calendario actual en Argentina
-        /// y nunca se finalizó: bebé a Sin abrazar, voluntaria a Disponible/Activa, asignación Finalizado con fechaHoraFin.
+        /// Cierra asignaciones de bebé de días anteriores que quedaron abiertas, se hayan
+        /// iniciado o no. No toca las de hoy. Pasa el bebé a Sin abrazar y la voluntaria a
+        /// Disponible, salvo que tengan otra asignación todavía abierta.
         /// </summary>
         /// <returns>Cantidad de asignaciones actualizadas.</returns>
         public int ResetearAbrazosBebeColgadosAntesDeHoy()
         {
             var (inicioHoyUtc, _) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
             var idElimAsig = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+            var idElimBebe = estadoRepositorio.ObtenerIdEstadoEliminado("Bebes");
+            var idElimVol = estadoRepositorio.ObtenerIdEstadoEliminado("Voluntarias");
             var idEstadoFinalizado = estadoRepositorio.ObtenerIdEstadoAsignacionFinalizado();
             var idVolDisponible = estadoRepositorio.ObtenerIdVoluntariaDisponible();
             var idBebeSinAbrazar = estadoRepositorio.ObtenerIdBebeSinAbrazar();
 
+            // Del pasado: sin fin, y o bien el abrazo empezó antes de hoy, o nunca empezó
+            // y la asignación es de un día anterior. Las abiertas de hoy se dejan.
             var asignaciones = db.ASIGNACION
                 .Where(a =>
                     a.idBebe != null
-                    && a.fechaHoraInicio != null
                     && a.fechaHoraFin == null
-                    && a.fechaHoraInicio < inicioHoyUtc
-                    && a.idEstado != idElimAsig)
+                    && a.idEstado != idElimAsig
+                    && (
+                        (a.fechaHoraInicio != null && a.fechaHoraInicio < inicioHoyUtc)
+                        || (a.fechaHoraInicio == null && a.fechaHoraAsignacion < inicioHoyUtc)))
                 .ToList();
 
             if (asignaciones.Count == 0)
                 return 0;
 
-            const string comentarioAuto = AbrazoAtipico.MarcaCierreAutomatico
-                + ": abrazo iniciado en día anterior sin finalizar.";
+            var idsACerrar = asignaciones.Select(a => a.idAsignacion).ToHashSet();
+            var bebesConOtraAbierta = db.ASIGNACION.AsNoTracking()
+                .Where(a => a.fechaHoraFin == null
+                            && a.idEstado != idElimAsig
+                            && a.idBebe != null
+                            && !idsACerrar.Contains(a.idAsignacion))
+                .Select(a => a.idBebe!.Value)
+                .Distinct()
+                .ToList()
+                .ToHashSet();
+            var voluntariasConOtraAbierta = db.ASIGNACION.AsNoTracking()
+                .Where(a => a.fechaHoraFin == null
+                            && a.idEstado != idElimAsig
+                            && !idsACerrar.Contains(a.idAsignacion))
+                .Select(a => a.idVoluntaria)
+                .Distinct()
+                .ToList()
+                .ToHashSet();
+
             var ahora = NegConversorFecha.ObtenerFechaArgentina();
 
             using var tx = db.Database.BeginTransaction();
@@ -665,15 +688,21 @@ namespace ResimamisBackend.Negocio
                 foreach (var asignacion in asignaciones)
                 {
                     var vol = db.VOLUNTARIA.FirstOrDefault(v => v.IdVoluntaria == asignacion.idVoluntaria);
-                    if (vol != null)
+                    if (vol != null
+                        && vol.IdEstado != idElimVol
+                        && !voluntariasConOtraAbierta.Contains(vol.IdVoluntaria))
                         vol.IdEstado = idVolDisponible;
 
-                    if (asignacion.idBebe.HasValue)
+                    if (asignacion.idBebe.HasValue && !bebesConOtraAbierta.Contains(asignacion.idBebe.Value))
                     {
                         var bebe = db.BEBE.FirstOrDefault(b => b.ID == asignacion.idBebe.Value);
-                        if (bebe != null)
+                        if (bebe != null && bebe.FechaSalida == null && bebe.IdEstado != idElimBebe)
                             bebe.IdEstado = idBebeSinAbrazar;
                     }
+
+                    var comentarioAuto = asignacion.fechaHoraInicio != null
+                        ? AbrazoAtipico.MarcaCierreAutomatico + ": abrazo iniciado en día anterior sin finalizar."
+                        : AbrazoAtipico.MarcaCierreAutomatico + ": asignación de un día anterior sin iniciar ni finalizar.";
 
                     // Se lee antes de marcarlo: el reset es idempotente y no debe volver a
                     // prependear el aviso sobre un comentario que ya lo tiene.
