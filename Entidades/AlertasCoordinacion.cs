@@ -10,6 +10,7 @@ namespace ResimamisBackend.Entidades
         public DateTime? UltimoAbrazo { get; set; }
         /// <summary>Días desde el último abrazo, o desde el ingreso a NEO si nunca recibió uno.</summary>
         public int? DiasSinAbrazo { get; set; }
+        public bool NuncaAbrazado => UltimoAbrazo == null;
     }
 
     /// <summary>Voluntaria activa con los días desde su última asistencia.</summary>
@@ -24,7 +25,7 @@ namespace ResimamisBackend.Entidades
 
     public class AlertasCoordinacionRespuesta
     {
-        /// <summary>Bebés activos ordenados por más días sin abrazo (los que nunca recibieron uno, primero).</summary>
+        /// <summary>Bebés activos ordenados por más días sin abrazo; NuncaAbrazado marca a los que no recibieron ninguno.</summary>
         public List<BebeSinAbrazoItem> BebesMasDiasSinAbrazo { get; set; } = new();
         /// <summary>Voluntarias activas que no vienen hace al menos <c>DiasUmbralVoluntarias</c> días.</summary>
         public List<VoluntariaSinVenirItem> VoluntariasSinVenir { get; set; } = new();

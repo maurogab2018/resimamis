@@ -743,8 +743,8 @@ namespace ResimamisBackend.Datos
                         DiasSinAbrazo = referencia.HasValue ? Dias(referencia.Value) : null
                     };
                 })
-                .OrderBy(b => b.UltimoAbrazo.HasValue)
-                .ThenByDescending(b => b.DiasSinAbrazo ?? int.MaxValue)
+                .OrderByDescending(b => b.DiasSinAbrazo ?? int.MaxValue)
+                .ThenBy(b => b.UltimoAbrazo.HasValue)
                 .Take(topBebes)
                 .ToList();
 
