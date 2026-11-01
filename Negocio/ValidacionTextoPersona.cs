@@ -4,9 +4,12 @@ namespace ResimamisBackend.Negocio
 {
     public static class ValidacionTextoPersona
     {
-        /// <summary>Letras Unicode (ñ, tildes) y espacios. Sin dígitos ni símbolos.</summary>
+        /// <summary>
+        /// Letras Unicode (ñ, tildes), espacios, apóstrofo y guion (D'Angelo, O'Connor,
+        /// Pérez-García). Empieza con letra. Sin dígitos ni otros símbolos.
+        /// </summary>
         private static readonly Regex NombreApellidoPattern =
-            new(@"^[\p{L} ]+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+            new(@"^\p{L}[\p{L} '’\-]*$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         public static bool EsNombreApellidoValido(string? valor) =>
             !string.IsNullOrWhiteSpace(valor) && NombreApellidoPattern.IsMatch(valor.Trim());

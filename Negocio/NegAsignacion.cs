@@ -405,6 +405,13 @@ namespace ResimamisBackend.Negocio
             using var transaction = db.Database.BeginTransaction();
             try
             {
+                // Dos "Generar" a la vez (doble clic, dos coordinadoras) asignaban cada bebé dos
+                // veces: ambos leían los mismos disponibles antes de que el otro guardara. El lock
+                // de Postgres (se libera con la transacción) los pone en fila, y abajo se vuelve a
+                // filtrar por "Sin abrazar" ya dentro del lock.
+                if (db.Database.IsRelational())
+                    db.Database.ExecuteSqlRaw("SELECT pg_advisory_xact_lock(7311001)");
+
                 var fechaHoy = NegConversorFecha.ObtenerFechaArgentina();
                 var fechaMesAnterior = fechaHoy.AddMonths(-1);
                 var (diaInicio, diaFin) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
@@ -425,12 +432,15 @@ namespace ResimamisBackend.Negocio
                 var idsBebes = bebesAbrazar.Select(b => b.ID).ToList();
                 var idsVoluntarias = voluntariasActivas.Select(v => v.IdVoluntaria).ToList();
 
+                var idBebeSinAbrazar = estadoRepositorio.ObtenerIdBebeSinAbrazar();
                 var bebes = db.BEBE
                     .Include(b => b.Sala)
-                    .Where(b => idsBebes.Contains(b.ID))
+                    .Where(b => idsBebes.Contains(b.ID) && b.IdEstado == idBebeSinAbrazar)
                     .ToList()
                     .OrderBy(b => idsBebes.IndexOf(b.ID))
                     .ToList();
+                if (bebes.Count == 0)
+                    throw new ApplicationException("Las asignaciones de esos bebés ya se generaron.");
 
                 var voluntarias = db.VOLUNTARIA
                     .Where(v => idsVoluntarias.Contains(v.IdVoluntaria))

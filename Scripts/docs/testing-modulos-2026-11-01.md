@@ -121,6 +121,22 @@ Los registros "QA" siguen visibles en el historial de bajas y en el reporte del 
 ## Resumen
 Unos 90 casos. Se encontraron y corrigieron 3 bugs del back (`79747a2`, `ea6335b`); el resto pasó.
 
+## Segunda tanda
+| Caso | Resultado |
+|---|---|
+| Proveedores: alta, editar, baja (deja de figurar en activos) | ✅ |
+| Proveedor con nombre repetido | ⚠️ rechazado con 400 (en voluntarias y salas el mismo caso da 409) |
+| Salas: alta, editar, baja; no deja dar de baja una sala con bebés | ✅ |
+| Tareas: alta, editar, aparece en disponibles, baja | ✅ |
+| Horarios: reemplazar, quitar uno, día inexistente rechazado | ✅ |
+| Bebé: cambiar estado, estado inválido rechazado | ✅ |
+| Bebé: egreso por fecha de salida → baja + historial "Egreso del NEO" con responsable | ✅ |
+| Bebé egresado no permite cambiar estado | ✅ |
+| Seguridad: 10 endpoints sin token o con token falso → 401 | ✅ |
+| Texto tipo inyección SQL, nombre de 500 caracteres, HTML en el nombre, DNI no numérico | ✅ rechazados |
+| Apellido con apóstrofo (D'Angelo) | ❌ → corregido: se aceptan apóstrofo y guion |
+| Dos "Generar" a la vez (doble clic) | ❌ creaba 58 asignaciones para 29 bebés → corregido con lock en Postgres |
+
 ## Pendientes del front
 1. Texto "Solo lectura" del asistente.
 2. Texto del diálogo de "Cerrar abrazos sin finalizar" y mostrar la cantidad cerrada.
