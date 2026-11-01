@@ -779,10 +779,46 @@ namespace ResimamisBackend.Negocio
             registroActividad.RegistrarVarios(TiposMovimientoActividad.CierreAutomatico, TiposRegistroActividad.Asignacion, registros);
         }
 
-        /// <summary>Actualiza tarea, bebé, voluntaria, comentario y fechas de inicio/fin de una asignación existente.</summary>
+        /// <summary>
+        /// Baja lógica de la asignación. Si no había terminado, libera al bebé (Sin abrazar) y a la
+        /// voluntaria (Disponible): antes quedaban en Asignado/Asignada y el bebé ya no aparecía
+        /// como disponible. No se tocan si tienen otra asignación abierta.
+        /// </summary>
         public bool eliminarAsignacion(int idAsignacion)
         {
-            return asignacionRepositorio.eliminarAsignacionLogica(idAsignacion);
+            var asignacion = asignacionRepositorio.consultarAsignacion(idAsignacion);
+            var estabaAbierta = asignacion.fechaHoraFin == null;
+            var ok = asignacionRepositorio.eliminarAsignacionLogica(idAsignacion);
+            if (estabaAbierta)
+                LiberarBebeYVoluntaria(asignacion);
+            return ok;
+        }
+
+        private void LiberarBebeYVoluntaria(ASIGNACION asignacion)
+        {
+            var (inicioHoyUtc, _) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var idElimAsig = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+            var otrasAbiertas = db.ASIGNACION.AsNoTracking()
+                .Where(a => a.idAsignacion != asignacion.idAsignacion
+                            && a.fechaHoraFin == null
+                            && a.idEstado != idElimAsig
+                            && a.fechaHoraAsignacion >= inicioHoyUtc);
+
+            if (!otrasAbiertas.Any(a => a.idVoluntaria == asignacion.idVoluntaria))
+            {
+                var vol = db.VOLUNTARIA.FirstOrDefault(v => v.IdVoluntaria == asignacion.idVoluntaria);
+                if (vol != null && vol.IdEstado != estadoRepositorio.ObtenerIdEstadoEliminado("Voluntarias"))
+                    vol.IdEstado = estadoRepositorio.ObtenerIdVoluntariaDisponible();
+            }
+
+            if (asignacion.idBebe.HasValue && !otrasAbiertas.Any(a => a.idBebe == asignacion.idBebe))
+            {
+                var bebe = db.BEBE.FirstOrDefault(b => b.ID == asignacion.idBebe.Value);
+                if (bebe != null && bebe.FechaSalida == null && bebe.IdEstado != estadoRepositorio.ObtenerIdEstadoEliminado("Bebes"))
+                    bebe.IdEstado = estadoRepositorio.ObtenerIdBebeSinAbrazar();
+            }
+
+            db.SaveChanges();
         }
 
         public bool modificarAsignacion(int idAsignacion, RespuestaAsignaciones datos)
