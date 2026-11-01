@@ -36,7 +36,8 @@ namespace ResimamisBackend.Negocio
 
         public int idVoluntaria{ get; set; }
 
-        public string nombreVoluntaria { get; set; }
+        // Solo de salida. Nullable para que el PUT parcial no los exija (ver flags *Presente).
+        public string? nombreVoluntaria { get; set; }
 
         private DateTime? _fechaHoraInicio;
         public DateTime? fechaHoraInicio
@@ -54,7 +55,7 @@ namespace ResimamisBackend.Negocio
 
         public DateTime fechaHoraAsignacion { get; set; }
 
-        public string estadoAsignacion { get; set; }
+        public string? estadoAsignacion { get; set; }
 
         private string? _comentario;
         public string? comentario

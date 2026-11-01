@@ -10,12 +10,15 @@ namespace ResimamisBackend.Negocio
         private readonly IAsistenciaRepositorio repositorioAsistencia;
         private readonly IVoluntariaRepositorio repositorioVoluntaria;
         private readonly IHorarioRepositorio repositorioHorario;
+        private readonly IEstadoRepositorio estadoRepositorio;
 
         public NegAsistencia(
             IAsistenciaRepositorio repositorioAsistencia,
             IVoluntariaRepositorio repositorioVoluntaria,
-            IHorarioRepositorio repositorioHorario)
+            IHorarioRepositorio repositorioHorario,
+            IEstadoRepositorio estadoRepositorio)
         {
+            this.estadoRepositorio = estadoRepositorio;
             this.repositorioAsistencia = repositorioAsistencia;
             this.repositorioVoluntaria = repositorioVoluntaria;
             this.repositorioHorario = repositorioHorario;
@@ -41,6 +44,15 @@ namespace ResimamisBackend.Negocio
             var ok = repositorioAsistencia.registrarAsistencia(asistencia);
             if (!ok)
                 throw new ApplicationException("Ya hay una jornada abierta: registrá la salida antes de marcar una nueva entrada.");
+
+            // El alta deja a la voluntaria en "Creada" y la generación de asignaciones excluye ese
+            // estado, así que una voluntaria nueva figuraba libre pero no se le podía asignar nada.
+            // Al marcar su primera entrada ya está operativa.
+            if (string.Equals(existeVoluntaria.Estado?.nombre, "Creada", StringComparison.OrdinalIgnoreCase))
+            {
+                existeVoluntaria.IdEstado = estadoRepositorio.ObtenerIdVoluntariaDisponible();
+                repositorioVoluntaria.cambioEstadoVoluntaria(existeVoluntaria);
+            }
             return true;
         }
         public ASISTENCIA? consultarAsistencia(int idVoluntaria)
