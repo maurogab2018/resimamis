@@ -670,11 +670,14 @@ namespace ResimamisBackend.Negocio
             if (asignaciones.Count == 0)
                 return 0;
 
+            // Solo cuenta como "otra abierta" una asignación de hoy: hay tareas viejas que nunca se
+            // cerraron y dejaban a la voluntaria trabada en Abrazando después del cierre.
             var idsACerrar = asignaciones.Select(a => a.idAsignacion).ToHashSet();
             var bebesConOtraAbierta = db.ASIGNACION.AsNoTracking()
                 .Where(a => a.fechaHoraFin == null
                             && a.idEstado != idElimAsig
                             && a.idBebe != null
+                            && a.fechaHoraAsignacion >= inicioHoyUtc
                             && !idsACerrar.Contains(a.idAsignacion))
                 .Select(a => a.idBebe!.Value)
                 .Distinct()
@@ -683,6 +686,7 @@ namespace ResimamisBackend.Negocio
             var voluntariasConOtraAbierta = db.ASIGNACION.AsNoTracking()
                 .Where(a => a.fechaHoraFin == null
                             && a.idEstado != idElimAsig
+                            && a.fechaHoraAsignacion >= inicioHoyUtc
                             && !idsACerrar.Contains(a.idAsignacion))
                 .Select(a => a.idVoluntaria)
                 .Distinct()

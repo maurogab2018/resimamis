@@ -87,7 +87,11 @@ namespace ResimamisBackend.Negocio
             };
         }
 
-        /// <summary>Voluntaria del JWT (el claim es el DNI). Null fuera de un request, p. ej. en servicios de fondo.</summary>
+        /// <summary>
+        /// Voluntaria del JWT. El claim es el DNI del USUARIO, que puede no coincidir con el de su
+        /// voluntaria, así que se resuelve por USUARIO.IdVoluntaria. Null fuera de un request
+        /// (p. ej. el cierre diario).
+        /// </summary>
         private (int? Id, string? Nombre) ObtenerResponsable()
         {
             var user = httpContextAccessor.HttpContext?.User;
@@ -96,8 +100,12 @@ namespace ResimamisBackend.Negocio
             if (!int.TryParse(claim, out var dni) || dni <= 0)
                 return (null, null);
 
+            var idVoluntaria = db.USUARIO.AsNoTracking()
+                .Where(u => u.Dni == dni)
+                .Select(u => (int?)u.IdVoluntaria)
+                .FirstOrDefault();
             var voluntaria = db.VOLUNTARIA.AsNoTracking()
-                .Where(v => v.Dni == dni)
+                .Where(v => idVoluntaria != null ? v.IdVoluntaria == idVoluntaria : v.Dni == dni)
                 .Select(v => new { v.IdVoluntaria, v.Nombre, v.Apellido })
                 .FirstOrDefault();
             return voluntaria == null
