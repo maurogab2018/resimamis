@@ -11,15 +11,27 @@ namespace ResimamisBackend.Negocio
         public readonly IMadreRepositorio repositorioMadre;
         private readonly INegBebes negBebes;
         private readonly IGenericosRepositorio genericosRepositorio;
+        private readonly INegRegistroActividad registroActividad;
 
         public NegMadres(
             IMadreRepositorio repositorioMadre,
             INegBebes negBebes,
-            IGenericosRepositorio genericosRepositorio)
+            IGenericosRepositorio genericosRepositorio,
+            INegRegistroActividad registroActividad)
         {
             this.repositorioMadre = repositorioMadre;
             this.negBebes = negBebes;
             this.genericosRepositorio = genericosRepositorio;
+            this.registroActividad = registroActividad;
+        }
+
+        private static string DescripcionActividad(MADRE madre) =>
+            $"{madre.Nombre} {madre.Apellido} (DNI {madre.Dni})";
+
+        private void RegistrarAltaBebes(IEnumerable<BEBE> bebes)
+        {
+            foreach (var bebe in bebes)
+                registroActividad.Registrar(TiposMovimientoActividad.Alta, TiposRegistroActividad.Bebe, bebe.ID, NegBebes.DescripcionActividad(bebe));
         }
 
         public List<MADRE> listarMadres()
@@ -47,6 +59,11 @@ namespace ResimamisBackend.Negocio
 
             if (!registrado)
                 resultado.Errores.Add("Error al registrar la madre.");
+            else
+            {
+                registroActividad.Registrar(TiposMovimientoActividad.Alta, TiposRegistroActividad.Madre, madre.IdMadre, DescripcionActividad(madre));
+                RegistrarAltaBebes(madre.Bebe!);
+            }
 
             return resultado;
         }
@@ -54,6 +71,14 @@ namespace ResimamisBackend.Negocio
         public MADRE consultarMadre(int id)
         {
             return repositorioMadre.consultarMadre(id);
+        }
+
+        public MADRE consultarMadrePorDni(int dni)
+        {
+            if (!ValidacionTextoPersona.EsDniValido(dni))
+                throw new ApplicationException("Dni tiene que tener entre 7 y 8 dígitos.");
+            return repositorioMadre.consultarMadrePorDni(dni)
+                ?? throw new NotFoundException("No hay una madre activa con ese Dni.");
         }
 
         /// <summary>
@@ -214,13 +239,19 @@ namespace ResimamisBackend.Negocio
             if (!resultado.Exito)
                 return resultado;
 
+            // Los bebés sin ID son hermanos nuevos; EF les completa el ID al guardar.
+            var bebesNuevos = madre.Bebe?.Where(b => b.ID <= 0).ToList() ?? new List<BEBE>();
             madreActualizada = repositorioMadre.modificarMadre(madre, madreModificar);
+            RegistrarAltaBebes(bebesNuevos.Where(b => b.ID > 0));
             return resultado;
         }
 
         public bool eliminarMadre(int idMadre)
         {
-            return repositorioMadre.eliminarMadreLogico(idMadre);
+            var ok = repositorioMadre.eliminarMadreLogico(idMadre);
+            var madre = repositorioMadre.consultarMadre(idMadre);
+            registroActividad.Registrar(TiposMovimientoActividad.Baja, TiposRegistroActividad.Madre, idMadre, DescripcionActividad(madre));
+            return ok;
         }
 
         public List<EstadisticaEdadesMadres> devolverEstadisticasEdadesMadres()

@@ -11,16 +11,22 @@ namespace ResimamisBackend.Negocio
         private readonly IVoluntariaRepositorio voluntariaRepositorio;
         private readonly IHorarioRepositorio horarioRepositorio;
         private readonly IEstadoRepositorio estadoRepositorio;
+        private readonly INegRegistroActividad registroActividad;
 
         public NegVoluntaria(
             IVoluntariaRepositorio voluntariaRepositorio,
             IHorarioRepositorio horarioRepositorio,
-            IEstadoRepositorio estadoRepositorio)
+            IEstadoRepositorio estadoRepositorio,
+            INegRegistroActividad registroActividad)
         {
             this.voluntariaRepositorio = voluntariaRepositorio;
             this.horarioRepositorio = horarioRepositorio;
             this.estadoRepositorio = estadoRepositorio;
+            this.registroActividad = registroActividad;
         }
+
+        private static string DescripcionActividad(VOLUNTARIA voluntaria) =>
+            $"{voluntaria.Nombre} {voluntaria.Apellido} (DNI {voluntaria.Dni})";
 
         private void ValidarVoluntaria(VOLUNTARIA voluntaria, bool validarEstado = true)
         {
@@ -93,6 +99,7 @@ namespace ResimamisBackend.Negocio
                 "Voluntarias", "Creada", "Activa");
 
             voluntariaRepositorio.registrarVoluntaria(voluntaria);
+            registroActividad.Registrar(TiposMovimientoActividad.Alta, TiposRegistroActividad.Voluntaria, voluntaria.IdVoluntaria, DescripcionActividad(voluntaria));
 
             var horariosNormalizados = NormalizarHorariosAlta(voluntaria.IdVoluntaria, horarios);
             if (horariosNormalizados.Count > 0)
@@ -141,7 +148,10 @@ namespace ResimamisBackend.Negocio
 
         public bool eliminarVoluntaria(int id)
         {
-            return voluntariaRepositorio.eliminarVoluntaria(id);
+            var ok = voluntariaRepositorio.eliminarVoluntaria(id);
+            var voluntaria = voluntariaRepositorio.consultarVoluntaria(id);
+            registroActividad.Registrar(TiposMovimientoActividad.Baja, TiposRegistroActividad.Voluntaria, id, DescripcionActividad(voluntaria));
+            return ok;
         }
 
 
@@ -186,7 +196,13 @@ namespace ResimamisBackend.Negocio
             if (voluntariaRepositorio.existeOtraVoluntariaConMail(voluntaria.Mail, id))
                 throw new ConflictException("Ya existe otra voluntaria con ese mail.");
 
-            return voluntariaRepositorio.modificarVoluntaria(voluntaria, voluntariaModificar);
+            // El PUT también puede dar de baja mandando el estado Eliminado.
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Voluntarias");
+            var estabaEliminada = voluntariaModificar.IdEstado == idElim;
+            var ok = voluntariaRepositorio.modificarVoluntaria(voluntaria, voluntariaModificar);
+            if (!estabaEliminada && voluntariaModificar.IdEstado == idElim)
+                registroActividad.Registrar(TiposMovimientoActividad.Baja, TiposRegistroActividad.Voluntaria, id, DescripcionActividad(voluntariaModificar));
+            return ok;
         }
         public List<VOLUNTARIA> listarVoluntariasLibres()
         {

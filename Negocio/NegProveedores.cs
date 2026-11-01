@@ -8,10 +8,12 @@ namespace ResimamisBackend.Negocio
     public class NegProveedores : INegProveedores
     {
         private readonly IProveedorRepositorio proveedorRepositorio;
+        private readonly INegRegistroActividad registroActividad;
 
-        public NegProveedores(IProveedorRepositorio proveedorRepositorio)
+        public NegProveedores(IProveedorRepositorio proveedorRepositorio, INegRegistroActividad registroActividad)
         {
             this.proveedorRepositorio = proveedorRepositorio;
+            this.registroActividad = registroActividad;
         }
 
         private static void ValidarProveedor(PROVEEDOR proveedor)
@@ -54,7 +56,9 @@ namespace ResimamisBackend.Negocio
             proveedor.Activa = true;
             if (proveedorRepositorio.existeOtroProveedorConNombre(proveedor.nombre))
                 throw new ConflictException("Ya existe un proveedor con ese nombre.");
-            return proveedorRepositorio.registrarProveedor(proveedor);
+            var ok = proveedorRepositorio.registrarProveedor(proveedor);
+            registroActividad.Registrar(TiposMovimientoActividad.Alta, TiposRegistroActividad.Proveedor, proveedor.idProveedor, proveedor.nombre);
+            return ok;
         }
 
         public bool modificarProveedor(int idProveedor, PROVEEDOR proveedor)
@@ -72,7 +76,10 @@ namespace ResimamisBackend.Negocio
 
         public bool eliminarProveedor(int idProveedor)
         {
-            return proveedorRepositorio.eliminarProveedorLogico(idProveedor);
+            var ok = proveedorRepositorio.eliminarProveedorLogico(idProveedor);
+            var nombre = proveedorRepositorio.obtenerPorId(idProveedor)?.nombre;
+            registroActividad.Registrar(TiposMovimientoActividad.Baja, TiposRegistroActividad.Proveedor, idProveedor, nombre ?? $"Proveedor #{idProveedor}");
+            return ok;
         }
 
         public void ValidarProveedorActivoParaMovimiento(int? idProveedor)

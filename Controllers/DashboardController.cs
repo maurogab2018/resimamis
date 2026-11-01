@@ -236,18 +236,48 @@ namespace ResimamisBackend.Controllers
             }
         }
 
-        /// <summary>Estadísticas de visitas en un período.</summary>
+        /// <summary>
+        /// Estadísticas de visitas en un período. <c>idBebe</c> opcional para ver un solo bebé;
+        /// <c>porBebe</c> trae la cantidad por bebé de mayor a menor para el gráfico de barras.
+        /// </summary>
         [HttpGet("visitas/estadisticas")]
         public IActionResult GetEstadisticasVisitas(
             [FromQuery] string? fechaDesde,
             [FromQuery] string? fechaHasta,
             [FromQuery] string? fechaInicio,
-            [FromQuery] string? fechaFin)
+            [FromQuery] string? fechaFin,
+            [FromQuery] int? idBebe)
         {
             try
             {
                 var (inicio, fin) = ParseRangoFechasObligatorio(fechaDesde, fechaHasta, fechaInicio, fechaFin);
-                var resultado = negDashboard.ObtenerEstadisticasVisitas(inicio, fin);
+                var resultado = negDashboard.ObtenerEstadisticasVisitas(inicio, fin, idBebe);
+                return ApiResults.Success(resultado);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        /// <summary>
+        /// Reporte diario de actividades: abrazos, movimientos de insumos, altas, bajas, asignaciones
+        /// y asistencias del día, cada categoría en orden cronológico. Query <c>fecha</c> opcional
+        /// (yyyy-MM-dd o dd/MM/yyyy); sin ella, hoy. Si <c>totalMovimientos</c> es 0 no hubo actividad.
+        /// </summary>
+        [HttpGet("reporte-diario")]
+        public IActionResult GetReporteDiario([FromQuery] string? fecha)
+        {
+            try
+            {
+                DateTime? dia = string.IsNullOrWhiteSpace(fecha)
+                    ? null
+                    : NegConversorFecha.ParseFechaCalendarioReporte(fecha);
+                var resultado = negDashboard.ObtenerReporteDiario(dia);
                 return ApiResults.Success(resultado);
             }
             catch (ApplicationException ex)

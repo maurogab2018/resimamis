@@ -83,6 +83,32 @@ namespace ResimamisBackend.Controllers
 
         }
 
+        /// <summary>
+        /// Busca una madre activa por DNI (con sus bebés) para asociarle un bebé nuevo sin volver a
+        /// registrarla. El alta del bebé es <c>POST api/Bebe</c> con <c>idMadre</c>.
+        /// </summary>
+        [HttpGet("dni/{dni}")]
+        public IActionResult GetMadrePorDni(int dni)
+        {
+            try
+            {
+                var madre = neg_Madres.consultarMadrePorDni(dni);
+                return ApiResults.Success(madre);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
+            catch (ApplicationException exa)
+            {
+                return ApiResults.BadRequest(exa.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
         [HttpPost]
         public IActionResult Post(MADRE Madre)
         {

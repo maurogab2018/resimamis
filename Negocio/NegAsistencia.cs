@@ -126,6 +126,26 @@ namespace ResimamisBackend.Negocio
                 Registros = items
             };
         }
+
+        public DiasTurnosVoluntariasRespuesta ListarDiasTurnosVoluntarias(DateTime fechaInicio, DateTime fechaFin, int? idVoluntaria)
+        {
+            if (idVoluntaria is <= 0)
+                idVoluntaria = null;
+            if (idVoluntaria.HasValue)
+                repositorioVoluntaria.consultarVoluntaria(idVoluntaria.Value);
+
+            var (inicioUtc, finUtc) = NegConversorFecha.RangoFechasArgentinaEnUtc(fechaInicio, fechaFin);
+            var items = repositorioAsistencia.ListarDiasTurnosVoluntarias(inicioUtc, finUtc, idVoluntaria);
+
+            return new DiasTurnosVoluntariasRespuesta
+            {
+                FechaInicio = DateOnly.FromDateTime(fechaInicio.Date),
+                FechaFin = DateOnly.FromDateTime(fechaFin.Date),
+                IdVoluntaria = idVoluntaria,
+                TotalRegistros = items.Count,
+                Registros = items
+            };
+        }
     }
 }
 

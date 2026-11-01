@@ -8,10 +8,12 @@ namespace ResimamisBackend.Negocio
     public class NegSalas : INegSalas
     {
         private readonly ISalaRepositorio salaRepositorio;
+        private readonly INegRegistroActividad registroActividad;
 
-        public NegSalas(ISalaRepositorio salaRepositorio)
+        public NegSalas(ISalaRepositorio salaRepositorio, INegRegistroActividad registroActividad)
         {
             this.salaRepositorio = salaRepositorio;
+            this.registroActividad = registroActividad;
         }
 
         private static void ValidarSala(SALA sala)
@@ -49,7 +51,9 @@ namespace ResimamisBackend.Negocio
             sala.Activa = true;
             if (salaRepositorio.existeOtraSalaConNombre(sala.Nombre))
                 throw new ConflictException("Ya existe una sala con ese nombre.");
-            return salaRepositorio.registrarSala(sala);
+            var ok = salaRepositorio.registrarSala(sala);
+            registroActividad.Registrar(TiposMovimientoActividad.Alta, TiposRegistroActividad.Sala, sala.IdSala, sala.Nombre);
+            return ok;
         }
 
         public bool modificarSala(int idSala, SALA sala)
@@ -66,7 +70,10 @@ namespace ResimamisBackend.Negocio
         {
             if (salaRepositorio.tieneBebesActivosAsignados(idSala))
                 throw new ApplicationException("No se puede dar de baja: la sala tiene bebés asignados.");
-            return salaRepositorio.eliminarSalaLogica(idSala);
+            var ok = salaRepositorio.eliminarSalaLogica(idSala);
+            var nombre = salaRepositorio.obtenerPorId(idSala)?.Nombre;
+            registroActividad.Registrar(TiposMovimientoActividad.Baja, TiposRegistroActividad.Sala, idSala, nombre ?? $"Sala #{idSala}");
+            return ok;
         }
 
         public void ValidarSalaActivaParaBebe(int? idSala)

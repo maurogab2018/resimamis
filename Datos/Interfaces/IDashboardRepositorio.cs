@@ -8,7 +8,8 @@ public interface IDashboardRepositorio
     EstadisticaDuracionAbrazosRespuesta ObtenerDuracionAbrazos(DateTime? fechaInicio, DateTime? fechaFin);
     EstadisticaRangoEdadesBebesRespuesta ObtenerRangoEdadesBebes();
     EstadisticaPermanenciaBebesRespuesta ObtenerPermanenciaBebes();
-    EstadisticaVisitasRespuesta ObtenerEstadisticasVisitas(DateTime fechaInicio, DateTime fechaFin);
+    EstadisticaVisitasRespuesta ObtenerEstadisticasVisitas(DateTime fechaInicio, DateTime fechaFin, int? idBebe = null);
+    ReporteDiarioRespuesta ObtenerReporteDiario(DateTime inicioUtc, DateTime finUtcExclusivo, DateOnly fecha);
     DashboardResumenRespuesta ObtenerResumen(DateTime fechaInicio, DateTime fechaFin);
     AbrazosBebeDashboardRespuesta ObtenerAbrazosBebe(int idBebe, DateTime? inicioUtc, DateTime? finUtcExclusivo, DateOnly? fechaConsulta);
     AbrazosVoluntariaDashboardRespuesta ObtenerAbrazosVoluntaria(int idVoluntaria, DateTime? inicioUtc, DateTime? finUtcExclusivo, DateOnly? fechaConsulta);

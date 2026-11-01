@@ -12,18 +12,24 @@ namespace ResimamisBackend.Negocio
         private readonly IMadreRepositorio madreRepositorio;
         private readonly INegSalas negSalas;
         private readonly IGenericosRepositorio genericosRepositorio;
+        private readonly INegRegistroActividad registroActividad;
 
         public NegBebes(
             IBebeRepositorio repositorioBebe,
             IMadreRepositorio madreRepositorio,
             INegSalas negSalas,
-            IGenericosRepositorio genericosRepositorio)
+            IGenericosRepositorio genericosRepositorio,
+            INegRegistroActividad registroActividad)
         {
             this.repositorioBebe = repositorioBebe;
             this.madreRepositorio = madreRepositorio;
             this.negSalas = negSalas;
             this.genericosRepositorio = genericosRepositorio;
+            this.registroActividad = registroActividad;
         }
+
+        public static string DescripcionActividad(BEBE bebe) =>
+            $"{bebe.nombre} {bebe.apellido}".Trim() + (bebe.Dni > 0 ? $" (DNI {bebe.Dni})" : string.Empty);
 
         /// <summary>Reglas alineadas con modificar/registrar: nombre, apellido, sexo, dni opcional, fecha nacimiento.</summary>
         public void ValidarCamposBebe(BEBE bebe, ResultadoValidacion resultado, string prefijo = "")
@@ -138,11 +144,17 @@ namespace ResimamisBackend.Negocio
                 resultado.Errores.Add(campo + " no puede ser negativo.");
         }
 
+        /// <summary>
+        /// Un bebé nuevo se puede colgar de una madre ya registrada (hermanos), siempre que la
+        /// madre no esté dada de baja.
+        /// </summary>
         private void AsegurarMadreSiIndica(int? idMadre)
         {
             if (!idMadre.HasValue || idMadre.Value <= 0)
                 return;
-            madreRepositorio.consultarMadre(idMadre.Value);
+            var madre = madreRepositorio.consultarMadre(idMadre.Value);
+            if (madreRepositorio.estaDadaDeBaja(madre))
+                throw new ApplicationException("La madre está dada de baja; no se le pueden asociar bebés.");
         }
 
         public List<BEBE> listarBebes()
@@ -163,7 +175,9 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException(string.Join(" ", resultado.Errores));
 
             AsegurarMadreSiIndica(bebe.IdMadre);
-            return repositorioBebe.registrarBebe(bebe);
+            var ok = repositorioBebe.registrarBebe(bebe);
+            registroActividad.Registrar(TiposMovimientoActividad.Alta, TiposRegistroActividad.Bebe, bebe.ID, DescripcionActividad(bebe));
+            return ok;
         }
 
         public BEBE consultarBebe(int id)
@@ -190,12 +204,20 @@ namespace ResimamisBackend.Negocio
                 && repositorioBebe.existeOtroBebeConDni(bebe.Dni.Value, bebe.ID))
                 throw new ConflictException("Ya existe otro bebé con ese Dni.");
 
-            return repositorioBebe.modificarBebe(bebe, bebeModificar);
+            // Cargar la fecha de salida es la baja por egreso del NEO (ver BebeRepositorio.modificarBebe).
+            var teniaSalida = bebeModificar.FechaSalida.HasValue;
+            var ok = repositorioBebe.modificarBebe(bebe, bebeModificar);
+            if (!teniaSalida && bebeModificar.FechaSalida.HasValue)
+                registroActividad.Registrar(TiposMovimientoActividad.Baja, TiposRegistroActividad.Bebe, bebeModificar.ID, DescripcionActividad(bebeModificar));
+            return ok;
         }
 
         public bool eliminarBebe(int idBebe)
         {
-            return repositorioBebe.eliminarBebeLogico(idBebe);
+            var ok = repositorioBebe.eliminarBebeLogico(idBebe);
+            var bebe = repositorioBebe.consultarBebe(idBebe);
+            registroActividad.Registrar(TiposMovimientoActividad.Baja, TiposRegistroActividad.Bebe, idBebe, DescripcionActividad(bebe));
+            return ok;
         }
 
         public List<BEBE> listarBebesAbrazar()

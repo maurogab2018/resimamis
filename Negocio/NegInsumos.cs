@@ -14,14 +14,17 @@ namespace ResimamisBackend.Negocio
         private readonly INegEnvioMail negEnvioMail;
         private readonly IVoluntariaRepositorio voluntariaRepositorio;
         private readonly IConfiguration configuration;
+        private readonly INegRegistroActividad registroActividad;
 
         public NegInsumos(
             IInsumoRepositorio insumoRepositorio,
             INegProveedores negProveedores,
             INegEnvioMail negEnvioMail,
             IVoluntariaRepositorio voluntariaRepositorio,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            INegRegistroActividad registroActividad)
         {
+            this.registroActividad = registroActividad;
             this.insumoRepositorio = insumoRepositorio;
             this.negProveedores = negProveedores;
             this.negEnvioMail = negEnvioMail;
@@ -75,7 +78,9 @@ namespace ResimamisBackend.Negocio
         public INSUMO registrarInsumo(INSUMO insumo)
         {
             ValidarDatosInsumo(insumo, insumoRepositorio);
-            return insumoRepositorio.registrarInsumo(insumo);
+            var registrado = insumoRepositorio.registrarInsumo(insumo);
+            registroActividad.Registrar(TiposMovimientoActividad.Alta, TiposRegistroActividad.Insumo, registrado.idInsumo, registrado.nombre);
+            return registrado;
         }
 
         public bool modificarInsumo(int idInsumo, INSUMO insumo)
@@ -89,7 +94,11 @@ namespace ResimamisBackend.Negocio
 
         public bool eliminarInsumo(int idInsumo)
         {
-            return insumoRepositorio.eliminarInsumoLogico(idInsumo);
+            // Se lee antes: una vez eliminado deja de ser visible para obtenerInsumoPorIdSinTracking.
+            var nombre = insumoRepositorio.obtenerInsumoPorIdSinTracking(idInsumo)?.nombre;
+            var ok = insumoRepositorio.eliminarInsumoLogico(idInsumo);
+            registroActividad.Registrar(TiposMovimientoActividad.Baja, TiposRegistroActividad.Insumo, idInsumo, nombre ?? $"Insumo #{idInsumo}");
+            return ok;
         }
 
         public bool registrarMovimientoInsumos(MOVIMIENTOSTOCK movimiento)

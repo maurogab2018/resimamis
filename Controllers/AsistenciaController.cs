@@ -84,6 +84,40 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        /// <summary>
+        /// Días y turnos en que asistieron (o tuvieron asignaciones) las voluntarias en el período.
+        /// Query: fechaDesde y fechaHasta obligatorias; idVoluntaria opcional (sin él, todas).
+        /// </summary>
+        [HttpGet("dias-turnos")]
+        public IActionResult GetDiasTurnosVoluntarias(
+            [FromQuery] string? fechaDesde,
+            [FromQuery] string? fechaHasta,
+            [FromQuery] int? idVoluntaria)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(fechaDesde) || string.IsNullOrWhiteSpace(fechaHasta))
+                    throw new ApplicationException("Debe indicar fechaDesde y fechaHasta (ej. 2026-06-01).");
+
+                var dInicio = NegConversorFecha.ParseFechaCalendarioReporte(fechaDesde);
+                var dFin = NegConversorFecha.ParseFechaCalendarioReporte(fechaHasta);
+                var resultado = negAsistencia.ListarDiasTurnosVoluntarias(dInicio, dFin, idVoluntaria);
+                return ApiResults.Success(resultado);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
         [HttpGet("hoy")]
         public IActionResult GetAsistenciasVoluntarias()
         {

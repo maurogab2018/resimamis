@@ -12,4 +12,5 @@ public interface IAsistenciaRepositorio
     bool eliminarAsistenciaLogico(int idAsistencia);
     List<ASISTENCIA> ListarTodasAsistencias();
     List<ASISTENCIA> ListarAsistenciasPorPeriodoUtc(DateTime inicioUtc, DateTime finUtcExclusivo);
+    List<ResimamisBackend.Entidades.DiaTurnoVoluntariaItem> ListarDiasTurnosVoluntarias(DateTime inicioUtc, DateTime finUtcExclusivo, int? idVoluntaria);
 }

@@ -196,12 +196,33 @@ namespace ResimamisBackend.Datos
             return respuesta;
         }
 
-        public EstadisticaVisitasRespuesta ObtenerEstadisticasVisitas(DateTime fechaInicio, DateTime fechaFin)
+        public EstadisticaVisitasRespuesta ObtenerEstadisticasVisitas(DateTime fechaInicio, DateTime fechaFin, int? idBebe = null)
         {
             var (inicioUtc, finUtc) = NegConversorFecha.RangoFechasArgentinaEnUtc(fechaInicio, fechaFin);
             var visitas = db.VISITA.AsNoTracking()
-                .Where(v => v.Activa && v.fechaHoraVisita >= inicioUtc && v.fechaHoraVisita < finUtc)
-                .Select(v => new { v.idBebe, v.familiar, v.fechaHoraVisita })
+                .Where(v => v.Activa
+                            && v.fechaHoraVisita >= inicioUtc && v.fechaHoraVisita < finUtc
+                            && (idBebe == null || v.idBebe == idBebe))
+                .Select(v => new
+                {
+                    v.idBebe,
+                    v.familiar,
+                    v.fechaHoraVisita,
+                    nombreBebe = v.Bebe != null ? v.Bebe.nombre : null,
+                    apellidoBebe = v.Bebe != null ? v.Bebe.apellido : null
+                })
+                .ToList();
+
+            var porBebe = visitas
+                .GroupBy(v => v.idBebe)
+                .Select(g => new EstadisticaVisitasPorBebeItem
+                {
+                    IdBebe = g.Key,
+                    NombreBebe = $"{g.First().nombreBebe} {g.First().apellidoBebe}".Trim(),
+                    Cantidad = g.Count()
+                })
+                .OrderByDescending(x => x.Cantidad)
+                .ThenBy(x => x.NombreBebe)
                 .ToList();
 
             var porDia = visitas
@@ -228,10 +249,12 @@ namespace ResimamisBackend.Datos
             {
                 FechaInicio = DateOnly.FromDateTime(fechaInicio.Date),
                 FechaFin = DateOnly.FromDateTime(fechaFin.Date),
+                IdBebe = idBebe,
                 TotalVisitas = visitas.Count,
                 BebesVisitados = visitas.Select(v => v.idBebe).Distinct().Count(),
                 PorDia = porDia,
-                PorFamiliar = porFamiliar
+                PorFamiliar = porFamiliar,
+                PorBebe = porBebe
             };
         }
 
@@ -685,6 +708,154 @@ namespace ResimamisBackend.Datos
                 GananciaMinima = gananciaMin,
                 GananciaMaxima = gananciaMax,
                 Bebes = items
+            };
+        }
+
+        /// <summary>
+        /// Todo lo que pasó en un día, agrupado por categoría. Altas y bajas salen de la bitácora
+        /// REGISTROACTIVIDAD, así que solo aparecen las registradas desde que existe.
+        /// </summary>
+        public ReporteDiarioRespuesta ObtenerReporteDiario(DateTime inicioUtc, DateTime finUtcExclusivo, DateOnly fecha)
+        {
+            static string NombreCompleto(string? nombre, string? apellido) => $"{nombre} {apellido}".Trim();
+
+            var movimientos = new List<ReporteDiarioMovimiento>();
+
+            // Abrazos iniciados en el día. El responsable es la voluntaria que abrazó.
+            movimientos.AddRange(QueryAsignacionesActivas()
+                .Where(a => a.idBebe != null
+                            && a.fechaHoraInicio != null
+                            && a.fechaHoraInicio >= inicioUtc
+                            && a.fechaHoraInicio < finUtcExclusivo)
+                .Select(a => new
+                {
+                    Inicio = a.fechaHoraInicio!.Value,
+                    a.fechaHoraFin,
+                    a.cierreAutomatico,
+                    BebeNombre = a.bebe!.nombre,
+                    BebeApellido = a.bebe.apellido,
+                    VolNombre = a.voluntaria!.Nombre,
+                    VolApellido = a.voluntaria.Apellido
+                })
+                .ToList()
+                .Select(a => new ReporteDiarioMovimiento
+                {
+                    FechaHora = a.Inicio,
+                    FechaHoraFin = a.fechaHoraFin,
+                    Categoria = CategoriasReporteDiario.Abrazos,
+                    Tipo = a.fechaHoraFin == null ? "En curso" : a.cierreAutomatico ? "Cierre automático" : "Finalizado",
+                    Descripcion = $"Bebé {NombreCompleto(a.BebeNombre, a.BebeApellido)} con {NombreCompleto(a.VolNombre, a.VolApellido)}",
+                    Responsable = NombreCompleto(a.VolNombre, a.VolApellido)
+                }));
+
+            // Movimientos de stock. idVoluntaria es quien retiró/entregó cuando se cargó.
+            movimientos.AddRange(db.MOVIMIENTOSTOCK.AsNoTracking()
+                .Where(m => m.fechaMovimiento != null
+                            && m.fechaMovimiento >= inicioUtc
+                            && m.fechaMovimiento < finUtcExclusivo)
+                .Select(m => new
+                {
+                    Fecha = m.fechaMovimiento!.Value,
+                    m.cantidad,
+                    m.esEntrada,
+                    m.observacion,
+                    Insumo = db.INSUMO.Where(i => i.idInsumo == m.idInsumo).Select(i => i.nombre).FirstOrDefault(),
+                    Voluntaria = db.VOLUNTARIA.Where(v => v.IdVoluntaria == m.idVoluntaria)
+                        .Select(v => v.Nombre + " " + v.Apellido).FirstOrDefault()
+                })
+                .ToList()
+                .Select(m => new ReporteDiarioMovimiento
+                {
+                    FechaHora = m.Fecha,
+                    Categoria = CategoriasReporteDiario.MovimientosInsumos,
+                    Tipo = m.esEntrada is "S" or "s" ? "Entrada" : "Salida",
+                    Descripcion = $"{m.Insumo ?? "Insumo"}: {m.cantidad ?? 0} unidad(es)"
+                                  + (string.IsNullOrWhiteSpace(m.observacion) ? "" : $" — {m.observacion.Trim()}"),
+                    Responsable = string.IsNullOrWhiteSpace(m.Voluntaria) ? null : m.Voluntaria.Trim()
+                }));
+
+            // Altas y bajas de la bitácora (los cierres automáticos ya se ven en Abrazos).
+            movimientos.AddRange(db.REGISTROACTIVIDAD.AsNoTracking()
+                .Where(r => r.fechaHora >= inicioUtc && r.fechaHora < finUtcExclusivo
+                            && (r.tipoMovimiento == TiposMovimientoActividad.Alta
+                                || r.tipoMovimiento == TiposMovimientoActividad.Baja))
+                .ToList()
+                .Select(r => new ReporteDiarioMovimiento
+                {
+                    FechaHora = r.fechaHora,
+                    Categoria = r.tipoMovimiento == TiposMovimientoActividad.Baja
+                        ? CategoriasReporteDiario.Bajas
+                        : CategoriasReporteDiario.Altas,
+                    Tipo = r.tipoRegistro,
+                    Descripcion = r.descripcion,
+                    Responsable = r.nombreResponsable
+                }));
+
+            // Asignaciones creadas en el día (abrazos y tareas). No se guarda quién las generó.
+            movimientos.AddRange(QueryAsignacionesActivas()
+                .Where(a => a.fechaHoraAsignacion >= inicioUtc && a.fechaHoraAsignacion < finUtcExclusivo)
+                .Select(a => new
+                {
+                    a.fechaHoraAsignacion,
+                    EsAbrazo = a.idBebe != null,
+                    BebeNombre = a.bebe != null ? a.bebe.nombre : null,
+                    BebeApellido = a.bebe != null ? a.bebe.apellido : null,
+                    Tarea = a.tarea != null ? a.tarea.nombre : null,
+                    VolNombre = a.voluntaria!.Nombre,
+                    VolApellido = a.voluntaria.Apellido
+                })
+                .ToList()
+                .Select(a => new ReporteDiarioMovimiento
+                {
+                    FechaHora = a.fechaHoraAsignacion,
+                    Categoria = CategoriasReporteDiario.Asignaciones,
+                    Tipo = a.EsAbrazo ? "Abrazo" : "Tarea",
+                    Descripcion = (a.EsAbrazo
+                                      ? $"Bebé {NombreCompleto(a.BebeNombre, a.BebeApellido)}"
+                                      : $"Tarea {a.Tarea ?? "sin nombre"}")
+                                  + $" asignada a {NombreCompleto(a.VolNombre, a.VolApellido)}"
+                }));
+
+            // Asistencias: una fila por ingreso, con la salida si la registró.
+            var idElimAsist = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
+            movimientos.AddRange(db.ASISTENCIA.AsNoTracking()
+                .Where(a => a.FechaHoraIngreso != null
+                            && a.FechaHoraIngreso >= inicioUtc
+                            && a.FechaHoraIngreso < finUtcExclusivo
+                            && (a.idEstado == null || a.idEstado != idElimAsist))
+                .Select(a => new
+                {
+                    Ingreso = a.FechaHoraIngreso!.Value,
+                    a.FechaHoraSalida,
+                    VolNombre = a.Voluntaria != null ? a.Voluntaria.Nombre : null,
+                    VolApellido = a.Voluntaria != null ? a.Voluntaria.Apellido : null
+                })
+                .ToList()
+                .Select(a => new ReporteDiarioMovimiento
+                {
+                    FechaHora = a.Ingreso,
+                    FechaHoraFin = a.FechaHoraSalida,
+                    Categoria = CategoriasReporteDiario.Asistencias,
+                    Tipo = a.FechaHoraSalida == null ? "Sin salida registrada" : "Con salida",
+                    Descripcion = $"Asistencia de {NombreCompleto(a.VolNombre, a.VolApellido)}",
+                    Responsable = NombreCompleto(a.VolNombre, a.VolApellido)
+                }));
+
+            var porCategoria = movimientos.ToLookup(m => m.Categoria);
+            var categorias = CategoriasReporteDiario.Orden
+                .Select(c => new ReporteDiarioCategoria
+                {
+                    Categoria = c,
+                    Movimientos = porCategoria[c].OrderBy(m => m.FechaHora).ToList()
+                })
+                .ToList();
+            categorias.ForEach(c => c.Cantidad = c.Movimientos.Count);
+
+            return new ReporteDiarioRespuesta
+            {
+                Fecha = fecha,
+                TotalMovimientos = movimientos.Count,
+                Categorias = categorias
             };
         }
     }

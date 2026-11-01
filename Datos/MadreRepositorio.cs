@@ -45,7 +45,8 @@ namespace ResimamisBackend.Datos
         {
             var existeMadre = db.MADRE.FirstOrDefault(m => m.Dni == madre.Dni);
             if (existeMadre != null)
-                throw new ApplicationException("Madre existente con ese Dni");
+                throw new ApplicationException(
+                    $"Madre existente con ese Dni (id {existeMadre.IdMadre}). Para otro bebé de la misma madre, registralo asociándolo a la madre existente.");
             madre.Estado = true;
 
             // Los bebés que vienen con el alta se insertan en el mismo SaveChanges, así que no
@@ -78,6 +79,27 @@ namespace ResimamisBackend.Datos
                 throw new NotFoundException("Madre no encontrada con ese Id.");
             return madre;
         }
+
+        /// <summary>Madre visible (no dada de baja) con ese DNI, con sus bebés; null si no hay.</summary>
+        public MADRE? consultarMadrePorDni(int dni)
+        {
+            return QueryMadresVisibles()
+                .AsNoTracking()
+                .Include(m => m.Bebe!).ThenInclude(b => b.Estado)
+                .Include(m => m.Bebe!).ThenInclude(b => b.Sala)
+                .Include(m => m.EstadoDetalle)
+                .Include(m => m.LocalidadDetalle)
+                .FirstOrDefault(m => m.Dni == dni);
+        }
+
+        public bool estaDadaDeBaja(MADRE madre)
+        {
+            if (!madre.Estado)
+                return true;
+            var idEliminado = estadoRepositorio.ObtenerIdEstadoEliminado("Madres");
+            return madre.IdEstado == idEliminado;
+        }
+
         public MADRE modificarMadre(MADRE madre, MADRE madreModificar)
         {
             var propiedades = typeof(MADRE).GetProperties();
@@ -129,8 +151,13 @@ namespace ResimamisBackend.Datos
                     }
                     else
                     {
-                        if (db.BEBE.FirstOrDefault(b=>b.Dni== bebeNuevo.Dni) == null )
-                            madreModificar.Bebe.Add(bebeNuevo); // Nuevo bebé
+                        // Nuevo bebé de una madre existente. Antes se descartaba en silencio si había
+                        // otro bebé con el mismo Dni, y como la comparación también matcheaba null,
+                        // cualquier hermano sin Dni se perdía. Además entraba sin estado inicial.
+                        if (bebeNuevo.Dni > 0 && db.BEBE.Any(b => b.Dni == bebeNuevo.Dni))
+                            throw new ApplicationException($"Bebe existente con ese Dni ({bebeNuevo.Dni}).");
+                        bebeNuevo.IdEstado = estadoRepositorio.ObtenerIdEstadoPorNombreYAmbito("Sin abrazar", "Bebes");
+                        madreModificar.Bebe.Add(bebeNuevo);
                     }
                 }
             }

@@ -8,7 +8,8 @@ public interface INegDashboard
     EstadisticaDuracionAbrazosRespuesta ObtenerDuracionAbrazos(DateTime? fechaInicio, DateTime? fechaFin);
     EstadisticaRangoEdadesBebesRespuesta ObtenerRangoEdadesBebes();
     EstadisticaPermanenciaBebesRespuesta ObtenerPermanenciaBebes();
-    EstadisticaVisitasRespuesta ObtenerEstadisticasVisitas(DateTime fechaInicio, DateTime fechaFin);
+    EstadisticaVisitasRespuesta ObtenerEstadisticasVisitas(DateTime fechaInicio, DateTime fechaFin, int? idBebe = null);
+    ReporteDiarioRespuesta ObtenerReporteDiario(DateTime? fecha);
     DashboardResumenRespuesta ObtenerResumen(DateTime fechaInicio, DateTime fechaFin);
     AbrazosBebeDashboardRespuesta ObtenerAbrazosBebeHoy(int idBebe);
     AbrazosBebeDashboardRespuesta ObtenerAbrazosBebeHistorial(int idBebe, DateTime? fechaInicio, DateTime? fechaFin);

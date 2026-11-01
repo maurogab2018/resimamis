@@ -25,8 +25,16 @@ namespace ResimamisBackend.Negocio
         public EstadisticaPermanenciaBebesRespuesta ObtenerPermanenciaBebes() =>
             dashboardRepositorio.ObtenerPermanenciaBebes();
 
-        public EstadisticaVisitasRespuesta ObtenerEstadisticasVisitas(DateTime fechaInicio, DateTime fechaFin) =>
-            dashboardRepositorio.ObtenerEstadisticasVisitas(fechaInicio, fechaFin);
+        public EstadisticaVisitasRespuesta ObtenerEstadisticasVisitas(DateTime fechaInicio, DateTime fechaFin, int? idBebe = null) =>
+            dashboardRepositorio.ObtenerEstadisticasVisitas(fechaInicio, fechaFin, idBebe is > 0 ? idBebe : null);
+
+        /// <summary>Reporte de un día calendario de Argentina; sin fecha, el de hoy.</summary>
+        public ReporteDiarioRespuesta ObtenerReporteDiario(DateTime? fecha)
+        {
+            var dia = fecha?.Date ?? NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow).ToDateTime(TimeOnly.MinValue);
+            var (inicioUtc, finUtc) = NegConversorFecha.RangoFechasArgentinaEnUtc(dia, dia);
+            return dashboardRepositorio.ObtenerReporteDiario(inicioUtc, finUtc, DateOnly.FromDateTime(dia));
+        }
 
         public DashboardResumenRespuesta ObtenerResumen(DateTime fechaInicio, DateTime fechaFin) =>
             dashboardRepositorio.ObtenerResumen(fechaInicio, fechaFin);

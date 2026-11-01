@@ -190,5 +190,129 @@ namespace ResimamisBackend.Datos
                 .ThenBy(a => a.IdVoluntaria)
                 .ToList();
         }
+
+        /// <summary>
+        /// Días del período en que cada voluntaria registró asistencia o tuvo asignaciones, con su
+        /// turno. El turno sale del horario cargado de la voluntaria para ese día de la semana y,
+        /// si no tiene, de la franja de HORARIO en la que cae su hora de ingreso.
+        /// </summary>
+        public List<DiaTurnoVoluntariaItem> ListarDiasTurnosVoluntarias(DateTime inicioUtc, DateTime finUtcExclusivo, int? idVoluntaria)
+        {
+            var idElimAsist = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
+            var idElimAsig = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+
+            var asistencias = db.ASISTENCIA.AsNoTracking()
+                .Where(a => a.FechaHoraIngreso != null
+                            && a.FechaHoraIngreso >= inicioUtc
+                            && a.FechaHoraIngreso < finUtcExclusivo
+                            && a.IdVoluntaria != null
+                            && (idVoluntaria == null || a.IdVoluntaria == idVoluntaria)
+                            && (a.idEstado == null || a.idEstado != idElimAsist))
+                .Select(a => new { IdVoluntaria = a.IdVoluntaria!.Value, Ingreso = a.FechaHoraIngreso!.Value, a.FechaHoraSalida })
+                .ToList();
+
+            var asignaciones = db.ASIGNACION.AsNoTracking()
+                .Where(a => a.fechaHoraAsignacion >= inicioUtc
+                            && a.fechaHoraAsignacion < finUtcExclusivo
+                            && (idVoluntaria == null || a.idVoluntaria == idVoluntaria)
+                            && a.idEstado != idElimAsig)
+                .Select(a => new { a.idVoluntaria, a.fechaHoraAsignacion })
+                .ToList();
+
+            // Todo se agrupa por (voluntaria, día calendario AR) una sola vez.
+            var asistenciasPorDia = asistencias
+                .ToLookup(a => (a.IdVoluntaria, Fecha: NegConversorFecha.FechaCalendarioArgentina(a.Ingreso)));
+            var asignacionesPorDia = asignaciones
+                .ToLookup(a => (IdVoluntaria: a.idVoluntaria, Fecha: NegConversorFecha.FechaCalendarioArgentina(a.fechaHoraAsignacion)));
+            var dias = asistenciasPorDia.Select(g => g.Key)
+                .Union(asignacionesPorDia.Select(g => g.Key))
+                .ToList();
+            if (dias.Count == 0)
+                return new List<DiaTurnoVoluntariaItem>();
+
+            var idsVoluntarias = dias.Select(d => d.IdVoluntaria).Distinct().ToList();
+            var voluntarias = db.VOLUNTARIA.AsNoTracking()
+                .Where(v => idsVoluntarias.Contains(v.IdVoluntaria))
+                .Select(v => new { v.IdVoluntaria, v.Nombre, v.Apellido })
+                .ToDictionary(v => v.IdVoluntaria);
+            var horarios = db.HORARIO.AsNoTracking().ToList();
+            var turnosCargados = db.VOLUNTARIAHORARIO.AsNoTracking()
+                .Where(vh => vh.Activa && idsVoluntarias.Contains(vh.IdVoluntaria))
+                .Join(db.HORARIO, vh => vh.IdHorario, h => h.IdHorario, (vh, h) => new { vh.IdVoluntaria, h.IdDia, h.Turno })
+                .ToList()
+                .GroupBy(x => (x.IdVoluntaria, x.IdDia))
+                .ToDictionary(g => g.Key, g => string.Join(", ", g.Select(x => x.Turno).Distinct()));
+            var nombresDias = db.DIA.AsNoTracking().ToDictionary(d => d.IdDia, d => d.Descripcion);
+            var culturaAr = new System.Globalization.CultureInfo("es-AR");
+
+            var items = new List<DiaTurnoVoluntariaItem>(dias.Count);
+            foreach (var clave in dias)
+            {
+                var (idVol, fecha) = clave;
+                var idDia = IdDiaSemana(fecha);
+                var asistenciasDia = asistenciasPorDia[clave].ToList();
+                DateTime? ingreso = asistenciasDia.Count > 0 ? asistenciasDia.Min(a => a.Ingreso) : null;
+                DateTime? salida = asistenciasDia.Max(a => a.FechaHoraSalida);
+
+                string? turno;
+                string origenTurno;
+                if (turnosCargados.TryGetValue((idVol, idDia), out var turnoCargado))
+                {
+                    turno = turnoCargado;
+                    origenTurno = OrigenTurnoHorario;
+                }
+                else
+                {
+                    turno = ingreso.HasValue ? TurnoPorHoraIngreso(horarios, idDia, ingreso.Value) : null;
+                    origenTurno = turno == null ? OrigenTurnoSinDatos : OrigenTurnoHoraIngreso;
+                }
+
+                voluntarias.TryGetValue(idVol, out var voluntaria);
+                items.Add(new DiaTurnoVoluntariaItem
+                {
+                    IdVoluntaria = idVol,
+                    Nombre = voluntaria?.Nombre ?? "",
+                    Apellido = voluntaria?.Apellido ?? "",
+                    Fecha = fecha,
+                    Dia = nombresDias.TryGetValue(idDia, out var nombreDia)
+                        ? nombreDia
+                        : culturaAr.TextInfo.ToTitleCase(culturaAr.DateTimeFormat.GetDayName(fecha.DayOfWeek)),
+                    Turno = turno ?? "Sin turno asignado",
+                    OrigenTurno = origenTurno,
+                    FechaHoraIngreso = ingreso,
+                    FechaHoraSalida = salida,
+                    TieneAsistencia = asistenciasDia.Count > 0,
+                    CantidadAsignaciones = asignacionesPorDia[clave].Count()
+                });
+            }
+
+            return items
+                .OrderBy(i => i.Fecha)
+                .ThenBy(i => i.Nombre)
+                .ThenBy(i => i.Apellido)
+                .ToList();
+        }
+
+        public const string OrigenTurnoHorario = "Horario de la voluntaria";
+        public const string OrigenTurnoHoraIngreso = "Según hora de ingreso";
+        public const string OrigenTurnoSinDatos = "Sin datos";
+
+        /// <summary>Id de la tabla DIA: 1 = Lunes ... 7 = Domingo.</summary>
+        private static int IdDiaSemana(DateOnly fecha) =>
+            fecha.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)fecha.DayOfWeek;
+
+        /// <summary>
+        /// Franja de HORARIO de ese día que contiene la hora de ingreso (hora Argentina). Si entra
+        /// en más de una gana la más corta, para que "Mañana" le gane a "Jornada completa".
+        /// </summary>
+        private static string? TurnoPorHoraIngreso(List<HORARIO> horarios, int idDia, DateTime ingresoUtc)
+        {
+            var hora = NegConversorFecha.HoraArgentina(ingresoUtc).TimeOfDay;
+            return horarios
+                .Where(h => h.IdDia == idDia && h.HoraIngreso <= hora && hora < h.HoraSalida)
+                .OrderBy(h => h.HoraSalida - h.HoraIngreso)
+                .Select(h => h.Turno)
+                .FirstOrDefault();
+        }
     }
 }

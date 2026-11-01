@@ -57,6 +57,7 @@ namespace ResimamisBackend.Datos
 
         public DbSet<VISITA> VISITA { get; set; }
 
+        public DbSet<REGISTROACTIVIDAD> REGISTROACTIVIDAD { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -183,6 +184,11 @@ namespace ResimamisBackend.Datos
                 .HasForeignKey(v => v.idBebe)
                 .OnDelete(DeleteBehavior.Restrict);
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<REGISTROACTIVIDAD>()
+                .HasIndex(r => r.fechaHora);
+            modelBuilder.Entity<REGISTROACTIVIDAD>()
+                .HasIndex(r => new { r.tipoRegistro, r.idRegistro });
         }
     }
 }

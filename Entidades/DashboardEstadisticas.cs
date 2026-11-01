@@ -73,14 +73,25 @@ namespace ResimamisBackend.Entidades
         public int Cantidad { get; set; }
     }
 
+    public class EstadisticaVisitasPorBebeItem
+    {
+        public int IdBebe { get; set; }
+        public string NombreBebe { get; set; } = "";
+        public int Cantidad { get; set; }
+    }
+
     public class EstadisticaVisitasRespuesta
     {
         public DateOnly FechaInicio { get; set; }
         public DateOnly FechaFin { get; set; }
+        /// <summary>Bebé filtrado, o null si son todos.</summary>
+        public int? IdBebe { get; set; }
         public int TotalVisitas { get; set; }
         public int BebesVisitados { get; set; }
         public List<EstadisticaVisitasPorDiaItem> PorDia { get; set; } = new();
         public List<EstadisticaVisitasPorFamiliarItem> PorFamiliar { get; set; } = new();
+        /// <summary>Visitas por bebé, de mayor a menor (para el gráfico de barras).</summary>
+        public List<EstadisticaVisitasPorBebeItem> PorBebe { get; set; } = new();
     }
 
     public class DashboardResumenRespuesta

@@ -133,6 +133,15 @@ namespace ResimamisBackend.Negocio
             return DateOnly.FromDateTime(local.Date);
         }
 
+        /// <summary>Fecha y hora local de Argentina para un instante UTC almacenado en BD.</summary>
+        public static DateTime HoraArgentina(DateTime utcInstant)
+        {
+            var utc = utcInstant.Kind == DateTimeKind.Utc
+                ? utcInstant
+                : DateTime.SpecifyKind(utcInstant, DateTimeKind.Utc);
+            return TimeZoneInfo.ConvertTimeFromUtc(utc, ArgentinaTimeZone);
+        }
+
         /// <summary>Días transcurridos desde una fecha calendario hasta hoy en Argentina (inclusive).</summary>
         public static int DiasDesdeFechaCalendarioHastaHoyArgentina(DateTime fechaReferencia)
         {

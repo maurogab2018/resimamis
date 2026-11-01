@@ -15,6 +15,7 @@ namespace ResimamisBackend.Negocio
         private readonly INegTareas negTareas;
         private readonly INegUsuarios negUsuarios;
         private readonly ApplicationDbContext db;
+        private readonly INegRegistroActividad registroActividad;
 
         public NegAsignacion(
             IBebeRepositorio bebeRepositorio,
@@ -23,8 +24,10 @@ namespace ResimamisBackend.Negocio
             IEstadoRepositorio estadoRepositorio,
             INegTareas negTareas,
             INegUsuarios negUsuarios,
-            ApplicationDbContext db)
+            ApplicationDbContext db,
+            INegRegistroActividad registroActividad)
         {
+            this.registroActividad = registroActividad;
             this.bebeRepositorio = bebeRepositorio;
             this.voluntariaRepositorio = voluntariaRepositorio;
             this.asignacionRepositorio = asignacionRepositorio;
@@ -631,12 +634,18 @@ namespace ResimamisBackend.Negocio
         }
 
         /// <summary>
-        /// Cierra asignaciones de bebé de días anteriores que quedaron abiertas, se hayan
-        /// iniciado o no. No toca las de hoy. Pasa el bebé a Sin abrazar y la voluntaria a
-        /// Disponible, salvo que tengan otra asignación todavía abierta.
+        /// Cierra asignaciones de bebé que quedaron abiertas: las de días anteriores, se hayan
+        /// iniciado o no, y con <paramref name="incluirEnCursoDeHoy"/> también los abrazos de hoy
+        /// ya iniciados (los "En curso"). Las de hoy sin iniciar nunca se tocan: siguen siendo el
+        /// plan del día. Pasa el bebé a Sin abrazar y la voluntaria a Disponible, salvo que tengan
+        /// otra asignación todavía abierta.
         /// </summary>
+        /// <param name="incluirEnCursoDeHoy">
+        /// true desde el botón de coordinación; false en el cierre diario automático, que corre
+        /// pasada la medianoche y solo debe barrer el día que terminó.
+        /// </param>
         /// <returns>Cantidad de asignaciones actualizadas.</returns>
-        public int ResetearAbrazosBebeColgadosAntesDeHoy()
+        public int CerrarAbrazosSinFinalizar(bool incluirEnCursoDeHoy)
         {
             var (inicioHoyUtc, _) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
             var idElimAsig = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
@@ -646,15 +655,15 @@ namespace ResimamisBackend.Negocio
             var idVolDisponible = estadoRepositorio.ObtenerIdVoluntariaDisponible();
             var idBebeSinAbrazar = estadoRepositorio.ObtenerIdBebeSinAbrazar();
 
-            // Del pasado: sin fin, y o bien el abrazo empezó antes de hoy, o nunca empezó
-            // y la asignación es de un día anterior. Las abiertas de hoy se dejan.
+            // Sin fin, y o bien el abrazo empezó (antes de hoy, o en cualquier momento si se
+            // incluyen los en curso de hoy), o nunca empezó y la asignación es de un día anterior.
             var asignaciones = db.ASIGNACION
                 .Where(a =>
                     a.idBebe != null
                     && a.fechaHoraFin == null
                     && a.idEstado != idElimAsig
                     && (
-                        (a.fechaHoraInicio != null && a.fechaHoraInicio < inicioHoyUtc)
+                        (a.fechaHoraInicio != null && (incluirEnCursoDeHoy || a.fechaHoraInicio < inicioHoyUtc))
                         || (a.fechaHoraInicio == null && a.fechaHoraAsignacion < inicioHoyUtc)))
                 .ToList();
 
@@ -700,9 +709,11 @@ namespace ResimamisBackend.Negocio
                             bebe.IdEstado = idBebeSinAbrazar;
                     }
 
-                    var comentarioAuto = asignacion.fechaHoraInicio != null
-                        ? AbrazoAtipico.MarcaCierreAutomatico + ": abrazo iniciado en día anterior sin finalizar."
-                        : AbrazoAtipico.MarcaCierreAutomatico + ": asignación de un día anterior sin iniciar ni finalizar.";
+                    var comentarioAuto = asignacion.fechaHoraInicio == null
+                        ? AbrazoAtipico.MarcaCierreAutomatico + ": asignación de un día anterior sin iniciar ni finalizar."
+                        : asignacion.fechaHoraInicio < inicioHoyUtc
+                            ? AbrazoAtipico.MarcaCierreAutomatico + ": abrazo iniciado en día anterior sin finalizar."
+                            : AbrazoAtipico.MarcaCierreAutomatico + ": abrazo en curso cerrado desde coordinación.";
 
                     // Se lee antes de marcarlo: el reset es idempotente y no debe volver a
                     // prependear el aviso sobre un comentario que ya lo tiene.
@@ -720,13 +731,48 @@ namespace ResimamisBackend.Negocio
 
                 db.SaveChanges();
                 tx.Commit();
-                return asignaciones.Count;
             }
             catch
             {
                 tx.Rollback();
                 throw;
             }
+
+            RegistrarCierresEnBitacora(idsACerrar, inicioHoyUtc);
+            return asignaciones.Count;
+        }
+
+        /// <summary>
+        /// Deja rastro de cada cierre en REGISTROACTIVIDAD. Sin usuario logueado (cierre diario) el
+        /// responsable queda vacío; desde el botón queda la coordinadora.
+        /// </summary>
+        private void RegistrarCierresEnBitacora(IReadOnlyCollection<int> idsAsignaciones, DateTime inicioHoyUtc)
+        {
+            var registros = db.ASIGNACION.AsNoTracking()
+                .Where(a => idsAsignaciones.Contains(a.idAsignacion))
+                .Select(a => new
+                {
+                    a.idAsignacion,
+                    a.fechaHoraInicio,
+                    a.fechaHoraAsignacion,
+                    BebeNombre = a.bebe != null ? a.bebe.nombre : null,
+                    BebeApellido = a.bebe != null ? a.bebe.apellido : null,
+                    VolNombre = a.voluntaria != null ? a.voluntaria.Nombre : null,
+                    VolApellido = a.voluntaria != null ? a.voluntaria.Apellido : null
+                })
+                .ToList()
+                .Select(a =>
+                {
+                    var situacion = a.fechaHoraInicio == null
+                        ? $"asignada el {NegConversorFecha.HoraArgentina(a.fechaHoraAsignacion):dd/MM/yyyy} y nunca iniciada"
+                        : $"iniciado el {NegConversorFecha.HoraArgentina(a.fechaHoraInicio.Value):dd/MM/yyyy HH:mm}"
+                          + (a.fechaHoraInicio < inicioHoyUtc ? "" : " (en curso)");
+                    return (a.idAsignacion,
+                        $"Bebé {$"{a.BebeNombre} {a.BebeApellido}".Trim()} con {$"{a.VolNombre} {a.VolApellido}".Trim()}, {situacion}");
+                })
+                .ToList();
+
+            registroActividad.RegistrarVarios(TiposMovimientoActividad.CierreAutomatico, TiposRegistroActividad.Asignacion, registros);
         }
 
         /// <summary>Actualiza tarea, bebé, voluntaria, comentario y fechas de inicio/fin de una asignación existente.</summary>

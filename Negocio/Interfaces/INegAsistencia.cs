@@ -13,4 +13,5 @@ public interface INegAsistencia
     bool eliminarAsistencia(int idAsistencia);
     List<ReporteAsistenciaPeriodoItem> ListarTodasAsistencias();
     ReporteAsistenciaPeriodoRespuesta ReporteAsistenciaPorPeriodo(DateTime fechaInicio, DateTime fechaFin);
+    DiasTurnosVoluntariasRespuesta ListarDiasTurnosVoluntarias(DateTime fechaInicio, DateTime fechaFin, int? idVoluntaria);
 }

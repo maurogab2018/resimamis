@@ -9,6 +9,7 @@ public interface INegMadres
     List<EstadisticaLocalidades> devolverEstadisticasLocalidades();
     ResultadoValidacion registrarMadre(MADRE madre);
     MADRE consultarMadre(int id);
+    MADRE consultarMadrePorDni(int dni);
     ResultadoValidacion modificarMadre(MADRE madre, int Id, out MADRE? madreActualizada);
     bool eliminarMadre(int idMadre);
     List<EstadisticaEdadesMadres> devolverEstadisticasEdadesMadres();

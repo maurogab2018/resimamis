@@ -450,12 +450,44 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        /// <summary>
+        /// Rastro de los abrazos cerrados automáticamente (cierre diario de medianoche o botón de
+        /// coordinación). Query opcional fechaDesde/fechaHasta; sin fechas, los últimos 7 días.
+        /// </summary>
+        [HttpGet("cierres-automaticos")]
+        public IActionResult GetCierresAutomaticos(
+            [FromQuery] string? fechaDesde,
+            [FromQuery] string? fechaHasta,
+            [FromServices] INegRegistroActividad negRegistroActividad)
+        {
+            try
+            {
+                var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow).ToDateTime(TimeOnly.MinValue);
+                var desde = string.IsNullOrWhiteSpace(fechaDesde) ? hoy.AddDays(-6) : NegConversorFecha.ParseFechaCalendarioReporte(fechaDesde);
+                var hasta = string.IsNullOrWhiteSpace(fechaHasta) ? hoy : NegConversorFecha.ParseFechaCalendarioReporte(fechaHasta);
+                return ApiResults.Success(negRegistroActividad.ListarCierresAutomaticos(desde, hasta));
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        /// <summary>
+        /// Botón "Cerrar abrazos sin finalizar": cierra todos los abrazos en curso (de hoy o de días
+        /// anteriores) y las asignaciones de días anteriores que nunca se iniciaron. Las asignaciones
+        /// de hoy todavía sin iniciar quedan como están. Devuelve la cantidad cerrada.
+        /// </summary>
         [HttpPost("resetearAbrazosColgados")]
         public IActionResult PostResetearAbrazosColgados()
         {
             try
             {
-                var cantidad = negAsignacion.ResetearAbrazosBebeColgadosAntesDeHoy();
+                var cantidad = negAsignacion.CerrarAbrazosSinFinalizar(incluirEnCursoDeHoy: true);
                 return ApiResults.Success(cantidad);
             }
             catch (NotFoundException ex)

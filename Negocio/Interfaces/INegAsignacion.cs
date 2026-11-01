@@ -12,7 +12,7 @@ public interface INegAsignacion
     List<RespuestaAsignaciones> generarAsiganaciones();
     bool registrarInicioAsignacionAbrazo(int idAsignacion);
     bool registrarFinAsignacionAbrazo(int idAsignacion, string? comentario);
-    int ResetearAbrazosBebeColgadosAntesDeHoy();
+    int CerrarAbrazosSinFinalizar(bool incluirEnCursoDeHoy);
     bool eliminarAsignacion(int idAsignacion);
     bool modificarAsignacion(int idAsignacion, RespuestaAsignaciones datos);
     RespuestaAsignaciones consultarAsignacionPorId(int idAsignacion);

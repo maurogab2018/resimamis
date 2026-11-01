@@ -471,6 +471,47 @@ namespace ResimamisBackend.Migrations
                     b.ToTable("PROVEEDOR");
                 });
 
+            modelBuilder.Entity("ResimamisBackend.Datos.REGISTROACTIVIDAD", b =>
+                {
+                    b.Property<int>("idRegistroActividad")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("idRegistroActividad"));
+
+                    b.Property<string>("descripcion")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("fechaHora")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("idRegistro")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("idVoluntariaResponsable")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("nombreResponsable")
+                        .HasColumnType("text");
+
+                    b.Property<string>("tipoMovimiento")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("tipoRegistro")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("idRegistroActividad");
+
+                    b.HasIndex("fechaHora");
+
+                    b.HasIndex("tipoRegistro", "idRegistro");
+
+                    b.ToTable("REGISTROACTIVIDAD");
+                });
+
             modelBuilder.Entity("ResimamisBackend.Datos.ROL", b =>
                 {
                     b.Property<int>("IdRol")

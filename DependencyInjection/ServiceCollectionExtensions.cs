@@ -29,6 +29,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDashboardRepositorio, DashboardRepositorio>();
 
         // Servicios de negocio
+        services.AddHttpContextAccessor();
+        services.AddScoped<INegRegistroActividad, NegRegistroActividad>();
         services.AddScoped<INegGenericos, NegGenericos>();
         services.AddScoped<INegProveedores, NegProveedores>();
         services.AddScoped<INegSalas, NegSalas>();
@@ -45,6 +47,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INegEnvioMail, NegEnvioMail>();
         services.AddScoped<INegDashboard, NegDashboard>();
         services.AddScoped<INegAsistente, NegAsistente>();
+        services.AddHostedService<CierreAbrazosDiarioServicio>();
         services.AddHttpClient("OpenAI", (sp, client) =>
         {
             var config = sp.GetRequiredService<IConfiguration>();
