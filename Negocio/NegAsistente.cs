@@ -356,6 +356,7 @@ namespace ResimamisBackend.Negocio
             - Si una herramienta da lista vacía, NO cierres en 0 de inmediato: ampliá el rango (rankings: últimos 365 días) o buscá por nombre y reintentá.
             - Si el ranking de abrazos viene vacío, llamá de nuevo ranking_abrazos_voluntarias SIN fechas (usa 365 días).
             - Recién si el segundo intento también está vacío, decí 0 según el criterio de ESA herramienta.
+            - Si la coordinadora pidió un período concreto (hoy, esta semana, este mes, un mes o año) y vino vacío, la PRIMERA oración tiene que decir que en ese período no hubo datos (ej. "Este mes todavía no hay abrazos finalizados."). Recién después mostrá el rango ampliado, nombrándolo como contexto ("En el último año, el ranking es...") y nunca como si fuera el período pedido.
             - No mezcles conceptos: un ranking vacío de abrazos no es ranking de asistencias.
             Si falta un dato (id de bebé, voluntaria o madre), buscá por nombre con buscar_bebes / buscar_voluntarias / buscar_madres.
             Fechas en tools de período: yyyy-MM-dd, "hoy"/"ayer", o periodo="esta_semana"|"semana_pasada"|"este_mes"|"mes_pasado"|"ultimos_7"|"ultimos_30" (Argentina). Rankings sin fechas = 365 días; otros períodos sin fechas = 30 días.
