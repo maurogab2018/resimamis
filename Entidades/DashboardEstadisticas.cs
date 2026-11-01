@@ -130,6 +130,8 @@ namespace ResimamisBackend.Entidades
         public string EstadoAsignacion { get; set; } = "";
         public string NombreVoluntaria { get; set; } = "";
         public string? Comentario { get; set; }
+        /// <summary>Lo cerró el sistema o el botón: no fue un abrazo real y no tiene duración.</summary>
+        public bool CierreAutomatico { get; set; }
     }
 
     public class AbrazosHoyResumen
@@ -276,5 +278,7 @@ namespace ResimamisBackend.Entidades
         public double? DuracionMinutos { get; set; }
         public string EstadoAsignacion { get; set; } = "";
         public string? Comentario { get; set; }
+        /// <summary>Lo cerró el sistema o el botón: no fue un abrazo real y no tiene duración.</summary>
+        public bool CierreAutomatico { get; set; }
     }
 }

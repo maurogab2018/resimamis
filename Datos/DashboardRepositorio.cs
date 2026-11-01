@@ -304,7 +304,7 @@ namespace ResimamisBackend.Datos
             var abrazos = asignaciones.Select(a =>
             {
                 double? minutos = null;
-                if (a.fechaHoraInicio.HasValue && a.fechaHoraFin.HasValue)
+                if (a.fechaHoraInicio.HasValue && a.fechaHoraFin.HasValue && !a.cierreAutomatico)
                     minutos = (a.fechaHoraFin.Value - a.fechaHoraInicio.Value).TotalMinutes;
 
                 return new AbrazoBebeDashboardItem
@@ -316,7 +316,8 @@ namespace ResimamisBackend.Datos
                     DuracionMinutos = minutos,
                     EstadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
                     NombreVoluntaria = FormatearNombre(a.voluntaria?.Nombre, a.voluntaria?.Apellido),
-                    Comentario = a.comentario
+                    Comentario = a.comentario,
+                    CierreAutomatico = a.cierreAutomatico
                 };
             }).ToList();
 
@@ -331,7 +332,7 @@ namespace ResimamisBackend.Datos
                     ? NegConversorFecha.FechaCalendarioArgentina(finUtcExclusivo.Value.AddTicks(-1))
                     : null,
                 TotalAbrazos = abrazos.Count,
-                AbrazosFinalizados = abrazos.Count(a => a.FechaHoraInicio.HasValue && a.FechaHoraFin.HasValue),
+                AbrazosFinalizados = abrazos.Count(a => a.FechaHoraInicio.HasValue && a.FechaHoraFin.HasValue && !a.CierreAutomatico),
                 Abrazos = abrazos
             };
         }
@@ -364,7 +365,7 @@ namespace ResimamisBackend.Datos
             var abrazos = asignaciones.Select(a =>
             {
                 double? minutos = null;
-                if (a.fechaHoraInicio.HasValue && a.fechaHoraFin.HasValue)
+                if (a.fechaHoraInicio.HasValue && a.fechaHoraFin.HasValue && !a.cierreAutomatico)
                     minutos = (a.fechaHoraFin.Value - a.fechaHoraInicio.Value).TotalMinutes;
 
                 return new AbrazoVoluntariaDashboardItem
@@ -378,7 +379,8 @@ namespace ResimamisBackend.Datos
                     FechaHoraFin = a.fechaHoraFin,
                     DuracionMinutos = minutos,
                     EstadoAsignacion = a.estado?.nombre ?? a.idEstado.ToString(),
-                    Comentario = a.comentario
+                    Comentario = a.comentario,
+                    CierreAutomatico = a.cierreAutomatico
                 };
             }).ToList();
 
@@ -392,7 +394,7 @@ namespace ResimamisBackend.Datos
                     ? NegConversorFecha.FechaCalendarioArgentina(finUtcExclusivo.Value.AddTicks(-1))
                     : null,
                 TotalAbrazos = abrazos.Count,
-                AbrazosFinalizados = abrazos.Count(a => a.FechaHoraInicio.HasValue && a.FechaHoraFin.HasValue),
+                AbrazosFinalizados = abrazos.Count(a => a.FechaHoraInicio.HasValue && a.FechaHoraFin.HasValue && !a.CierreAutomatico),
                 Abrazos = abrazos
             };
         }
