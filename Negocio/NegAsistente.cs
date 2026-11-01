@@ -748,7 +748,7 @@ namespace ResimamisBackend.Negocio
                 {
                     fecha_desde = new { type = "string", description = "Inicio yyyy-MM-dd o 'hoy'/'ayer' (Argentina). Si falta, últimos 30 días (rankings: 365)." },
                     fecha_hasta = new { type = "string", description = "Fin yyyy-MM-dd o 'hoy'/'ayer' (Argentina)." },
-                    periodo = new { type = "string", description = "Alias: hoy, ayer, esta_semana, semana_pasada, este_mes, mes_pasado, ultimos_7, ultimos_30." },
+                    periodo = new { type = "string", description = "Alias: hoy, ayer, esta_semana, semana_pasada, este_mes, mes_pasado, ultimos_7, ultimos_30, este_anio, anio_pasado, ultimos_365, un año (2026) o un mes (2026-10)." },
                     top = new { type = "integer", description = "Solo ranking: cantidad de voluntarias (default 10)." }
                 }
             };
@@ -2118,7 +2118,40 @@ namespace ResimamisBackend.Negocio
                 case "ultimo_mes":
                     rango = (hoyAr.Date.AddDays(-29), hoyAr.Date);
                     return true;
+                case "este_ano":
+                case "este_anio":
+                case "este_año":
+                case "ano":
+                case "anio":
+                case "año":
+                case "ano_actual":
+                    rango = (new DateTime(hoyAr.Year, 1, 1), hoyAr.Date);
+                    return true;
+                case "ano_pasado":
+                case "anio_pasado":
+                case "año_pasado":
+                    rango = (new DateTime(hoyAr.Year - 1, 1, 1), new DateTime(hoyAr.Year - 1, 12, 31));
+                    return true;
+                case "ultimos_365":
+                case "ultimo_ano":
+                case "ultimo_anio":
+                case "ultimo_año":
+                    rango = (hoyAr.Date.AddDays(-364), hoyAr.Date);
+                    return true;
                 default:
+                    // "2026" = ese año (hasta hoy si es el actual); "2026-10" = ese mes.
+                    if (t.Length == 4 && int.TryParse(t, out var anio) && anio is > 2000 and < 2100)
+                    {
+                        var finAnio = new DateTime(anio, 12, 31);
+                        rango = (new DateTime(anio, 1, 1), finAnio > hoyAr.Date ? hoyAr.Date : finAnio);
+                        return true;
+                    }
+                    if (t.Length == 7 && DateTime.TryParseExact(t, "yyyy-MM", null, System.Globalization.DateTimeStyles.None, out var mes))
+                    {
+                        var finMes = mes.AddMonths(1).AddDays(-1);
+                        rango = (mes, finMes > hoyAr.Date ? hoyAr.Date : finMes);
+                        return true;
+                    }
                     return false;
             }
         }
