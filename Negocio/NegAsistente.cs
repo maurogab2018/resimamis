@@ -87,6 +87,20 @@ namespace ResimamisBackend.Negocio
         private bool confirmacionGenerarValida;
         private bool asignacionesGeneradasEnEstaPregunta;
 
+        private static readonly System.Text.RegularExpressions.Regex RegexEncabezado = new(
+            @"^[ \t]*#{1,6}[ \t]*", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        /// <summary>
+        /// El front muestra la respuesta como texto plano, así que el Markdown del modelo se veía
+        /// crudo (**nombre**, ### Título). Se sacan negritas, encabezados y backticks; las listas
+        /// con guion o número quedan como están porque se leen bien en texto.
+        /// </summary>
+        private static string LimpiarFormato(string texto) =>
+            RegexEncabezado.Replace(texto, "")
+                .Replace("**", "")
+                .Replace("__", "")
+                .Replace("`", "");
+
         private static readonly System.Text.RegularExpressions.Regex RegexAfirmativo = new(
             @"\b(s[ií]|dale|ok|okey|confirm[oaá]\w*|general[ao]s?|gener[aá]|hacelo|adelante|de acuerdo|perfecto|listo)\b",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
@@ -210,7 +224,7 @@ namespace ResimamisBackend.Negocio
                         throw new ApplicationException("El asistente no generó una respuesta.");
                     return new AsistentePreguntaRespuesta
                     {
-                        Respuesta = texto,
+                        Respuesta = LimpiarFormato(texto),
                         HerramientasUsadas = usadas.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
                     };
                 }
@@ -251,7 +265,7 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("El asistente no pudo completar la investigación. Reformulá la pregunta.");
             return new AsistentePreguntaRespuesta
             {
-                Respuesta = textoCierre,
+                Respuesta = LimpiarFormato(textoCierre),
                 HerramientasUsadas = usadas.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
             };
         }
@@ -300,6 +314,7 @@ namespace ResimamisBackend.Negocio
             return $"""
             Sos el asistente de Resimamis para coordinadoras de un programa de abrazos en neonatología.
             Respondé siempre en español, claro y útil.
+            Formato: texto plano. Sin negritas (**), sin títulos (#) ni tablas; para listas usá guiones o números.
 
             Contexto de fecha (obligatorio):
             - Hoy en calendario Argentina es {hoy:yyyy-MM-dd}. Usá SIEMPRE esa fecha para "hoy".
@@ -343,6 +358,7 @@ namespace ResimamisBackend.Negocio
             - Qué días o en qué TURNO viene una voluntaria → dias_turnos_voluntarias (no deduzcas el turno por la hora)
             - Abrazos cerrados solos / cierre automático / botón de cerrar abrazos → cierres_automaticos
             - Visitas por bebé en un rango → visitas_periodo (campo porBebe)
+            - Hace cuántos días un bebé no recibe abrazo / quién lleva más tiempo sin abrazo → alertas_y_prioridades (bebesMasDiasSinAbrazo). Nunca uses la fecha de ingreso a NEO como "días sin abrazo".
             - Bebés SIN ASIGNACIÓN hoy → bebes_disponibles_abrazo (si está vacío, todos tienen asignación). Bebés SIN ABRAZO FINALIZADO hoy → cobertura_hoy. No los confundas: un bebé puede estar asignado y todavía sin abrazo.
             Todas las fechas y horas que devuelven las herramientas ya están en hora Argentina: no las conviertas.
             Rangos relativos ("esta semana", "este mes", "este año", "la semana pasada", "últimos 30 días"): mandá SIEMPRE el parámetro periodo (esta_semana, este_mes, este_anio, semana_pasada, ultimos_30) y NO calcules fecha_desde/fecha_hasta vos. Al responder, citá el rango que devuelve la herramienta.
