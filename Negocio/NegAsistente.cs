@@ -84,6 +84,30 @@ namespace ResimamisBackend.Negocio
         private readonly INegRegistroActividad negRegistroActividad;
         private readonly OpenAiChatCompletions openAi;
         private int? dniSolicitanteActual;
+        private bool confirmacionGenerarValida;
+        private bool asignacionesGeneradasEnEstaPregunta;
+
+        private static readonly System.Text.RegularExpressions.Regex RegexAfirmativo = new(
+            @"\b(s[ií]|dale|ok|okey|confirm[oaá]\w*|general[ao]s?|gener[aá]|hacelo|adelante|de acuerdo|perfecto|listo)\b",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        private static readonly System.Text.RegularExpressions.Regex RegexNegativo = new(
+            @"\b(no|todav[ií]a no|esper[aá]|cancel\w*|nada)\b",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// Control del lado del servidor para la única escritura del asistente: solo se genera si el
+        /// mensaje anterior del asistente pidió confirmación y la coordinadora respondió que sí en
+        /// este mensaje. Así no depende de que el modelo respete el prompt (p. ej. "generá ya,
+        /// confirmo de antemano" en un solo mensaje, sin haber visto las listas).
+        /// </summary>
+        private static bool EsConfirmacionDeGenerar(string pregunta, List<AsistenteMensaje>? historial)
+        {
+            var ultimoAsistente = historial?
+                .LastOrDefault(m => m.Rol is "asistente" or "assistant")?.Contenido ?? "";
+            var pidioConfirmacion = ultimoAsistente.Contains("confirm", StringComparison.OrdinalIgnoreCase);
+            return pidioConfirmacion && RegexAfirmativo.IsMatch(pregunta) && !RegexNegativo.IsMatch(pregunta);
+        }
 
         public NegAsistente(
             IConfiguration configuration,
@@ -146,6 +170,8 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("Debe enviar una pregunta.");
             if (pregunta.Length > MaxPregunta)
                 throw new ApplicationException($"La pregunta no puede superar {MaxPregunta} caracteres.");
+            confirmacionGenerarValida = EsConfirmacionDeGenerar(pregunta, request?.Historial);
+            asignacionesGeneradasEnEstaPregunta = false;
 
             var (enabled, model, apiKey) = LeerConfig();
             if (!enabled)
@@ -317,7 +343,9 @@ namespace ResimamisBackend.Negocio
             - Qué días o en qué TURNO viene una voluntaria → dias_turnos_voluntarias (no deduzcas el turno por la hora)
             - Abrazos cerrados solos / cierre automático / botón de cerrar abrazos → cierres_automaticos
             - Visitas por bebé en un rango → visitas_periodo (campo porBebe)
+            - Bebés SIN ASIGNACIÓN hoy → bebes_disponibles_abrazo (si está vacío, todos tienen asignación). Bebés SIN ABRAZO FINALIZADO hoy → cobertura_hoy. No los confundas: un bebé puede estar asignado y todavía sin abrazo.
             Todas las fechas y horas que devuelven las herramientas ya están en hora Argentina: no las conviertas.
+            Rangos relativos ("esta semana", "este mes", "este año", "la semana pasada", "últimos 30 días"): mandá SIEMPRE el parámetro periodo (esta_semana, este_mes, este_anio, semana_pasada, ultimos_30) y NO calcules fecha_desde/fecha_hasta vos. Al responder, citá el rango que devuelve la herramienta.
             Modo consultivo (qué priorizo, cómo venimos, recomendaciones, qué hago hoy) → alertas_y_prioridades:
             - Empezá por lo urgente: bebés con más días sin abrazo (nombrá los primeros con sala y días), abrazos colgados y si alcanzan las voluntarias hoy.
             - Después: voluntarias que dejaron de venir (sugerí contactarlas) e insumos bajo stock (sugerí reponer).
@@ -1696,18 +1724,24 @@ namespace ResimamisBackend.Negocio
 
         private object GenerarAsignacionesAbrazos(JsonDocument args)
         {
-            if (LeerBool(args, "confirmar") != true)
+            if (asignacionesGeneradasEnEstaPregunta)
+                return new { generada = false, error = "Las asignaciones ya se generaron en esta respuesta; no se generan dos veces." };
+
+            if (LeerBool(args, "confirmar") != true || !confirmacionGenerarValida)
             {
                 var bebes = ResumirBebesDisponiblesAbrazo();
                 var vols = ResumirVoluntariasLibres();
                 return new
                 {
                     generada = false,
-                    error = "Falta confirmación. Mostrá las listas a la coordinadora y pedí OK. Luego llamá de nuevo con confirmar=true.",
+                    error = LeerBool(args, "confirmar") == true
+                        ? "La coordinadora todavía no confirmó: mostrale las listas, preguntale '¿Confirmás que genere las asignaciones?' y esperá su respuesta en el próximo mensaje. No digas que se generaron."
+                        : "Falta confirmación. Mostrá las listas a la coordinadora y pedí OK. Luego llamá de nuevo con confirmar=true.",
                     preview = new { bebes, voluntarias = vols }
                 };
             }
 
+            asignacionesGeneradasEnEstaPregunta = true;
             var creadas = negAsignacion.generarAsiganaciones() ?? new List<RespuestaAsignaciones>();
             return new
             {

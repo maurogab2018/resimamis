@@ -429,7 +429,7 @@ namespace ResimamisBackend.Datos
 
             var abrazosFinalizadosHoy = QueryAsignacionesActivas()
                 .Count(a => a.idBebe != null
-                            && a.fechaHoraFin != null
+                            && a.fechaHoraFin != null && !a.cierreAutomatico
                             && a.fechaHoraFin >= inicioUtc
                             && a.fechaHoraFin < finUtcExclusivo);
 
@@ -479,7 +479,7 @@ namespace ResimamisBackend.Datos
 
             var bebesConAbrazoHoy = QueryAsignacionesActivas()
                 .Where(a => a.idBebe != null
-                            && a.fechaHoraFin != null
+                            && a.fechaHoraFin != null && !a.cierreAutomatico
                             && a.fechaHoraFin >= inicioUtc
                             && a.fechaHoraFin < finUtcExclusivo)
                 .Select(a => a.idBebe!.Value)
@@ -572,7 +572,7 @@ namespace ResimamisBackend.Datos
                 .Include(a => a.voluntaria)
                 .Where(a => a.idBebe != null
                             && a.fechaHoraInicio != null
-                            && a.fechaHoraFin != null
+                            && a.fechaHoraFin != null && !a.cierreAutomatico
                             && a.fechaHoraFin >= inicioUtc
                             && a.fechaHoraFin < finUtc)
                 .GroupBy(a => new
