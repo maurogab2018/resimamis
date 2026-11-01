@@ -9,6 +9,7 @@ public interface IDashboardRepositorio
     EstadisticaRangoEdadesBebesRespuesta ObtenerRangoEdadesBebes();
     EstadisticaPermanenciaBebesRespuesta ObtenerPermanenciaBebes();
     EstadisticaVisitasRespuesta ObtenerEstadisticasVisitas(DateTime fechaInicio, DateTime fechaFin, int? idBebe = null);
+    AlertasCoordinacionRespuesta ObtenerAlertasCoordinacion(int topBebes, int diasUmbralVoluntarias);
     ReporteDiarioRespuesta ObtenerReporteDiario(DateTime inicioUtc, DateTime finUtcExclusivo, DateOnly fecha);
     DashboardResumenRespuesta ObtenerResumen(DateTime fechaInicio, DateTime fechaFin);
     AbrazosBebeDashboardRespuesta ObtenerAbrazosBebe(int idBebe, DateTime? inicioUtc, DateTime? finUtcExclusivo, DateOnly? fechaConsulta);

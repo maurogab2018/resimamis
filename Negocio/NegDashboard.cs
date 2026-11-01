@@ -28,6 +28,9 @@ namespace ResimamisBackend.Negocio
         public EstadisticaVisitasRespuesta ObtenerEstadisticasVisitas(DateTime fechaInicio, DateTime fechaFin, int? idBebe = null) =>
             dashboardRepositorio.ObtenerEstadisticasVisitas(fechaInicio, fechaFin, idBebe is > 0 ? idBebe : null);
 
+        public AlertasCoordinacionRespuesta ObtenerAlertasCoordinacion(int topBebes = 10, int diasUmbralVoluntarias = 14) =>
+            dashboardRepositorio.ObtenerAlertasCoordinacion(Math.Clamp(topBebes, 1, 30), Math.Clamp(diasUmbralVoluntarias, 1, 365));
+
         /// <summary>Reporte de un día calendario de Argentina; sin fecha, el de hoy.</summary>
         public ReporteDiarioRespuesta ObtenerReporteDiario(DateTime? fecha)
         {

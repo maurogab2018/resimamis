@@ -712,6 +712,78 @@ namespace ResimamisBackend.Datos
         }
 
         /// <summary>
+        /// Insumos para recomendar a coordinación: qué bebés llevan más tiempo sin abrazo y qué
+        /// voluntarias activas dejaron de venir. Los abrazos cerrados automáticamente no cuentan
+        /// como abrazo recibido.
+        /// </summary>
+        public AlertasCoordinacionRespuesta ObtenerAlertasCoordinacion(int topBebes, int diasUmbralVoluntarias)
+        {
+            var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
+            int Dias(DateTime d) => hoy.DayNumber - NegConversorFecha.FechaCalendarioArgentina(d).DayNumber;
+
+            var ultimoAbrazo = QueryAsignacionesActivas()
+                .Where(a => a.idBebe != null && a.fechaHoraFin != null && !a.cierreAutomatico)
+                .GroupBy(a => a.idBebe!.Value)
+                .Select(g => new { IdBebe = g.Key, Ultimo = g.Max(a => a.fechaHoraFin!.Value) })
+                .ToDictionary(x => x.IdBebe, x => x.Ultimo);
+
+            var bebes = QueryBebesActivos()
+                .Select(b => new { b.ID, b.nombre, b.apellido, Sala = b.Sala != null ? b.Sala.Nombre : null, b.FechaIngresoNEO })
+                .ToList()
+                .Select(b =>
+                {
+                    var ultimo = ultimoAbrazo.TryGetValue(b.ID, out var u) ? u : (DateTime?)null;
+                    var referencia = ultimo ?? b.FechaIngresoNEO;
+                    return new BebeSinAbrazoItem
+                    {
+                        IdBebe = b.ID,
+                        Nombre = $"{b.nombre} {b.apellido}".Trim(),
+                        Sala = b.Sala,
+                        UltimoAbrazo = ultimo,
+                        DiasSinAbrazo = referencia.HasValue ? Dias(referencia.Value) : null
+                    };
+                })
+                .OrderBy(b => b.UltimoAbrazo.HasValue)
+                .ThenByDescending(b => b.DiasSinAbrazo ?? int.MaxValue)
+                .Take(topBebes)
+                .ToList();
+
+            var idElimVol = estadoRepositorio.ObtenerIdEstadoEliminado("Voluntarias");
+            var idElimAsist = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
+            var ultimaAsistencia = db.ASISTENCIA.AsNoTracking()
+                .Where(a => a.IdVoluntaria != null && a.FechaHoraIngreso != null && (a.idEstado == null || a.idEstado != idElimAsist))
+                .GroupBy(a => a.IdVoluntaria!.Value)
+                .Select(g => new { Id = g.Key, Ultima = g.Max(a => a.FechaHoraIngreso!.Value) })
+                .ToDictionary(x => x.Id, x => x.Ultima);
+
+            var voluntarias = db.VOLUNTARIA.AsNoTracking()
+                .Where(v => v.IdEstado != idElimVol)
+                .Select(v => new { v.IdVoluntaria, v.Nombre, v.Apellido, v.FechaInicio })
+                .ToList()
+                .Select(v =>
+                {
+                    var ultima = ultimaAsistencia.TryGetValue(v.IdVoluntaria, out var u) ? u : (DateTime?)null;
+                    return new VoluntariaSinVenirItem
+                    {
+                        IdVoluntaria = v.IdVoluntaria,
+                        Nombre = $"{v.Nombre} {v.Apellido}".Trim(),
+                        UltimaAsistencia = ultima,
+                        DiasSinVenir = Dias(ultima ?? v.FechaInicio)
+                    };
+                })
+                .Where(v => v.DiasSinVenir >= diasUmbralVoluntarias)
+                .OrderByDescending(v => v.DiasSinVenir)
+                .ToList();
+
+            return new AlertasCoordinacionRespuesta
+            {
+                BebesMasDiasSinAbrazo = bebes,
+                VoluntariasSinVenir = voluntarias,
+                DiasUmbralVoluntarias = diasUmbralVoluntarias
+            };
+        }
+
+        /// <summary>
         /// Todo lo que pasó en un día, agrupado por categoría. Altas y bajas salen de la bitácora
         /// REGISTROACTIVIDAD, así que solo aparecen las registradas desde que existe.
         /// </summary>

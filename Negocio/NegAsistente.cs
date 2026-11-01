@@ -318,6 +318,10 @@ namespace ResimamisBackend.Negocio
             - Abrazos cerrados solos / cierre automático / botón de cerrar abrazos → cierres_automaticos
             - Visitas por bebé en un rango → visitas_periodo (campo porBebe)
             Todas las fechas y horas que devuelven las herramientas ya están en hora Argentina: no las conviertas.
+            Modo consultivo (qué priorizo, cómo venimos, recomendaciones, qué hago hoy) → alertas_y_prioridades:
+            - Empezá por lo urgente: bebés con más días sin abrazo (nombrá los primeros con sala y días), abrazos colgados y si alcanzan las voluntarias hoy.
+            - Después: voluntarias que dejaron de venir (sugerí contactarlas) e insumos bajo stock (sugerí reponer).
+            - Cerrá con 2 o 3 acciones concretas y ordenadas. Cada recomendación tiene que salir de un dato de la herramienta; si no hay alertas, decilo.
 
             Investigá antes de responder:
             - Podés usar varias herramientas en la misma pregunta.
@@ -700,6 +704,9 @@ namespace ResimamisBackend.Negocio
                     periodo = new { type = "string", description = "Alias: esta_semana, semana_pasada, este_mes, mes_pasado, ultimos_7, ultimos_30." },
                     id_voluntaria = new { type = "integer", description = "Opcional: solo esa voluntaria (buscala antes con buscar_voluntarias)." }
                 }),
+            ToolConParametros("alertas_y_prioridades",
+                "Vista para RECOMENDAR: bebés que llevan más días sin abrazo, voluntarias que dejaron de venir, insumos bajo stock, abrazos colgados y capacidad de hoy (bebés disponibles vs voluntarias libres). Para '¿qué priorizo?', '¿cómo venimos?', '¿qué me recomendás?'.",
+                new { dias_voluntarias = new { type = "integer", description = "Días sin venir para considerar inactiva a una voluntaria (default 14)." } }),
             ToolPeriodo("cierres_automaticos",
                 "Abrazos que cerró el sistema (cierre diario de medianoche) o el botón 'Cerrar abrazos sin finalizar', con quién y cuándo. Sin fechas: últimos 30 días.")
         ];
@@ -819,6 +826,7 @@ namespace ResimamisBackend.Negocio
                     "historial_bajas" => Json(negRegistroActividad.ListarHistorialBajas(LeerString(args, "tipo"))),
                     "dias_turnos_voluntarias" => Json(negAsistencia.ListarDiasTurnosVoluntarias(
                         Desde(args), Hasta(args), LeerInt(args, "id_voluntaria") ?? LeerInt(args, "idVoluntaria"))),
+                    "alertas_y_prioridades" => Json(AlertasYPrioridades(LeerInt(args, "dias_voluntarias") ?? 14)),
                     "cierres_automaticos" => Json(negRegistroActividad.ListarCierresAutomaticos(Desde(args), Hasta(args))),
                     _ => Json(new { error = $"Herramienta desconocida: {nombre}" })
                 };
@@ -1841,6 +1849,41 @@ namespace ResimamisBackend.Negocio
                 stats.PorFamiliar,
                 stats.PorBebe,
                 pistaHoy
+            };
+        }
+
+        /// <summary>Todo lo necesario para recomendar en una sola llamada (menos vueltas = menos tokens).</summary>
+        private object AlertasYPrioridades(int diasVoluntarias)
+        {
+            var alertas = negDashboard.ObtenerAlertasCoordinacion(10, diasVoluntarias);
+            var hoy = negDashboard.ObtenerCoordinacionHoy();
+            var bebesDisponibles = negBebes.listarBebesAbrazar().Count;
+            var voluntariasLibres = negVoluntaria.listarVoluntariasLibres().Count;
+            var stockBajo = negInsumos.obtenerInsumosBajoStockMinimo();
+            return new
+            {
+                hoy = new
+                {
+                    hoy.Fecha,
+                    hoy.BebesActivos,
+                    bebesDisponibles,
+                    voluntariasLibres,
+                    capacidad = voluntariasLibres == 0
+                        ? "No hay voluntarias presentes libres: no se pueden asignar abrazos ahora."
+                        : bebesDisponibles > voluntariasLibres
+                            ? $"Faltan voluntarias: {bebesDisponibles - voluntariasLibres} bebé(s) disponibles quedarían sin abrazo en esta ronda."
+                            : "Alcanzan las voluntarias para los bebés disponibles.",
+                    hoy.AbrazosHoy,
+                    hoy.AbrazosColgados
+                },
+                alertas.BebesMasDiasSinAbrazo,
+                voluntariasSinVenir = new
+                {
+                    umbralDias = alertas.DiasUmbralVoluntarias,
+                    total = alertas.VoluntariasSinVenir.Count,
+                    lista = alertas.VoluntariasSinVenir.Take(15)
+                },
+                insumosBajoStock = stockBajo.Select(i => new { i.nombre, i.stockActual, i.stockMinimo })
             };
         }
 
