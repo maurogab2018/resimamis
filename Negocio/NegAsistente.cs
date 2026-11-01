@@ -44,8 +44,28 @@ namespace ResimamisBackend.Negocio
         private static readonly JsonSerializerOptions JsonDatos = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            Converters = { new FechaHoraArgentinaConverter() }
         };
+
+        /// <summary>
+        /// Los instantes se guardan en UTC y el modelo los leía como hora local (un ingreso de las
+        /// 12:25 salía como 15:25). Para las herramientas se escriben en hora Argentina. Las fechas
+        /// sin hora (nacimiento, ingreso NEO) quedan a medianoche y no se corren de día.
+        /// </summary>
+        private sealed class FechaHoraArgentinaConverter : System.Text.Json.Serialization.JsonConverter<DateTime>
+        {
+            public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+                reader.GetDateTime();
+
+            public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+            {
+                if (value.TimeOfDay == TimeSpan.Zero)
+                    writer.WriteStringValue(value.ToString("yyyy-MM-dd"));
+                else
+                    writer.WriteStringValue(NegConversorFecha.HoraArgentina(value).ToString("yyyy-MM-dd HH:mm"));
+            }
+        }
 
         private readonly IConfiguration configuration;
         private readonly INegUsuarios negUsuarios;
@@ -61,6 +81,7 @@ namespace ResimamisBackend.Negocio
         private readonly INegTareas negTareas;
         private readonly INegProveedores negProveedores;
         private readonly INegGenericos negGenericos;
+        private readonly INegRegistroActividad negRegistroActividad;
         private readonly OpenAiChatCompletions openAi;
         private int? dniSolicitanteActual;
 
@@ -79,8 +100,10 @@ namespace ResimamisBackend.Negocio
             INegTareas negTareas,
             INegProveedores negProveedores,
             INegGenericos negGenericos,
+            INegRegistroActividad negRegistroActividad,
             IHttpClientFactory httpClientFactory)
         {
+            this.negRegistroActividad = negRegistroActividad;
             this.configuration = configuration;
             this.negUsuarios = negUsuarios;
             this.negDashboard = negDashboard;
@@ -289,6 +312,12 @@ namespace ResimamisBackend.Negocio
             - Edades/localidades de mamás o consumo de insumos → estadisticas_extra
             - Esta semana vs la anterior → comparar_periodos
             - Cómo funciona un flujo (abrazo, asistencia, stock, estados) → guia_operativa
+            - Qué pasó en un día (altas, bajas, movimientos, todo) → reporte_diario
+            - Bajas / quién dio de baja / egresos → historial_bajas
+            - Qué días o en qué TURNO viene una voluntaria → dias_turnos_voluntarias (no deduzcas el turno por la hora)
+            - Abrazos cerrados solos / cierre automático / botón de cerrar abrazos → cierres_automaticos
+            - Visitas por bebé en un rango → visitas_periodo (campo porBebe)
+            Todas las fechas y horas que devuelven las herramientas ya están en hora Argentina: no las conviertas.
 
             Investigá antes de responder:
             - Podés usar varias herramientas en la misma pregunta.
@@ -331,7 +360,7 @@ namespace ResimamisBackend.Negocio
             Tool("asignaciones_hoy", "Lista de asignaciones/abrazos del día HOY (bebe, voluntaria, estado, sala). Para detalle del día, no uses solo el contador de coordinacion_hoy."),
             ToolPeriodo("resumen_periodo", "KPIs del período: asignaciones, abrazos finalizados, visitas, promedios."),
             ToolPeriodo("asignaciones_por_dia", "Cantidad de asignaciones y abrazos por día en un rango (NO detalle de hoy: para lista de hoy usá asignaciones_hoy)."),
-            ToolPeriodo("visitas_periodo", "Estadísticas de visitas en un rango (NO para solo hoy: para hoy usá visitas_hoy). Total, por día y por familiar."),
+            ToolPeriodo("visitas_periodo", "Estadísticas de visitas en un rango (NO para solo hoy: para hoy usá visitas_hoy). Total, por día, por familiar y por bebé (porBebe, de mayor a menor)."),
             ToolPeriodoOpcional("evolucion_peso", "Evolución de peso ingreso vs egreso (gramos): promedio, mínima y máxima ganancia."),
             ToolPeriodoOpcional("ranking_abrazos_voluntarias", "Ranking de voluntarias por ABRAZOS FINALIZADOS (no fichajes). Sin fechas: últimos 365 días. Parámetro extra: top (1-20)."),
             ToolPeriodoOpcional("ranking_asistencias", "Ranking de voluntarias por FICHAJES de asistencia (ingresos al hospital, no abrazos). Sin fechas: últimos 365 días. Parámetro extra: top (1-20)."),
@@ -655,8 +684,36 @@ namespace ResimamisBackend.Negocio
                         }
                     }
                 }
-            }
+            },
+            ToolConParametros("reporte_diario",
+                "Todo lo que pasó en UN día: abrazos, movimientos de insumos, altas, bajas, asignaciones y asistencias, con hora y responsable. Para 'qué pasó hoy/ayer/el día X'.",
+                new { fecha = new { type = "string", description = "yyyy-MM-dd, 'hoy' o 'ayer'. Sin fecha: hoy." } }),
+            ToolConParametros("historial_bajas",
+                "Madres, bebés y voluntarias dados de baja, con fecha, quién la registró y motivo (egreso NEO). Más recientes primero.",
+                new { tipo = new { type = "string", description = "Opcional: Madre, Bebe o Voluntaria. Sin tipo: todos." } }),
+            ToolConParametros("dias_turnos_voluntarias",
+                "Días y TURNO (Mañana/Tarde/...) en que asistió o tuvo asignaciones cada voluntaria en un rango. Usala para 'qué días/turno viene X'. Sin fechas: últimos 30 días.",
+                new
+                {
+                    fecha_desde = new { type = "string", description = "Inicio yyyy-MM-dd." },
+                    fecha_hasta = new { type = "string", description = "Fin yyyy-MM-dd." },
+                    periodo = new { type = "string", description = "Alias: esta_semana, semana_pasada, este_mes, mes_pasado, ultimos_7, ultimos_30." },
+                    id_voluntaria = new { type = "integer", description = "Opcional: solo esa voluntaria (buscala antes con buscar_voluntarias)." }
+                }),
+            ToolPeriodo("cierres_automaticos",
+                "Abrazos que cerró el sistema (cierre diario de medianoche) o el botón 'Cerrar abrazos sin finalizar', con quién y cuándo. Sin fechas: últimos 30 días.")
         ];
+
+        private static OpenAiTool ToolConParametros(string name, string description, object properties) =>
+            new()
+            {
+                Function = new OpenAiFunction
+                {
+                    Name = name,
+                    Description = description,
+                    Parameters = new { type = "object", properties }
+                }
+            };
 
         private static OpenAiTool Tool(string name, string description) =>
             new()
@@ -758,6 +815,11 @@ namespace ResimamisBackend.Negocio
                     "asignaciones_hoy_voluntaria" => Json(AsignacionesHoyVoluntaria(args)),
                     "comparar_periodos" => Json(CompararPeriodos(args)),
                     "guia_operativa" => Json(GuiaOperativa(LeerString(args, "tema"))),
+                    "reporte_diario" => Json(ReporteDiario(LeerString(args, "fecha"))),
+                    "historial_bajas" => Json(negRegistroActividad.ListarHistorialBajas(LeerString(args, "tipo"))),
+                    "dias_turnos_voluntarias" => Json(negAsistencia.ListarDiasTurnosVoluntarias(
+                        Desde(args), Hasta(args), LeerInt(args, "id_voluntaria") ?? LeerInt(args, "idVoluntaria"))),
+                    "cierres_automaticos" => Json(negRegistroActividad.ListarCierresAutomaticos(Desde(args), Hasta(args))),
                     _ => Json(new { error = $"Herramienta desconocida: {nombre}" })
                 };
             }
@@ -1777,7 +1839,41 @@ namespace ResimamisBackend.Negocio
                 stats.BebesVisitados,
                 stats.PorDia,
                 stats.PorFamiliar,
+                stats.PorBebe,
                 pistaHoy
+            };
+        }
+
+        /// <summary>Reporte diario; cada categoría se recorta para no inflar el contexto del modelo.</summary>
+        private object ReporteDiario(string? fecha)
+        {
+            const int maxPorCategoria = 25;
+            var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow).ToDateTime(TimeOnly.MinValue);
+            DateTime? dia = fecha?.Trim().ToLowerInvariant() switch
+            {
+                null or "" or "hoy" => hoy,
+                "ayer" => hoy.AddDays(-1),
+                _ => NegConversorFecha.ParseFechaCalendarioReporte(fecha!)
+            };
+            var reporte = negDashboard.ObtenerReporteDiario(dia);
+            return new
+            {
+                reporte.Fecha,
+                reporte.TotalMovimientos,
+                categorias = reporte.Categorias.Select(c => new
+                {
+                    c.Categoria,
+                    c.Cantidad,
+                    recortado = c.Cantidad > maxPorCategoria ? $"Se muestran {maxPorCategoria} de {c.Cantidad}." : null,
+                    movimientos = c.Movimientos.Take(maxPorCategoria).Select(m => new
+                    {
+                        m.FechaHora,
+                        m.FechaHoraFin,
+                        m.Tipo,
+                        m.Descripcion,
+                        m.Responsable
+                    })
+                })
             };
         }
 
