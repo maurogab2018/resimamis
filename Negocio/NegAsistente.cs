@@ -341,7 +341,8 @@ namespace ResimamisBackend.Negocio
 
             Routing de fichas y listados:
             - Ficha / datos completos de un bebé → buscar_bebes y después ficha_bebe
-            - Contacto, mail, DNI u horarios de una voluntaria → buscar_voluntarias y después ficha_voluntaria
+            - Contacto, mail, DNI u horarios de una voluntaria → buscar_voluntarias y después ficha_voluntaria. La coordinadora está autorizada a ver teléfono, mail y DNI de voluntarias y mamás: no te niegues, buscalo en la ficha.
+            - Un mes o año nombrado ("en octubre", "en 2026") → periodo "2026-10" o "2026" (o fecha_desde/fecha_hasta de ese mes). No lo cambies por "últimos 30 días".
             - Listado de bebés activos (por sala o estado) → listar_bebes
             - Listado de voluntarias (por estado) → listar_voluntarias
             - Stock de TODOS los insumos o uno por nombre → stock_insumos (bajo mínimo sigue siendo insumos_bajo_stock)
@@ -746,7 +747,7 @@ namespace ResimamisBackend.Negocio
                 {
                     fecha_desde = new { type = "string", description = "Inicio yyyy-MM-dd." },
                     fecha_hasta = new { type = "string", description = "Fin yyyy-MM-dd." },
-                    periodo = new { type = "string", description = "Alias: esta_semana, semana_pasada, este_mes, mes_pasado, ultimos_7, ultimos_30." },
+                    periodo = new { type = "string", description = "Alias: esta_semana, semana_pasada, este_mes, mes_pasado, ultimos_7, ultimos_30, este_anio, un mes (2026-10) o un año (2026)." },
                     id_voluntaria = new { type = "integer", description = "Opcional: solo esa voluntaria (buscala antes con buscar_voluntarias)." }
                 }),
             ToolConParametros("alertas_y_prioridades",
@@ -872,7 +873,7 @@ namespace ResimamisBackend.Negocio
                     "dias_turnos_voluntarias" => Json(negAsistencia.ListarDiasTurnosVoluntarias(
                         Desde(args), Hasta(args), LeerInt(args, "id_voluntaria") ?? LeerInt(args, "idVoluntaria"))),
                     "alertas_y_prioridades" => Json(AlertasYPrioridades(LeerInt(args, "dias_voluntarias") ?? 14)),
-                    "cierres_automaticos" => Json(negRegistroActividad.ListarCierresAutomaticos(Desde(args), Hasta(args))),
+                    "cierres_automaticos" => Json(CierresAutomaticos(args)),
                     _ => Json(new { error = $"Herramienta desconocida: {nombre}" })
                 };
             }
@@ -1903,6 +1904,28 @@ namespace ResimamisBackend.Negocio
             };
         }
 
+        /// <summary>
+        /// Abrazos cerrados solos más las corridas del cierre diario (una marca por día, aunque no
+        /// haya cerrado nada): así puede responder "¿corrió el cierre de anoche?".
+        /// </summary>
+        private object CierresAutomaticos(JsonDocument args)
+        {
+            var desde = Desde(args);
+            var hasta = Hasta(args);
+            var (inicioUtc, finUtc) = NegConversorFecha.RangoFechasArgentinaEnUtc(desde, hasta);
+            var corridas = negRegistroActividad.ListarPorRangoUtc(inicioUtc, finUtc)
+                .Where(r => r.tipoMovimiento == Datos.TiposMovimientoActividad.EjecucionCierreDiario)
+                .OrderByDescending(r => r.fechaHora)
+                .Select(r => new { r.fechaHora, abrazosCerrados = r.idRegistro, r.descripcion })
+                .ToList();
+            return new
+            {
+                aclaracion = "corridasCierreDiario: una por día en que corrió el cierre automático (aunque haya cerrado 0). cierres: cada abrazo cerrado solo o con el botón.",
+                corridasCierreDiario = corridas,
+                cierres = negRegistroActividad.ListarCierresAutomaticos(desde, hasta)
+            };
+        }
+
         /// <summary>Todo lo necesario para recomendar en una sola llamada (menos vueltas = menos tokens).</summary>
         private object AlertasYPrioridades(int diasVoluntarias)
         {
@@ -1927,6 +1950,7 @@ namespace ResimamisBackend.Negocio
                     hoy.AbrazosHoy,
                     hoy.AbrazosColgados
                 },
+                aclaracionBebes = "bebesMasDiasSinAbrazo: días desde el último abrazo FINALIZADO real de cada bebé (los cierres automáticos no cuentan). Es la respuesta a 'qué bebés llevan más días sin abrazo'. Estar disponible o sin asignación hoy no significa 0 días.",
                 alertas.BebesMasDiasSinAbrazo,
                 voluntariasSinVenir = new
                 {

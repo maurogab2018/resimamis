@@ -137,6 +137,23 @@ Unos 90 casos. Se encontraron y corrigieron 3 bugs del back (`79747a2`, `ea6335b
 | Apellido con apóstrofo (D'Angelo) | ❌ → corregido: se aceptan apóstrofo y guion |
 | Dos "Generar" a la vez (doble clic) | ❌ creaba 58 asignaciones para 29 bebés → corregido con lock en Postgres |
 
+## Tercera tanda (2026-11-02)
+| Caso | Resultado |
+|---|---|
+| 17 endpoints de lectura no probados (visitas, salas, estados civiles, días, históricos, estado del asistente y del cierre diario, etc.) | ✅ todos 200 |
+| Alta de voluntaria reusando el DNI de una dada de baja | ✅ permitido |
+| Agregar horario (POST) / el mismo horario dos veces | ✅ / ✅ 400 "Horario ya asignado para ese día" |
+| Eliminar asistencia y volver a marcar entrada / salida sin entrada abierta | ✅ / ✅ 400 |
+| Generar por selección (1 bebé, 1 voluntaria) / mismo bebé de nuevo | ✅ / ✅ rechazado |
+| Tareas de catálogo en lote / la voluntaria ve sus asignaciones de hoy | ✅ |
+| Proveedor con nombre repetido (enviando la ficha completa) | ✅ 409. El 400 de ayer venía de no mandar la descripción, que es obligatoria |
+| Editar madre con un solo campo | ⚠️ sigue dando 400; el front manda la ficha completa y funciona |
+| Cierre diario: una sola corrida por día, con marca y endpoint de estado | ✅ (`d8b90ed`) |
+
+Asistente, 14 preguntas: 10 bien a la primera. Corregido en el prompt y las herramientas: "días sin abrazo" leído
+como 0, un mes nombrado ("octubre") tomado como últimos 30 días, negarse a dar el teléfono de una voluntaria y no
+poder responder si corrió el cierre diario.
+
 ## Pendientes del front
 1. Texto "Solo lectura" del asistente.
 2. Texto del diálogo de "Cerrar abrazos sin finalizar" y mostrar la cantidad cerrada.
