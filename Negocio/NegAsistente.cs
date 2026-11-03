@@ -359,7 +359,7 @@ namespace ResimamisBackend.Negocio
             - Qué días o en qué TURNO viene una voluntaria → dias_turnos_voluntarias (no deduzcas el turno por la hora)
             - Abrazos cerrados solos / cierre automático / botón de cerrar abrazos → cierres_automaticos
             - Visitas por bebé en un rango → visitas_periodo (campo porBebe)
-            - Hace cuántos días un bebé no recibe abrazo / quién lleva más tiempo sin abrazo → alertas_y_prioridades (bebesMasDiasSinAbrazo). Nunca uses la fecha de ingreso a NEO como "días sin abrazo".
+            - Hace cuántos días un bebé no recibe abrazo / quién lleva más tiempo sin abrazo → bebes_dias_sin_abrazo. Nunca uses la fecha de ingreso a NEO como "días sin abrazo", y no respondas "no hay" si la lista trae bebés.
             - Bebés SIN ASIGNACIÓN hoy → bebes_disponibles_abrazo (si está vacío, todos tienen asignación). Bebés SIN ABRAZO FINALIZADO hoy → cobertura_hoy. No los confundas: un bebé puede estar asignado y todavía sin abrazo.
             Todas las fechas y horas que devuelven las herramientas ya están en hora Argentina: no las conviertas.
             Rangos relativos ("esta semana", "este mes", "este año", "la semana pasada", "últimos 30 días"): mandá SIEMPRE el parámetro periodo (esta_semana, este_mes, este_anio, semana_pasada, ultimos_30) y NO calcules fecha_desde/fecha_hasta vos. Al responder, citá el rango que devuelve la herramienta.
@@ -750,6 +750,8 @@ namespace ResimamisBackend.Negocio
                     periodo = new { type = "string", description = "Alias: esta_semana, semana_pasada, este_mes, mes_pasado, ultimos_7, ultimos_30, este_anio, un mes (2026-10) o un año (2026)." },
                     id_voluntaria = new { type = "integer", description = "Opcional: solo esa voluntaria (buscala antes con buscar_voluntarias)." }
                 }),
+            Tool("bebes_dias_sin_abrazo",
+                "Bebés activos ordenados por DÍAS SIN ABRAZO (desde su último abrazo finalizado real; si nunca recibió uno, desde el ingreso a NEO). Para '¿qué bebés llevan más días sin abrazo?', '¿hace cuánto que X no recibe un abrazo?'."),
             ToolConParametros("alertas_y_prioridades",
                 "Vista para RECOMENDAR: bebés que llevan más días sin abrazo, voluntarias que dejaron de venir, insumos bajo stock, abrazos colgados y capacidad de hoy (bebés disponibles vs voluntarias libres). Para '¿qué priorizo?', '¿cómo venimos?', '¿qué me recomendás?'.",
                 new { dias_voluntarias = new { type = "integer", description = "Días sin venir para considerar inactiva a una voluntaria (default 14)." } }),
@@ -873,6 +875,11 @@ namespace ResimamisBackend.Negocio
                     "dias_turnos_voluntarias" => Json(negAsistencia.ListarDiasTurnosVoluntarias(
                         Desde(args), Hasta(args), LeerInt(args, "id_voluntaria") ?? LeerInt(args, "idVoluntaria"))),
                     "alertas_y_prioridades" => Json(AlertasYPrioridades(LeerInt(args, "dias_voluntarias") ?? 14)),
+                    "bebes_dias_sin_abrazo" => Json(new
+                    {
+                        aclaracion = "Ordenados de más a menos días sin abrazo. No depende de si hoy hay voluntarias o asignaciones.",
+                        bebes = negDashboard.ObtenerAlertasCoordinacion(30, 14).BebesMasDiasSinAbrazo
+                    }),
                     "cierres_automaticos" => Json(CierresAutomaticos(args)),
                     _ => Json(new { error = $"Herramienta desconocida: {nombre}" })
                 };
