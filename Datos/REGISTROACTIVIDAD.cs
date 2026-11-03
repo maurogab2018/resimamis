@@ -40,6 +40,8 @@ namespace ResimamisBackend.Datos
         public const string Baja = "Baja";
         /// <summary>Abrazo cerrado por el sistema (cierre diario) o desde el botón de coordinación.</summary>
         public const string CierreAutomatico = "Cierre automático";
+        /// <summary>Marca de que el cierre diario ya corrió ese día (idRegistro = cantidad cerrada).</summary>
+        public const string EjecucionCierreDiario = "Ejecución cierre diario";
     }
 
     public static class TiposRegistroActividad
@@ -51,5 +53,6 @@ namespace ResimamisBackend.Datos
         public const string Proveedor = "Proveedor";
         public const string Sala = "Sala";
         public const string Asignacion = "Asignación";
+        public const string Sistema = "Sistema";
     }
 }

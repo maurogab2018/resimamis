@@ -451,6 +451,37 @@ namespace ResimamisBackend.Controllers
         }
 
         /// <summary>
+        /// Estado del cierre diario automático: las últimas corridas (guardadas en la bitácora, una
+        /// por día) y la próxima programada, en hora Argentina.
+        /// </summary>
+        [HttpGet("cierre-diario/estado")]
+        public IActionResult GetEstadoCierreDiario([FromServices] ApplicationDbContext db)
+        {
+            static string? Ar(DateTime? utc) =>
+                utc.HasValue ? NegConversorFecha.HoraArgentina(utc.Value).ToString("yyyy-MM-dd HH:mm:ss") : null;
+            try
+            {
+                var ultimas = db.REGISTROACTIVIDAD
+                    .Where(r => r.tipoMovimiento == TiposMovimientoActividad.EjecucionCierreDiario)
+                    .OrderByDescending(r => r.fechaHora)
+                    .Take(7)
+                    .Select(r => new { r.fechaHora, cantidadCerrada = r.idRegistro, r.descripcion })
+                    .ToList()
+                    .Select(r => new { fecha = Ar(r.fechaHora), r.cantidadCerrada, r.descripcion });
+
+                return ApiResults.Success(new
+                {
+                    proximaEjecucion = Ar(CierreAbrazosDiarioServicio.ProximaEjecucionUtc),
+                    ultimasEjecuciones = ultimas
+                });
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
+        /// <summary>
         /// Rastro de los abrazos cerrados automáticamente (cierre diario de medianoche o botón de
         /// coordinación). Query opcional fechaDesde/fechaHasta; sin fechas, los últimos 7 días.
         /// </summary>
