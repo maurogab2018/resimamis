@@ -665,7 +665,12 @@ namespace ResimamisBackend.Negocio
             return true;
         }
 
-        public bool registrarFinAsignacionAbrazo(int idAsignacion, string? comentario)
+        // En fila, igual que el inicio: tres "Finalizar" seguidos pasaban todos el control de
+        // "ya finalizado" y los tres respondían 200 pisando la hora de fin y el comentario.
+        public bool registrarFinAsignacionAbrazo(int idAsignacion, string? comentario) =>
+            BloqueosDb.Ejecutar(db, BloqueosDb.Abrazos, () => registrarFinAsignacionAbrazoSinBloqueo(idAsignacion, comentario));
+
+        private bool registrarFinAsignacionAbrazoSinBloqueo(int idAsignacion, string? comentario)
         {
             var asignacion = asignacionRepositorio.consultarAsignacion(idAsignacion);
             AsegurarAsignacionNoEliminada(asignacion);
