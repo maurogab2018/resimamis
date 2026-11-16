@@ -113,6 +113,9 @@ namespace ResimamisBackend.Datos
             voluntariaModificar.Celular = voluntaria.Celular;
             voluntariaModificar.FechaFin = voluntaria.FechaFin;
             voluntariaModificar.FechaInicio = voluntaria.FechaInicio;
+            // Si el PUT no la trae (p. ej. Mi perfil) no se borra la que ya estaba.
+            if (voluntaria.FechaNacimiento.HasValue)
+                voluntariaModificar.FechaNacimiento = voluntaria.FechaNacimiento;
             voluntariaModificar.Mail = voluntaria.Mail;
             voluntariaModificar.Dni = voluntaria.Dni;
             if (voluntaria.IdEstado.HasValue && voluntaria.IdEstado.Value > 0)

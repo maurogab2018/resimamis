@@ -675,6 +675,9 @@ namespace ResimamisBackend.Migrations
                     b.Property<DateTime>("FechaInicio")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<DateTime?>("FechaNacimiento")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<int?>("IdEstado")
                         .HasColumnType("integer");
 

@@ -8,6 +8,7 @@ namespace ResimamisBackend.Negocio
 {
     public class NegVoluntaria : INegVoluntaria
     {
+        private readonly ApplicationDbContext db;
         private readonly IVoluntariaRepositorio voluntariaRepositorio;
         private readonly IHorarioRepositorio horarioRepositorio;
         private readonly IEstadoRepositorio estadoRepositorio;
@@ -17,8 +18,10 @@ namespace ResimamisBackend.Negocio
             IVoluntariaRepositorio voluntariaRepositorio,
             IHorarioRepositorio horarioRepositorio,
             IEstadoRepositorio estadoRepositorio,
-            INegRegistroActividad registroActividad)
+            INegRegistroActividad registroActividad,
+            ApplicationDbContext db)
         {
+            this.db = db;
             this.voluntariaRepositorio = voluntariaRepositorio;
             this.horarioRepositorio = horarioRepositorio;
             this.estadoRepositorio = estadoRepositorio;
@@ -66,6 +69,9 @@ namespace ResimamisBackend.Negocio
             if (voluntaria.FechaFin.HasValue && voluntaria.FechaFin.Value < voluntaria.FechaInicio)
                 throw new ApplicationException("FechaFin inválida");
 
+            if (voluntaria.FechaNacimiento.HasValue && voluntaria.FechaNacimiento.Value.Date > DateTime.Now.Date)
+                throw new ApplicationException("La fecha de nacimiento no puede ser futura.");
+
             if (validarEstado && voluntaria.IdEstado.HasValue)
             {
                 if (voluntaria.IdEstado.Value <= 0)
@@ -85,7 +91,11 @@ namespace ResimamisBackend.Negocio
             return voluntariaRepositorio.listarVoluntarias();
         }
 
-        public VoluntariaDetalle registrarVoluntaria(VOLUNTARIA voluntaria, List<HorarioVoluntaria>? horarios = null)
+        // Todo o nada y en fila: un horario inválido dejaba la voluntaria creada a medias, y dos altas a la vez duplicaban el DNI.
+        public VoluntariaDetalle registrarVoluntaria(VOLUNTARIA voluntaria, List<HorarioVoluntaria>? horarios = null) =>
+            BloqueosDb.Ejecutar(db, BloqueosDb.Altas, () => registrarVoluntariaSinBloqueo(voluntaria, horarios));
+
+        private VoluntariaDetalle registrarVoluntariaSinBloqueo(VOLUNTARIA voluntaria, List<HorarioVoluntaria>? horarios = null)
         {
             ValidarVoluntaria(voluntaria, validarEstado: false);
 
@@ -179,6 +189,7 @@ namespace ResimamisBackend.Negocio
                 Mail = voluntaria.Mail,
                 Celular = voluntaria.Celular,
                 FechaInicio = voluntaria.FechaInicio,
+                FechaNacimiento = voluntaria.FechaNacimiento,
                 FechaFin = voluntaria.FechaFin,
                 IdEstado = voluntaria.IdEstado,
                 IdRol = voluntaria.IdRol,

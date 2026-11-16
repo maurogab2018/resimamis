@@ -8,6 +8,7 @@ namespace ResimamisBackend.Negocio
 {
     public class NegMadres : INegMadres
     {
+        private readonly ApplicationDbContext db;
         public readonly IMadreRepositorio repositorioMadre;
         private readonly INegBebes negBebes;
         private readonly IGenericosRepositorio genericosRepositorio;
@@ -17,8 +18,10 @@ namespace ResimamisBackend.Negocio
             IMadreRepositorio repositorioMadre,
             INegBebes negBebes,
             IGenericosRepositorio genericosRepositorio,
-            INegRegistroActividad registroActividad)
+            INegRegistroActividad registroActividad,
+            ApplicationDbContext db)
         {
+            this.db = db;
             this.repositorioMadre = repositorioMadre;
             this.negBebes = negBebes;
             this.genericosRepositorio = genericosRepositorio;
@@ -44,7 +47,11 @@ namespace ResimamisBackend.Negocio
             return repositorioMadre.devolverEstadisticasLocalidades();
         }
 
-        public ResultadoValidacion registrarMadre(MADRE madre)
+        // En fila: dos altas a la vez (doble clic) creaban madres duplicadas con el mismo DNI.
+        public ResultadoValidacion registrarMadre(MADRE madre) =>
+            BloqueosDb.Ejecutar(db, BloqueosDb.Altas, () => registrarMadreSinBloqueo(madre));
+
+        private ResultadoValidacion registrarMadreSinBloqueo(MADRE madre)
         {
             var resultado = new ResultadoValidacion();
             ValidarCamposMadre(madre, resultado);
@@ -235,6 +242,11 @@ namespace ResimamisBackend.Negocio
             var aValidar = CombinarParcheMadre(madreModificar, madre);
             ValidarCamposMadre(aValidar, resultado);
             ValidarBebesEnModificacion(madre, madreModificar, resultado);
+
+            // El alta controla el DNI repetido; la modificación lo dejaba duplicar.
+            if (resultado.Exito && aValidar.Dni != madreModificar.Dni
+                && repositorioMadre.existeOtraMadreConDni(aValidar.Dni, Id))
+                resultado.Errores.Add("Ya existe otra madre con ese Dni.");
 
             if (!resultado.Exito)
                 return resultado;

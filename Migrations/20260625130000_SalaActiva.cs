@@ -20,8 +20,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 ");
-
-            migrationBuilder.Sql(@"UPDATE ""SALA"" SET ""Activa"" = TRUE WHERE ""Activa"" IS NOT TRUE;");
+            // Sin UPDATE: en producción la columna ya existe y pisaría las bajas (Activa = false).
         }
 
         /// <inheritdoc />

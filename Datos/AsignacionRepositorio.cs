@@ -147,6 +147,11 @@ namespace ResimamisBackend.Datos
 
         public bool registrarDetalleAsignacion(List<RequestDetalleAsignacion> request)
         {
+            // Todo o nada: si una fila no tenía stock, las anteriores ya habían descontado stock
+            // (registrarMovimientoStock guarda) y su detalle se perdía. El lock es el mismo de los
+            // movimientos de stock, para que dos pedidos a la vez no entreguen más de lo que hay.
+            using var tx = db.Database.BeginTransaction();
+            BloqueosDb.Tomar(db, BloqueosDb.Stock);
             request.ForEach(r =>
             {
                 if (!r.cantidadInsumo.HasValue || r.cantidadInsumo.Value <= 0)
@@ -181,6 +186,7 @@ namespace ResimamisBackend.Datos
             });
 
             db.SaveChanges();
+            tx.Commit();
 
             return true;
         }
@@ -188,21 +194,25 @@ namespace ResimamisBackend.Datos
         public EstadisticaDuracionesAbrazos devolverDuracionesAbrazos()
         {
             var estadisticaResultado= new EstadisticaDuracionesAbrazos();
-            List<ASIGNACION> asignaciones= db.ASIGNACION.ToList(); // Puedes reemplazar esto con la obtención real de datos desde tu base de datos.
-            var resultados = asignaciones
+            // Solo las columnas necesarias de los abrazos terminados (antes traía toda la tabla con
+            // tracking), sin eliminadas ni duraciones negativas. Sin datos devuelve lista vacía en
+            // vez de "No hay asignaciones" (400).
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+            var resultados = db.ASIGNACION.AsNoTracking()
                 .Where(a => a.fechaHoraInicio != null
                             && a.fechaHoraFin != null
-                            && !a.cierreAutomatico)
+                            && a.fechaHoraFin >= a.fechaHoraInicio
+                            && !a.cierreAutomatico
+                            && a.idEstado != idElim)
+                .Select(a => new { Inicio = a.fechaHoraInicio!.Value, Fin = a.fechaHoraFin!.Value })
+                .ToList()
                 .Select(a => new DuracionAbrazos()
                 {
-                    Minutos = (int)(a.fechaHoraFin.Value - a.fechaHoraInicio.Value).TotalMinutes,
-                    Segundos = (int)(a.fechaHoraFin.Value - a.fechaHoraInicio.Value).TotalSeconds % 60
+                    Minutos = (int)(a.Fin - a.Inicio).TotalMinutes,
+                    Segundos = (int)(a.Fin - a.Inicio).TotalSeconds % 60
                 })
                 .ToList();
             estadisticaResultado.listadoDuracionesAbrazos = resultados;
-
-            if (asignaciones.Count == 0)
-                throw new ApplicationException("No hay asignaciones");
 
             // El promedio va sobre los abrazos finalizados: dividir por el total de
             // asignaciones lo diluía con las que nunca se iniciaron.

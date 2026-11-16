@@ -44,6 +44,31 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("La asignación fue eliminada.");
         }
 
+        /// <summary>
+        /// Estados de voluntaria que un cierre o una liberación no deben pisar con "Disponible":
+        /// antes una voluntaria en Licencia volvía a figurar disponible al cerrarse un abrazo.
+        /// </summary>
+        private HashSet<int> IdsEstadosVoluntariaNoOperativa() =>
+            db.ESTADO.AsNoTracking()
+                .Where(e => e.ambito.nombre == "Voluntarias"
+                            && (e.nombre == "Eliminado" || e.nombre == "Inactiva"
+                                || e.nombre == "Licencia" || e.nombre == "Carpeta médica"))
+                .Select(e => e.idEstado)
+                .ToHashSet();
+
+        /// <summary>Bebé egresado (fecha de salida) o dado de baja: no se abraza ni vuelve a "Sin abrazar".</summary>
+        private bool BebeFueraDelPrograma(BEBE bebe) =>
+            bebe.FechaSalida.HasValue
+            || bebe.IdEstado == estadoRepositorio.ObtenerIdEstadoEliminado("Bebes");
+
+        /// <summary>Pasa la voluntaria a Disponible salvo que esté de baja, inactiva o de licencia.</summary>
+        private void PonerVoluntariaDisponible(VOLUNTARIA voluntaria)
+        {
+            if (voluntaria.IdEstado.HasValue && IdsEstadosVoluntariaNoOperativa().Contains(voluntaria.IdEstado.Value))
+                return;
+            voluntaria.IdEstado = estadoRepositorio.ObtenerIdVoluntariaDisponible();
+        }
+
         private static string NombreCompletoVoluntaria(VOLUNTARIA? voluntaria) =>
             voluntaria == null ? string.Empty : $"{voluntaria.Nombre} {voluntaria.Apellido}".Trim();
 
@@ -86,7 +111,11 @@ namespace ResimamisBackend.Negocio
             };
 
 
-        public List<RespuestaAsignaciones> generarAsiganacionTareasPorId(RequestAsignacionTareas requestAsignacion)
+        // En fila y en una transacción: una tarea "única" se asignaba varias veces a la vez y, si fallaba una tarea, las anteriores quedaban creadas.
+        public List<RespuestaAsignaciones> generarAsiganacionTareasPorId(RequestAsignacionTareas requestAsignacion) =>
+            BloqueosDb.Ejecutar(db, BloqueosDb.Abrazos, () => generarAsiganacionTareasPorIdSinBloqueo(requestAsignacion));
+
+        private List<RespuestaAsignaciones> generarAsiganacionTareasPorIdSinBloqueo(RequestAsignacionTareas requestAsignacion)
         {
             if (requestAsignacion.idVoluntarias == null || requestAsignacion.idVoluntarias.Count == 0)
                 throw new ApplicationException("Debe indicar al menos una voluntaria.");
@@ -113,6 +142,12 @@ namespace ResimamisBackend.Negocio
             var voluntariasFaltantes = idsVoluntarias.Where(id => voluntarias.All(v => v.IdVoluntaria != id)).ToList();
             if (voluntariasFaltantes.Count > 0)
                 throw new ApplicationException("Voluntaria(s) inexistentes: " + string.Join(", ", voluntariasFaltantes) + ".");
+
+            var noOperativas = IdsEstadosVoluntariaNoOperativa();
+            var noDisponibles = voluntarias.Where(v => v.IdEstado.HasValue && noOperativas.Contains(v.IdEstado.Value))
+                .Select(v => v.IdVoluntaria).ToList();
+            if (noDisponibles.Count > 0)
+                throw new ApplicationException("Voluntaria(s) no disponibles (baja, inactiva o licencia): " + string.Join(", ", noDisponibles) + ".");
 
             if (tareas.Count == 0)
                 throw new ApplicationException("No se encontraron tareas válidas.");
@@ -233,11 +268,18 @@ namespace ResimamisBackend.Negocio
         /// <summary>
         /// Asigna una tarea del catálogo (tabla TAREA) a una voluntaria.
         /// </summary>
-        public RespuestaAsignaciones generarAsignacionTareaCatalogo(RequestAsignacionTarea requestAsignacion)
+        // En fila: con doble clic una tarea "única" quedaba asignada varias veces.
+        public RespuestaAsignaciones generarAsignacionTareaCatalogo(RequestAsignacionTarea requestAsignacion) =>
+            BloqueosDb.Ejecutar(db, BloqueosDb.Abrazos, () => generarAsignacionTareaCatalogoSinBloqueo(requestAsignacion));
+
+        private RespuestaAsignaciones generarAsignacionTareaCatalogoSinBloqueo(RequestAsignacionTarea requestAsignacion)
         {
             var voluntaria = voluntariaRepositorio.consultarVoluntaria(requestAsignacion.idVoluntaria);
             if (voluntaria == null)
                 throw new NotFoundException("Voluntaria no encontrada");
+            // Antes se asignaban tareas a voluntarias dadas de baja o de licencia (y quedaban "Asignada").
+            if (voluntaria.IdEstado.HasValue && IdsEstadosVoluntariaNoOperativa().Contains(voluntaria.IdEstado.Value))
+                throw new ApplicationException("La voluntaria no está disponible (baja, inactiva o licencia).");
             var tarea = db.TAREA.FirstOrDefault(t => t.idTarea == requestAsignacion.idTarea);
             if (tarea == null)
                 throw new NotFoundException("Tarea no encontrada");
@@ -574,12 +616,24 @@ namespace ResimamisBackend.Negocio
                 .ToList();
         }
         
-        public bool registrarInicioAsignacionAbrazo(int idAsignacion)
+        // En fila: dos inicios a la vez dejaban a una voluntaria con dos abrazos en curso.
+        public bool registrarInicioAsignacionAbrazo(int idAsignacion) =>
+            BloqueosDb.Ejecutar(db, BloqueosDb.Abrazos, () => registrarInicioAsignacionAbrazoSinBloqueo(idAsignacion));
+
+        private bool registrarInicioAsignacionAbrazoSinBloqueo(int idAsignacion)
         {
             var asignacion = asignacionRepositorio.consultarAsignacion(idAsignacion);
             AsegurarAsignacionNoEliminada(asignacion);
             if (asignacion.fechaHoraInicio != null)
                 throw new ConflictException("Abrazo ya inicializado");
+
+            // Una asignación de otro día ya no es el plan de hoy: la cierra el cierre diario.
+            var (inicioHoyUtc, _) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            if (asignacion.fechaHoraAsignacion < inicioHoyUtc)
+                throw new ApplicationException("La asignación es de un día anterior; no se puede iniciar.");
+
+            if (asignacion.idBebe.HasValue && BebeFueraDelPrograma(bebeRepositorio.consultarBebe(asignacion.idBebe.Value)))
+                throw new ApplicationException("El bebé ya egresó o fue dado de baja; no se puede iniciar el abrazo.");
 
             // Una voluntaria no puede estar abrazando a dos bebés al mismo tiempo.
             var yaTieneAbrazoEnCurso = asignacionRepositorio
@@ -621,18 +675,19 @@ namespace ResimamisBackend.Negocio
             if (asignacion.fechaHoraFin != null)
                 throw new ConflictException("Abrazo ya fue finalizado");
 
-            var idVolDisponible = estadoRepositorio.ObtenerIdVoluntariaDisponible();
-
             var voluntariaAsignacion = voluntariaRepositorio.consultarVoluntaria(asignacion.idVoluntaria);
-            voluntariaAsignacion.IdEstado = idVolDisponible;
+            PonerVoluntariaDisponible(voluntariaAsignacion);
             voluntariaRepositorio.cambioEstadoVoluntaria(voluntariaAsignacion);
 
             if (asignacion.idBebe.HasValue)
             {
-                var idBebeSinAbrazar = estadoRepositorio.ObtenerIdBebeSinAbrazar();
+                // Un bebé egresado durante el abrazo no vuelve a "Sin abrazar" (antes reaparecía disponible).
                 var bebeAbrazado = bebeRepositorio.consultarBebe(asignacion.idBebe.Value);
-                bebeAbrazado.IdEstado = idBebeSinAbrazar;
-                bebeRepositorio.cambioEstadoBebe(bebeAbrazado, idBebeSinAbrazar);
+                if (!BebeFueraDelPrograma(bebeAbrazado))
+                {
+                    var idBebeSinAbrazar = estadoRepositorio.ObtenerIdBebeSinAbrazar();
+                    bebeRepositorio.cambioEstadoBebe(bebeAbrazado, idBebeSinAbrazar);
+                }
             }
 
             asignacion.fechaHoraFin = NegConversorFecha.ObtenerFechaArgentina();
@@ -714,7 +769,7 @@ namespace ResimamisBackend.Negocio
                     if (vol != null
                         && vol.IdEstado != idElimVol
                         && !voluntariasConOtraAbierta.Contains(vol.IdVoluntaria))
-                        vol.IdEstado = idVolDisponible;
+                        PonerVoluntariaDisponible(vol);
 
                     if (asignacion.idBebe.HasValue && !bebesConOtraAbierta.Contains(asignacion.idBebe.Value))
                     {
@@ -817,8 +872,8 @@ namespace ResimamisBackend.Negocio
             if (!otrasAbiertas.Any(a => a.idVoluntaria == asignacion.idVoluntaria))
             {
                 var vol = db.VOLUNTARIA.FirstOrDefault(v => v.IdVoluntaria == asignacion.idVoluntaria);
-                if (vol != null && vol.IdEstado != estadoRepositorio.ObtenerIdEstadoEliminado("Voluntarias"))
-                    vol.IdEstado = estadoRepositorio.ObtenerIdVoluntariaDisponible();
+                if (vol != null)
+                    PonerVoluntariaDisponible(vol);
             }
 
             if (asignacion.idBebe.HasValue && !otrasAbiertas.Any(a => a.idBebe == asignacion.idBebe))
@@ -839,7 +894,15 @@ namespace ResimamisBackend.Negocio
             if (datos.idVoluntaria <= 0)
                 throw new ApplicationException("Voluntaria inválida");
 
-            voluntariaRepositorio.consultarVoluntaria(datos.idVoluntaria);
+            var voluntariaNueva = voluntariaRepositorio.consultarVoluntaria(datos.idVoluntaria);
+            if (datos.idVoluntaria != existentePrevio.idVoluntaria
+                && voluntariaNueva.IdEstado == estadoRepositorio.ObtenerIdEstadoEliminado("Voluntarias"))
+                throw new ApplicationException("La voluntaria está dada de baja.");
+
+            // Se guardan antes de modificar: el repositorio pisa la entidad en el lugar.
+            var idVoluntariaAnterior = existentePrevio.idVoluntaria;
+            var idBebeAnterior = existentePrevio.idBebe;
+            var estabaAbierta = existentePrevio.fechaHoraFin == null;
 
             if (datos.idTarea.HasValue && datos.idTarea.Value > 0)
             {
@@ -861,6 +924,14 @@ namespace ResimamisBackend.Negocio
 
             if (fechaFin != null && fechaInicio == null)
                 throw new ApplicationException("No se puede finalizar un abrazo que nunca fue iniciado.");
+            if (fechaFin != null && fechaFin < fechaInicio)
+                throw new ApplicationException("La hora de fin no puede ser anterior a la de inicio.");
+            var limiteFuturo = NegConversorFecha.ObtenerFechaArgentina().AddMinutes(5);
+            if (fechaInicio > limiteFuturo || fechaFin > limiteFuturo)
+                throw new ApplicationException("Las horas del abrazo no pueden ser futuras.");
+            if (idBebe.HasValue && idBebe != idBebeAnterior
+                && BebeFueraDelPrograma(bebeRepositorio.consultarBebe(idBebe.Value)))
+                throw new ApplicationException("El bebé ya egresó o fue dado de baja.");
 
             var idIniciado = estadoRepositorio.ObtenerIdEstadoAsignacionIniciado();
             var idFinalizado = estadoRepositorio.ObtenerIdEstadoAsignacionFinalizado();
@@ -888,23 +959,54 @@ namespace ResimamisBackend.Negocio
             };
             asignacionRepositorio.modificarAsignacion(patch, existentePrevio);
 
-            if (pasoAFinalizado)
+            // Si la asignación abierta cambió de voluntaria o de bebé, los anteriores quedaban
+            // trabados (p. ej. en "Abrazando"): se liberan si no tienen otra asignación abierta hoy.
+            var cambioVoluntaria = idVoluntariaAnterior != datos.idVoluntaria;
+            var cambioBebe = idBebeAnterior != idBebe;
+            if (estabaAbierta && (cambioVoluntaria || cambioBebe))
             {
-                var idVolDisponible = estadoRepositorio.ObtenerIdVoluntariaDisponible();
+                var (inicioHoyUtc, _) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+                var idElimAsig = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+                var otrasAbiertas = db.ASIGNACION.AsNoTracking()
+                    .Where(a => a.idAsignacion != idAsignacion
+                                && a.fechaHoraFin == null
+                                && a.idEstado != idElimAsig
+                                && a.fechaHoraAsignacion >= inicioHoyUtc);
+
+                // Igual que al finalizar: queda Disponible salvo que tenga otro abrazo/tarea en curso
+                // (las asignaciones de hoy sin iniciar no la dejan "Abrazando").
+                if (cambioVoluntaria && !otrasAbiertas.Any(a => a.idVoluntaria == idVoluntariaAnterior && a.fechaHoraInicio != null))
+                {
+                    var anterior = voluntariaRepositorio.consultarVoluntaria(idVoluntariaAnterior);
+                    PonerVoluntariaDisponible(anterior);
+                    voluntariaRepositorio.cambioEstadoVoluntaria(anterior);
+                }
+
+                if (cambioBebe && idBebeAnterior.HasValue && !otrasAbiertas.Any(a => a.idBebe == idBebeAnterior))
+                {
+                    var bebeAnterior = bebeRepositorio.consultarBebe(idBebeAnterior.Value);
+                    if (!BebeFueraDelPrograma(bebeAnterior))
+                        bebeRepositorio.cambioEstadoBebe(bebeAnterior, estadoRepositorio.ObtenerIdBebeSinAbrazar());
+                }
+            }
+
+            var esFinalizada = idEstado == idFinalizado;
+            var esIniciada = idEstado == idIniciado;
+            if (pasoAFinalizado || (esFinalizada && (cambioVoluntaria || cambioBebe)))
+            {
                 var voluntaria = voluntariaRepositorio.consultarVoluntaria(datos.idVoluntaria);
-                voluntaria.IdEstado = idVolDisponible;
+                PonerVoluntariaDisponible(voluntaria);
                 voluntariaRepositorio.cambioEstadoVoluntaria(voluntaria);
 
                 // idBebe ya resuelto arriba contra el flag de presencia.
                 if (idBebe.HasValue)
                 {
-                    var idBebeSinAbrazar = estadoRepositorio.ObtenerIdBebeSinAbrazar();
                     var bebe = bebeRepositorio.consultarBebe(idBebe.Value);
-                    bebe.IdEstado = idBebeSinAbrazar;
-                    bebeRepositorio.cambioEstadoBebe(bebe, idBebeSinAbrazar);
+                    if (!BebeFueraDelPrograma(bebe))
+                        bebeRepositorio.cambioEstadoBebe(bebe, estadoRepositorio.ObtenerIdBebeSinAbrazar());
                 }
             }
-            else if (pasoAIniciado)
+            else if (pasoAIniciado || (esIniciada && (cambioVoluntaria || cambioBebe)))
             {
                 var idEstadoVoluntaria = idBebe.HasValue
                     ? estadoRepositorio.ObtenerIdVoluntariaAbrazando()
@@ -918,9 +1020,21 @@ namespace ResimamisBackend.Negocio
                 {
                     var idBebeAbrazado = estadoRepositorio.ObtenerIdBebeAbrazado();
                     var bebe = bebeRepositorio.consultarBebe(idBebe.Value);
-                    bebe.IdEstado = idBebeAbrazado;
                     bebeRepositorio.cambioEstadoBebe(bebe, idBebeAbrazado);
                 }
+            }
+            else if (!esFinalizada && !esIniciada && (cambioVoluntaria || cambioBebe))
+            {
+                // Sigue sin iniciar: la nueva voluntaria y el nuevo bebé quedan asignados.
+                var estVol = db.ESTADO.AsNoTracking().FirstOrDefault(e => e.ambito.nombre == "Voluntarias" && e.nombre == "Asignada");
+                if (cambioVoluntaria && estVol != null && !IdsEstadosVoluntariaNoOperativa().Contains(voluntariaNueva.IdEstado ?? 0))
+                {
+                    voluntariaNueva.IdEstado = estVol.idEstado;
+                    voluntariaRepositorio.cambioEstadoVoluntaria(voluntariaNueva);
+                }
+                var estBebe = db.ESTADO.AsNoTracking().FirstOrDefault(e => e.ambito.nombre == "Bebes" && e.nombre == "Asignado");
+                if (cambioBebe && idBebe.HasValue && estBebe != null)
+                    bebeRepositorio.cambioEstadoBebe(bebeRepositorio.consultarBebe(idBebe.Value), estBebe.idEstado);
             }
 
             return true;
@@ -961,10 +1075,8 @@ namespace ResimamisBackend.Negocio
                 .Select(MapearRespuestaAsignacion)
                 .ToList();
 
-            asignacionRepositorio.devolverDuracionesAbrazos();
-
-            if (asignacionesHoy.Count == 0)
-                return new List<RespuestaAsignaciones>();
+            // Antes se llamaba acá a devolverDuracionesAbrazos() sin usar el resultado: cargaba toda
+            // la tabla (26 s con 50.000 filas) y con la tabla vacía tiraba "No hay asignaciones".
             return asignacionesHoy;
         }
 

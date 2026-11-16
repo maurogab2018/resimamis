@@ -100,6 +100,9 @@ namespace ResimamisBackend.Datos
             return madre.IdEstado == idEliminado;
         }
 
+        public bool existeOtraMadreConDni(int dni, int exceptIdMadre) =>
+            db.MADRE.AsNoTracking().Any(m => m.Dni == dni && m.IdMadre != exceptIdMadre);
+
         public MADRE modificarMadre(MADRE madre, MADRE madreModificar)
         {
             var propiedades = typeof(MADRE).GetProperties();
@@ -107,6 +110,10 @@ namespace ResimamisBackend.Datos
             foreach (var prop in propiedades)
             {
                 if (prop.Name is nameof(MADRE.Bebe) or nameof(MADRE.EstadoDetalle) or nameof(MADRE.LocalidadDetalle))
+                    continue;
+                // Estado es bool: si el body no lo trae llega false y daba de baja a la madre sin
+                // querer. La baja (y su historial) va por POST delete; el id no se cambia.
+                if (prop.Name is nameof(MADRE.Estado) or nameof(MADRE.IdEstado) or nameof(MADRE.IdMadre))
                     continue;
                 if (!prop.CanWrite)
                     continue;
@@ -137,7 +144,9 @@ namespace ResimamisBackend.Datos
                                 continue;
                             if (prop.Name is nameof(BEBE.Madre) or nameof(BEBE.Sala) or nameof(BEBE.Estado)
                                 or nameof(BEBE.LocalidadDetalle) or nameof(BEBE.Asignaciones) or nameof(BEBE.Visitas)
-                                or nameof(BEBE.NombreSala))
+                                or nameof(BEBE.NombreSala)
+                                // El estado operativo y la madre no se tocan desde la ficha de la madre.
+                                or nameof(BEBE.ID) or nameof(BEBE.IdEstado) or nameof(BEBE.IdMadre))
                                 continue;
 
                             var nuevoValor = prop.GetValue(bebeNuevo);
@@ -148,6 +157,15 @@ namespace ResimamisBackend.Datos
                             if (nuevoValor != null && !nuevoValor.Equals(valorActual))
                                 prop.SetValue(bebeExistente, nuevoValor);
                         }
+
+                        // Igual que PUT /Bebe: cargar la fecha de salida es el egreso (baja lógica).
+                        if (bebeExistente.FechaSalida.HasValue)
+                            bebeExistente.IdEstado = estadoRepositorio.ObtenerIdEstadoEliminado("Bebes");
+                    }
+                    else if (bebeNuevo.ID > 0)
+                    {
+                        // Un id que no es de esta madre movía al bebé de otra madre a esta.
+                        throw new ApplicationException($"El bebé {bebeNuevo.ID} no pertenece a esta madre.");
                     }
                     else
                     {

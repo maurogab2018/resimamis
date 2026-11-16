@@ -76,6 +76,9 @@ namespace ResimamisBackend.Negocio
             {
                 throw new ApplicationException("El usuario ingresado a registrar es nulo");
             }
+            // BCrypt.Verify con null tira excepción (500).
+            if (string.IsNullOrEmpty(usuario.Contrasena))
+                throw new ApplicationException("Contraseña o usuario incorrecto");
 
             var usuarioLoguear = usuarioRepositorio.ObtenerPorDni(usuario.Dni);
             if (usuarioLoguear == null)
@@ -103,7 +106,11 @@ namespace ResimamisBackend.Negocio
             };
         }
 
-        public bool RegistrarUsuario(int dniSolicitante, USUARIO usuario)
+        // En fila: dos altas a la vez creaban varios usuarios para la misma voluntaria.
+        public bool RegistrarUsuario(int dniSolicitante, USUARIO usuario) =>
+            BloqueosDb.Ejecutar(db, BloqueosDb.Altas, () => RegistrarUsuarioSinBloqueo(dniSolicitante, usuario));
+
+        private bool RegistrarUsuarioSinBloqueo(int dniSolicitante, USUARIO usuario)
         {
             RequiereCoordinadora(dniSolicitante);
             return RegistrarUsuarioInterno(usuario);

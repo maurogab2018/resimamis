@@ -54,7 +54,15 @@ namespace ResimamisBackend.Datos
             if (movimientoFiltro?.fechaDesde != null)
                 query = query.Where(m => m.fechaMovimiento >= movimientoFiltro.fechaDesde);
             if (movimientoFiltro?.fechaHasta != null)
-                query = query.Where(m => m.fechaMovimiento <= movimientoFiltro.fechaHasta);
+            {
+                // Una fecha sin hora (00:00) incluye todo ese día: antes "hasta hoy" no traía lo de hoy.
+                var hasta = movimientoFiltro.fechaHasta.Value;
+                if (hasta.TimeOfDay == TimeSpan.Zero)
+                    hasta = hasta.AddDays(1);
+                query = hasta == movimientoFiltro.fechaHasta.Value
+                    ? query.Where(m => m.fechaMovimiento <= hasta)
+                    : query.Where(m => m.fechaMovimiento < hasta);
+            }
 
             var movimientos = query
                 .OrderByDescending(m => m.fechaMovimiento)
@@ -222,8 +230,13 @@ namespace ResimamisBackend.Datos
             return true;
         }
 
-        public bool registrarMovimientoStock(MOVIMIENTOSTOCK movimiento)
+        public bool registrarMovimientoStock(MOVIMIENTOSTOCK movimiento) =>
+            BloqueosDb.Ejecutar(db, BloqueosDb.Stock, () => registrarMovimientoStockSinBloqueo(movimiento));
+
+        private bool registrarMovimientoStockSinBloqueo(MOVIMIENTOSTOCK movimiento)
         {
+            // El id lo pone la base (un id en el body chocaba con la PK y daba 500).
+            movimiento.idMovimiento = 0;
             var insumo = consultarInsumo(movimiento.idInsumo);
             if (movimiento.esEntrada == "S" || movimiento.esEntrada == "s")
             {

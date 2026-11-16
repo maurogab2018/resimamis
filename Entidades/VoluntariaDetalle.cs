@@ -8,6 +8,7 @@ namespace ResimamisBackend.Entidades
         public string Apellido { get; set; } = string.Empty;
         public string Mail { get; set; } = string.Empty;
         public long Celular { get; set; }
+        public DateTime? FechaNacimiento { get; set; }
         public DateTime FechaInicio { get; set; }
         public DateTime? FechaFin { get; set; }
         public int? IdEstado { get; set; }

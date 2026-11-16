@@ -28,7 +28,11 @@ namespace ResimamisBackend.Datos
 
         private static bool EsAsistenciaOperativa(ASISTENCIA a) => !EsAsistenciaEliminada(a);
 
-        public bool registrarAsistencia(ASISTENCIA asistencia)
+        // En fila: con doble clic se abrían varias jornadas a la vez y la salida cerraba una sola.
+        public bool registrarAsistencia(ASISTENCIA asistencia) =>
+            BloqueosDb.Ejecutar(db, BloqueosDb.Asistencia, () => registrarAsistenciaSinBloqueo(asistencia));
+
+        private bool registrarAsistenciaSinBloqueo(ASISTENCIA asistencia)
         {
             var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
             var (inicioDia, finDia) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
@@ -99,6 +103,19 @@ namespace ResimamisBackend.Datos
                     && (a.idEstado == null || a.idEstado != idElim));
             if (asistenciaHoy == null || !EsAsistenciaOperativa(asistenciaHoy))
                 throw new ApplicationException("No existe un registro de asistencia para hoy o ya fue registrada la salida");
+
+            // Con un abrazo en curso la voluntaria quedaba afuera como "Abrazando" y el bebé
+            // "Abrazado" hasta el cierre de medianoche.
+            var idElimAsig = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+            var abrazoEnCurso = db.ASIGNACION.Any(a =>
+                a.idVoluntaria == idVoluntaria
+                && a.fechaHoraInicio != null
+                && a.fechaHoraFin == null
+                && a.fechaHoraInicio >= inicioDia
+                && a.idEstado != idElimAsig);
+            if (abrazoEnCurso)
+                throw new ApplicationException("La voluntaria tiene un abrazo o tarea en curso: finalizalo antes de registrar la salida.");
+
             asistenciaHoy.FechaHoraSalida = fechaHoy;
             db.SaveChanges();
             return true;

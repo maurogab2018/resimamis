@@ -16,7 +16,11 @@ namespace ResimamisBackend.Datos
 
         private static bool EsHorarioVoluntariaActivo(VOLUNTARIAHORARIO vh) => vh.Activa;
 
-        public bool registrarHoraraioVoluntaria(List<HorarioVoluntaria> horarioVoluntaria)
+        // Todo o nada: con un horario inválido en la lista respondía 400 pero guardaba los anteriores.
+        public bool registrarHoraraioVoluntaria(List<HorarioVoluntaria> horarioVoluntaria) =>
+            BloqueosDb.Ejecutar(db, BloqueosDb.Altas, () => registrarHorariosSinTransaccion(horarioVoluntaria));
+
+        private bool registrarHorariosSinTransaccion(List<HorarioVoluntaria> horarioVoluntaria)
         {
             if (horarioVoluntaria == null || horarioVoluntaria.Count == 0)
                 return false;
@@ -60,8 +64,16 @@ namespace ResimamisBackend.Datos
             return true;
         }
 
-        public bool reemplazarHorarios(int idVoluntaria, List<HorarioVoluntaria> nuevos)
+        // Todo o nada: antes desactivaba y guardaba todos los horarios y recién después validaba,
+        // así que un día inválido dejaba a la voluntaria sin ningún horario.
+        public bool reemplazarHorarios(int idVoluntaria, List<HorarioVoluntaria> nuevos) =>
+            BloqueosDb.Ejecutar(db, BloqueosDb.Altas, () => reemplazarHorariosSinTransaccion(idVoluntaria, nuevos));
+
+        private bool reemplazarHorariosSinTransaccion(int idVoluntaria, List<HorarioVoluntaria> nuevos)
         {
+            if (!db.VOLUNTARIA.Any(v => v.IdVoluntaria == idVoluntaria))
+                throw new ApplicationException("Voluntaria inexistente con ese id.");
+
             // 1. Desactivar todos los horarios actuales de la voluntaria
             var actuales = db.VOLUNTARIAHORARIO
                 .Where(vh => vh.IdVoluntaria == idVoluntaria && vh.Activa)

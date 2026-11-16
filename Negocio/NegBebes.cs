@@ -8,6 +8,7 @@ namespace ResimamisBackend.Negocio
 {
     public class NegBebes : INegBebes
     {
+        private readonly ApplicationDbContext db;
         private readonly IBebeRepositorio repositorioBebe;
         private readonly IMadreRepositorio madreRepositorio;
         private readonly INegSalas negSalas;
@@ -19,8 +20,10 @@ namespace ResimamisBackend.Negocio
             IMadreRepositorio madreRepositorio,
             INegSalas negSalas,
             IGenericosRepositorio genericosRepositorio,
-            INegRegistroActividad registroActividad)
+            INegRegistroActividad registroActividad,
+            ApplicationDbContext db)
         {
+            this.db = db;
             this.repositorioBebe = repositorioBebe;
             this.madreRepositorio = madreRepositorio;
             this.negSalas = negSalas;
@@ -167,7 +170,11 @@ namespace ResimamisBackend.Negocio
             return negSalas.listarSalasActivas();
         }
 
-        public bool registrarBebe(BEBE bebe)
+        // En fila: dos altas a la vez duplicaban el bebé.
+        public bool registrarBebe(BEBE bebe) =>
+            BloqueosDb.Ejecutar(db, BloqueosDb.Altas, () => registrarBebeSinBloqueo(bebe));
+
+        private bool registrarBebeSinBloqueo(BEBE bebe)
         {
             var resultado = new ResultadoValidacion();
             ValidarCamposBebe(bebe, resultado);
@@ -246,6 +253,9 @@ namespace ResimamisBackend.Negocio
             if (bebe.FechaSalida.HasValue)
                 throw new ApplicationException(
                     "El bebé ya tiene fecha de salida; no se puede cambiar el estado operativo. Quedó dado de baja.");
+            // Un bebé dado de baja con POST delete volvía a "Sin abrazar" y aparecía para abrazo.
+            if (string.Equals(bebe.Estado?.nombre, "Eliminado", StringComparison.OrdinalIgnoreCase))
+                throw new ApplicationException("El bebé está dado de baja; no se puede cambiar el estado operativo.");
 
             repositorioBebe.cambioEstadoBebe(bebe, idEstado);
             return repositorioBebe.consultarBebe(idBebe);

@@ -10,6 +10,7 @@ public interface IMadreRepositorio
     MADRE consultarMadre(int Dni);
     MADRE? consultarMadrePorDni(int dni);
     bool estaDadaDeBaja(MADRE madre);
+    bool existeOtraMadreConDni(int dni, int exceptIdMadre);
     MADRE modificarMadre(MADRE madre, MADRE madreModificar);
     List<EstadisticaLocalidades> devolverEstadisticasLocalidades();
     List<EstadisticaEdadesMadres> devolverEstadisticasEdadesMadres();

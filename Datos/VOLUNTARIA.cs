@@ -17,6 +17,7 @@ namespace ResimamisBackend.Datos
         //public string? estadoVoluntaria { get; set; }
 
         public Int64 Celular { get; set; }
+        public DateTime? FechaNacimiento { get; set; }
         public DateTime FechaInicio{ get; set; }
         public DateTime? FechaFin { get; set; }
         public int? IdEstado { get; set; }

@@ -59,7 +59,14 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        // Las entidades tienen strings no-nullables y [ApiController] los volvía obligatorios:
+        // editar un usuario exigía la contraseña ("The Contrasena field is required") aunque el
+        // negocio la trata como opcional, y lo mismo con la descripción del proveedor. Las
+        // validaciones de obligatorios ya están en Negocio.
+        options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;

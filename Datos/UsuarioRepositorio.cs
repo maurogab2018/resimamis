@@ -37,10 +37,15 @@ namespace ResimamisBackend.Datos
 
         public USUARIO? ObtenerPorDni(int dni, bool asNoTracking = false)
         {
+            // Puede haber un usuario dado de baja y otro activo con el mismo DNI: sin orden se tomaba
+            // cualquiera y a veces el recreado no podía entrar ("Usuario no disponible").
+            var idElim = IdEstadoEliminadoUsuarios();
             var q = db.USUARIO
                 .Include(u => u.Estado!)
                 .ThenInclude(e => e!.ambito)
-                .Where(u => u.Dni == dni);
+                .Where(u => u.Dni == dni)
+                .OrderBy(u => u.idEstado == idElim ? 1 : 0)
+                .ThenByDescending(u => u.IdUsuario);
             return asNoTracking ? q.AsNoTracking().FirstOrDefault() : q.FirstOrDefault();
         }
 
