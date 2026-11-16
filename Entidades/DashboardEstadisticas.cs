@@ -151,6 +151,19 @@ namespace ResimamisBackend.Entidades
         public int VoluntariasConAsistenciaHoy { get; set; }
         public int AbrazosColgados { get; set; }
         public int VisitasHoy { get; set; }
+        /// <summary>Voluntarias que según su disponibilidad horaria vienen hoy, con turno y si ya registraron entrada.</summary>
+        public List<VoluntariaEsperadaHoyItem> VoluntariasEsperadasHoy { get; set; } = new();
+    }
+
+    public class VoluntariaEsperadaHoyItem
+    {
+        public int IdVoluntaria { get; set; }
+        public string Nombre { get; set; } = "";
+        public string? Turno { get; set; }
+        public string? HoraIngreso { get; set; }
+        public string? HoraSalida { get; set; }
+        public string? EstadoVoluntaria { get; set; }
+        public bool Presente { get; set; }
     }
 
     public class BebeSinAbrazoHoyItem

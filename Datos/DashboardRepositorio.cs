@@ -439,21 +439,49 @@ namespace ResimamisBackend.Datos
                 .Count(a => a.idBebe != null && a.fechaHoraInicio != null && a.fechaHoraFin == null);
 
             var idElimAsist = estadoRepositorio.ObtenerIdEstadoEliminado("Asistencias");
-            var voluntariasConAsistencia = db.ASISTENCIA.AsNoTracking()
+            var idsConAsistencia = db.ASISTENCIA.AsNoTracking()
                 .Where(a => a.FechaHoraIngreso != null
                             && a.FechaHoraIngreso >= inicioUtc
                             && a.FechaHoraIngreso < finUtcExclusivo
                             && (a.idEstado == null || a.idEstado != idElimAsist))
                 .Select(a => a.IdVoluntaria)
                 .Distinct()
-                .Count();
+                .ToList();
+            var voluntariasConAsistencia = idsConAsistencia.Count;
 
             var visitasHoy = db.VISITA.AsNoTracking()
                 .Count(v => v.Activa && v.fechaHoraVisita >= inicioUtc && v.fechaHoraVisita < finUtcExclusivo);
 
+            // Voluntarias que, según su disponibilidad horaria, vienen el día de la semana de hoy.
+            var idDiaHoy = fecha.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)fecha.DayOfWeek;
+            var idElimVol = estadoRepositorio.ObtenerIdEstadoEliminado("Voluntarias");
+            var presentes = idsConAsistencia.Where(id => id != null).Select(id => id!.Value).ToHashSet();
+            var esperadasHoy = db.VOLUNTARIAHORARIO.AsNoTracking()
+                .Where(vh => vh.Activa)
+                .Join(db.HORARIO.AsNoTracking().Where(h => h.IdDia == idDiaHoy),
+                    vh => vh.IdHorario, h => h.IdHorario, (vh, h) => new { vh.IdVoluntaria, h.Turno, h.HoraIngreso, h.HoraSalida })
+                .Join(db.VOLUNTARIA.AsNoTracking().Where(v => idElimVol == null || v.IdEstado != idElimVol),
+                    x => x.IdVoluntaria, v => v.IdVoluntaria,
+                    (x, v) => new { v.IdVoluntaria, v.Nombre, v.Apellido, Estado = v.Estado != null ? v.Estado.nombre : null, x.Turno, x.HoraIngreso, x.HoraSalida })
+                .ToList()
+                .Where(x => x.Estado != "Inactiva" && x.Estado != "Eliminado")
+                .OrderBy(x => x.HoraIngreso).ThenBy(x => x.Apellido).ThenBy(x => x.Nombre)
+                .Select(x => new VoluntariaEsperadaHoyItem
+                {
+                    IdVoluntaria = x.IdVoluntaria,
+                    Nombre = FormatearNombre(x.Nombre, x.Apellido),
+                    Turno = x.Turno,
+                    HoraIngreso = x.HoraIngreso.ToString(@"hh\:mm"),
+                    HoraSalida = x.HoraSalida.ToString(@"hh\:mm"),
+                    EstadoVoluntaria = x.Estado,
+                    Presente = presentes.Contains(x.IdVoluntaria)
+                })
+                .ToList();
+
             return new DashboardCoordinacionHoyRespuesta
             {
                 Fecha = fecha,
+                VoluntariasEsperadasHoy = esperadasHoy,
                 BebesActivos = bebesActivos.Count,
                 BebesDisponiblesAbrazo = bebesDisponibles,
                 BebesAsignados = bebesAsignados,
