@@ -138,6 +138,15 @@ namespace ResimamisBackend.Negocio
             if (usuarioRepositorio.ExisteUsuarioOperativoConDni(usuario.Dni))
                 throw new ConflictException("Usuario con ese Dni ya creado");
 
+            if (usuario.IdRol.HasValue)
+            {
+                if (!RolesVoluntaria.EsRolPermitido(usuario.IdRol))
+                    throw new ApplicationException("Rol inválido.");
+                // Se guarda en la misma operación que el usuario.
+                var voluntaria = db.VOLUNTARIA.First(v => v.IdVoluntaria == usuario.IdVoluntaria);
+                voluntaria.IdRol = usuario.IdRol;
+            }
+
             usuario.Contrasena = BCrypt.Net.BCrypt.HashPassword(usuario.Contrasena);
             if (usuario.FechaCreacion == default)
                 usuario.FechaCreacion = DateTime.UtcNow;
@@ -259,6 +268,33 @@ namespace ResimamisBackend.Negocio
             }
 
             usuarioRepositorio.GuardarCambios();
+            return true;
+        }
+
+        /// <summary>Cambia el rol (Voluntaria / Coordinadora) de la voluntaria dueña del usuario.</summary>
+        public bool CambiarRol(int dniSolicitante, int idUsuario, int idRol)
+        {
+            RequiereCoordinadora(dniSolicitante);
+
+            if (idRol is not (RolesVoluntaria.IdVoluntaria or RolesVoluntaria.IdCoordinadora))
+                throw new ApplicationException("Rol inválido.");
+
+            var usuario = usuarioRepositorio.ObtenerPorId(idUsuario, asNoTracking: true);
+            if (usuario == null)
+                throw new NotFoundException("Usuario no existente con ese Id");
+            if (UsuarioRepositorio.EsUsuarioEliminado(usuario))
+                throw new ApplicationException("No se puede modificar un usuario dado de baja.");
+
+            // Evita que la coordinadora se deje a sí misma sin acceso a la gestión.
+            if (usuario.Dni == dniSolicitante && idRol != RolesVoluntaria.IdCoordinadora)
+                throw new ApplicationException("No podés quitarte a vos misma el rol de coordinadora.");
+
+            var voluntaria = db.VOLUNTARIA.FirstOrDefault(v => v.IdVoluntaria == usuario.IdVoluntaria);
+            if (voluntaria == null)
+                throw new NotFoundException("Voluntaria inexistente.");
+
+            voluntaria.IdRol = idRol;
+            db.SaveChanges();
             return true;
         }
 

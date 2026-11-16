@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 namespace ResimamisBackend.Datos
@@ -21,6 +22,11 @@ namespace ResimamisBackend.Datos
         [JsonIgnore]
         public virtual ESTADO? Estado { get; set; }
 
-        //public int? IdRol { get; set; }
+        /// <summary>
+        /// Solo para el alta: rol que se le da a la voluntaria al crearle el usuario
+        /// (2 = Voluntaria, 3 = Coordinadora). El rol se guarda en VOLUNTARIA.IdRol.
+        /// </summary>
+        [NotMapped]
+        public int? IdRol { get; set; }
     }
 }

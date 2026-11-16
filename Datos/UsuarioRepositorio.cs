@@ -93,7 +93,8 @@ namespace ResimamisBackend.Datos
                         ApellidoVoluntaria = v.Apellido,
                         FechaCreacion = u.FechaCreacion,
                         IdEstado = u.idEstado,
-                        NombreEstado = u.Estado != null ? u.Estado.nombre : null
+                        NombreEstado = u.Estado != null ? u.Estado.nombre : null,
+                        IdRol = v.IdRol
                     })
                 .OrderBy(u => u.ApellidoVoluntaria)
                 .ThenBy(u => u.NombreVoluntaria)

@@ -16,5 +16,6 @@ public interface INegUsuarios
     object ConsultarUsuarioPorId(int idUsuario, int dniSolicitante);
     bool CambiarContrasena(int dniSolicitante, RequestCambiarContrasena datos);
     bool ModificarUsuario(int dniSolicitante, int idUsuario, USUARIO datos);
+    bool CambiarRol(int dniSolicitante, int idUsuario, int idRol);
     bool EliminarUsuario(int dniSolicitante, int idUsuario);
 }

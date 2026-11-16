@@ -239,6 +239,39 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        /// <summary>Cambiar el rol (2 = Voluntaria, 3 = Coordinadora) de un usuario. Solo Coordinadora.</summary>
+        [Authorize]
+        [HttpPut("id/{idUsuario}/rol")]
+        public IActionResult PutRol(int idUsuario, RequestCambiarRol datos)
+        {
+            try
+            {
+                var dni = ObtenerDniAutenticado();
+                var ok = neg_Usuario.CambiarRol(dni, idUsuario, datos?.IdRol ?? 0);
+                return ApiResults.Success(ok);
+            }
+            catch (NotFoundException exApp)
+            {
+                return ApiResults.NotFound(exApp.Message);
+            }
+            catch (UnauthorizedException exApp)
+            {
+                return ApiResults.Unauthorized(exApp.Message);
+            }
+            catch (ForbiddenException exApp)
+            {
+                return ApiResults.Forbidden(exApp.Message);
+            }
+            catch (ApplicationException exApp)
+            {
+                return ApiResults.BadRequest(exApp.Message);
+            }
+            catch (Exception)
+            {
+                return ApiResults.InternalServerError();
+            }
+        }
+
         /// <summary>Modificar usuario (solo Coordinadora): dni, voluntaria y opcionalmente contraseña.</summary>
         [Authorize]
         [HttpPut("id/{idUsuario}")]

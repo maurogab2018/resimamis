@@ -10,5 +10,6 @@ namespace ResimamisBackend.Entidades
         public DateTime FechaCreacion { get; set; }
         public int? IdEstado { get; set; }
         public string? NombreEstado { get; set; }
+        public int? IdRol { get; set; }
     }
 }
