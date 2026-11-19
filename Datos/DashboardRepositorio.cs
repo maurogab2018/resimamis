@@ -580,6 +580,15 @@ namespace ResimamisBackend.Datos
                 .OrderBy(x => Array.IndexOf(orden, x.EstadoBebe))
                 .ToList();
 
+            // Los que ya no están internados: egresados del NEO y dados de baja sin egreso.
+            var idElim = IdEstadoEliminadoBebes();
+            var egresados = db.BEBE.AsNoTracking().Count(b => b.FechaSalida != null);
+            var bajas = db.BEBE.AsNoTracking().Count(b => b.FechaSalida == null && b.IdEstado == idElim);
+            if (egresados > 0)
+                porEstado.Add(new EstadisticaBebesPorEstadoItem { EstadoBebe = "Egresado", Cantidad = egresados });
+            if (bajas > 0)
+                porEstado.Add(new EstadisticaBebesPorEstadoItem { EstadoBebe = "Dado de baja", Cantidad = bajas });
+
             return new EstadisticaBebesPorEstadoRespuesta
             {
                 TotalBebes = porEstado.Sum(x => x.Cantidad),

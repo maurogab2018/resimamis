@@ -522,7 +522,7 @@ namespace ResimamisBackend.Negocio
         [
             Tool("coordinacion_hoy", "Snapshot operativo de hoy: bebés, abrazos, cantidad de voluntarias que ficharon asistencia hoy y visitas. No es un ranking."),
             Tool("cobertura_hoy", "Porcentaje de bebés activos con abrazo finalizado hoy y lista de quienes no recibieron abrazo."),
-            Tool("bebes_por_estado", "Bebés activos según cómo va su día: abrazado hoy, en abrazo ahora, asignado esperando su abrazo o sin abrazo todavía."),
+            Tool("bebes_por_estado", "Todos los bebés por estado: los internados según cómo va su día (abrazado hoy, en abrazo ahora, asignado esperando su abrazo, sin abrazo todavía), más egresados y dados de baja."),
             Tool("bebes_por_sala", "Bebés activos por sala y promedio de permanencia en NEO."),
             Tool("insumos_bajo_stock", "Insumos con stock actual menor o igual al mínimo."),
             Tool("asistencias_hoy", "Lista de fichajes de asistencia de HOY: quién ingresó/salió. No son abrazos."),
