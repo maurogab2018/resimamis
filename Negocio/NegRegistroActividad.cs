@@ -31,6 +31,17 @@ namespace ResimamisBackend.Negocio
         public void Registrar(string tipoMovimiento, string tipoRegistro, int idRegistro, string descripcion) =>
             RegistrarVarios(tipoMovimiento, tipoRegistro, new[] { (idRegistro, descripcion) });
 
+        public void RegistrarMail(string tipoRegistro, int idRegistro, string destino, string asunto, bool enviado, string? motivo = null)
+        {
+            var texto = enviado
+                ? $"A {destino}: {asunto}"
+                : $"A {(string.IsNullOrWhiteSpace(destino) ? "(sin dirección)" : destino)}: {asunto}. Motivo: {motivo ?? "no se pudo enviar"}";
+            // descripcion es text, pero se acota para que un error largo del proveedor no llene la bitácora.
+            if (texto.Length > 500)
+                texto = texto[..500];
+            Registrar(enviado ? TiposMovimientoActividad.MailEnviado : TiposMovimientoActividad.MailNoEnviado, tipoRegistro, idRegistro, texto);
+        }
+
         public void RegistrarVarios(string tipoMovimiento, string tipoRegistro, IEnumerable<(int IdRegistro, string Descripcion)> registros)
         {
             try

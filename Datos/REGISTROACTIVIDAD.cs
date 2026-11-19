@@ -42,6 +42,10 @@ namespace ResimamisBackend.Datos
         public const string CierreAutomatico = "Cierre automático";
         /// <summary>Marca de que el cierre diario ya corrió ese día (idRegistro = cantidad cerrada).</summary>
         public const string EjecucionCierreDiario = "Ejecución cierre diario";
+        /// <summary>Mail que el servidor de correo aceptó.</summary>
+        public const string MailEnviado = "Mail enviado";
+        /// <summary>Mail que no salió (sin configurar, sin dirección o rechazado).</summary>
+        public const string MailNoEnviado = "Mail no enviado";
     }
 
     public static class TiposRegistroActividad

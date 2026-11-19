@@ -17,19 +17,22 @@ namespace ResimamisBackend.Negocio
         private readonly IUsuarioRepositorio usuarioRepositorio;
         private readonly IVoluntariaRepositorio voluntariaRepositorio;
         private readonly INegEnvioMail negEnvioMail;
+        private readonly INegRegistroActividad registroActividad;
 
         public NegUsuarios(
             ApplicationDbContext db,
             IEstadoRepositorio estadoRepositorio,
             IUsuarioRepositorio usuarioRepositorio,
             IVoluntariaRepositorio voluntariaRepositorio,
-            INegEnvioMail negEnvioMail)
+            INegEnvioMail negEnvioMail,
+            INegRegistroActividad registroActividad)
         {
             this.db = db;
             this.estadoRepositorio = estadoRepositorio;
             this.usuarioRepositorio = usuarioRepositorio;
             this.voluntariaRepositorio = voluntariaRepositorio;
             this.negEnvioMail = negEnvioMail;
+            this.registroActividad = registroActividad;
         }
 
         // AUTH ref:L — sesión JWT: el DNI del token debe ser un USUARIO operativo (no inventado ni dado de baja).
@@ -117,9 +120,15 @@ namespace ResimamisBackend.Negocio
             var ok = BloqueosDb.Ejecutar(db, BloqueosDb.Altas, () => RegistrarUsuarioSinBloqueo(dniSolicitante, usuario!));
             var respuesta = new AltaUsuarioRespuesta { Creado = ok };
             if (ok)
+            {
                 EnviarMailBienvenida(usuario!.IdVoluntaria, usuario.Dni, claveInicial, respuesta);
+                registroActividad.RegistrarMail(TiposRegistroActividad.Voluntaria, usuario.IdVoluntaria,
+                    respuesta.MailDestino ?? "", AsuntoBienvenida, respuesta.MailEnviado, respuesta.MotivoMail);
+            }
             return respuesta;
         }
+
+        private const string AsuntoBienvenida = "Tu acceso a Voluntarias Abrazadoras";
 
         /// <summary>
         /// Le manda a la voluntaria su DNI de acceso y la clave inicial. Va fuera del bloqueo y nunca
@@ -129,6 +138,13 @@ namespace ResimamisBackend.Negocio
         {
             try
             {
+                var voluntaria = db.VOLUNTARIA.AsNoTracking().FirstOrDefault(v => v.IdVoluntaria == idVoluntaria);
+                respuesta.MailDestino = string.IsNullOrWhiteSpace(voluntaria?.Mail) ? null : voluntaria!.Mail;
+                if (voluntaria == null || respuesta.MailDestino == null)
+                {
+                    respuesta.MotivoMail = "La voluntaria no tiene mail cargado.";
+                    return;
+                }
                 if (!negEnvioMail.EstaConfigurado())
                 {
                     respuesta.MotivoMail = "El envío de mails no está configurado en el servidor.";
@@ -139,14 +155,6 @@ namespace ResimamisBackend.Negocio
                     respuesta.MotivoMail = "No se indicó una clave para mandarle.";
                     return;
                 }
-
-                var voluntaria = db.VOLUNTARIA.AsNoTracking().FirstOrDefault(v => v.IdVoluntaria == idVoluntaria);
-                if (voluntaria == null || string.IsNullOrWhiteSpace(voluntaria.Mail))
-                {
-                    respuesta.MotivoMail = "La voluntaria no tiene mail cargado.";
-                    return;
-                }
-                respuesta.MailDestino = voluntaria.Mail;
 
                 var urlFront = Environment.GetEnvironmentVariable("FRONT_URL") ?? "https://resimamis-tesis.vercel.app";
                 string H(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
@@ -159,7 +167,7 @@ namespace ResimamisBackend.Negocio
   <p style=""font-size:13px"">Por seguridad, cambiá la clave apenas entres, desde <b>Mi perfil → Cambiar contraseña</b>.</p>
 </div>";
 
-                var resultado = negEnvioMail.EnviarMail(voluntaria.Mail, "Tu acceso a Voluntarias Abrazadoras", cuerpo);
+                var resultado = negEnvioMail.EnviarMail(respuesta.MailDestino, AsuntoBienvenida, cuerpo);
                 respuesta.MailEnviado = resultado == "Correo enviado correctamente.";
                 if (!respuesta.MailEnviado)
                     respuesta.MotivoMail = "El servidor de mails no aceptó el envío.";

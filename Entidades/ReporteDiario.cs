@@ -50,8 +50,9 @@ namespace ResimamisBackend.Entidades
         public const string Bajas = "Bajas";
         public const string Asignaciones = "Asignaciones";
         public const string Asistencias = "Asistencias";
+        public const string Mails = "Mails";
 
         public static readonly string[] Orden =
-            { Abrazos, MovimientosInsumos, Altas, Bajas, Asignaciones, Asistencias };
+            { Abrazos, MovimientosInsumos, Altas, Bajas, Asignaciones, Asistencias, Mails };
     }
 }

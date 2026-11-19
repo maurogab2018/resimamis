@@ -200,6 +200,8 @@ namespace ResimamisBackend.Negocio
             var cuerpo = ArmarCuerpoAvisoStock(insumos);
             var respuestaEnvio = negEnvioMail.EnviarMail(destinatarios, asunto, cuerpo);
             resultado.correoEnviado = respuestaEnvio.StartsWith("Correo enviado", StringComparison.OrdinalIgnoreCase);
+            registroActividad.RegistrarMail(TiposRegistroActividad.Insumo, 0, string.Join(", ", destinatarios), asunto,
+                resultado.correoEnviado, resultado.correoEnviado ? null : "El servidor de mails no aceptó el envío.");
             resultado.mensaje = respuestaEnvio;
             return resultado;
         }

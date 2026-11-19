@@ -912,19 +912,23 @@ namespace ResimamisBackend.Datos
                     Responsable = string.IsNullOrWhiteSpace(m.Voluntaria) ? null : m.Voluntaria.Trim()
                 }));
 
-            // Altas y bajas de la bitácora (los cierres automáticos ya se ven en Abrazos).
+            // Altas, bajas y mails de la bitácora (los cierres automáticos ya se ven en Abrazos).
             movimientos.AddRange(db.REGISTROACTIVIDAD.AsNoTracking()
                 .Where(r => r.fechaHora >= inicioUtc && r.fechaHora < finUtcExclusivo
                             && (r.tipoMovimiento == TiposMovimientoActividad.Alta
-                                || r.tipoMovimiento == TiposMovimientoActividad.Baja))
+                                || r.tipoMovimiento == TiposMovimientoActividad.Baja
+                                || r.tipoMovimiento == TiposMovimientoActividad.MailEnviado
+                                || r.tipoMovimiento == TiposMovimientoActividad.MailNoEnviado))
                 .ToList()
                 .Select(r => new ReporteDiarioMovimiento
                 {
                     FechaHora = r.fechaHora,
-                    Categoria = r.tipoMovimiento == TiposMovimientoActividad.Baja
-                        ? CategoriasReporteDiario.Bajas
-                        : CategoriasReporteDiario.Altas,
-                    Tipo = r.tipoRegistro,
+                    Categoria = r.tipoMovimiento == TiposMovimientoActividad.Baja ? CategoriasReporteDiario.Bajas
+                        : r.tipoMovimiento == TiposMovimientoActividad.Alta ? CategoriasReporteDiario.Altas
+                        : CategoriasReporteDiario.Mails,
+                    Tipo = r.tipoMovimiento == TiposMovimientoActividad.MailEnviado ? "Enviado"
+                        : r.tipoMovimiento == TiposMovimientoActividad.MailNoEnviado ? "No enviado"
+                        : r.tipoRegistro,
                     Descripcion = r.descripcion,
                     Responsable = r.nombreResponsable
                 }));

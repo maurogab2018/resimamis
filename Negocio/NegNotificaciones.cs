@@ -22,6 +22,7 @@ namespace ResimamisBackend.Negocio
         private readonly INegUsuarios negUsuarios;
         private readonly INegEnvioMail negEnvioMail;
         private readonly IServiceScopeFactory scopeFactory;
+        private readonly INegRegistroActividad registroActividad;
 
         public NegNotificaciones(
             ApplicationDbContext db,
@@ -29,7 +30,8 @@ namespace ResimamisBackend.Negocio
             IUsuarioRepositorio usuarioRepositorio,
             INegUsuarios negUsuarios,
             INegEnvioMail negEnvioMail,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            INegRegistroActividad registroActividad)
         {
             this.db = db;
             this.configuration = configuration;
@@ -37,6 +39,7 @@ namespace ResimamisBackend.Negocio
             this.negUsuarios = negUsuarios;
             this.negEnvioMail = negEnvioMail;
             this.scopeFactory = scopeFactory;
+            this.registroActividad = registroActividad;
         }
 
         private string UrlFront =>
@@ -264,7 +267,10 @@ namespace ResimamisBackend.Negocio
             // El texto de la coordinadora va escapado; los saltos de línea se respetan.
             var cuerpoMensaje = H(mensaje).Replace("\r\n", "\n").Replace("\n", "<br/>");
             var resultado = negEnvioMail.EnviarMail(vol.Mail, asunto, PlantillaMail(vol.Nombre, cuerpoMensaje, null));
-            if (!resultado.StartsWith("Correo enviado", StringComparison.OrdinalIgnoreCase))
+            var enviado = resultado.StartsWith("Correo enviado", StringComparison.OrdinalIgnoreCase);
+            registroActividad.RegistrarMail(TiposRegistroActividad.Voluntaria, idVoluntaria, vol.Mail, asunto, enviado,
+                enviado ? null : "El servidor de mails no aceptó el envío.");
+            if (!enviado)
                 throw new ApplicationException("No se pudo enviar el mail. Probá de nuevo en unos minutos.");
             Console.WriteLine($"[mail voluntaria] {idVoluntaria}: {resultado}");
             return resultado;
