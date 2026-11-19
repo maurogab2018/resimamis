@@ -242,14 +242,16 @@ namespace ResimamisBackend.Datos
 
             var voluntarias = db.VOLUNTARIA.AsNoTracking()
                 .Where(v => v.IdEstado != idElimVol && diasHorario.Keys.Contains(v.IdVoluntaria))
-                .Select(v => new { v.IdVoluntaria, v.Nombre, v.Apellido })
+                .Select(v => new { v.IdVoluntaria, v.Nombre, v.Apellido, v.FechaInicio })
                 .ToList();
 
             var items = voluntarias.Select(v =>
             {
                 var dias = diasHorario[v.IdVoluntaria];
                 var fechasPrevistas = new List<DateOnly>();
-                for (var f = d0; f <= d1; f = f.AddDays(1))
+                // Los días anteriores a que empezara en el programa no cuentan como faltas.
+                var empezo = v.FechaInicio > DateTime.MinValue ? Dia(v.FechaInicio) : d0;
+                for (var f = empezo > d0 ? empezo : d0; f <= d1; f = f.AddDays(1))
                     if (dias.Contains(IdDia(f.DayOfWeek)))
                         fechasPrevistas.Add(f);
                 var asistio = vinieron.GetValueOrDefault(v.IdVoluntaria) ?? new HashSet<DateOnly>();

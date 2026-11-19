@@ -244,10 +244,19 @@ namespace ResimamisBackend.Datos
         //}
         public List<EstadsiticaCantidadAsignacion> devolverEstadisticaCantidadAsignaciones1()
         {
-            List<ASIGNACION> asignaciones = db.ASIGNACION.ToList();// Reemplaza esto con la obtención real de datos desde tu base de datos.
+            // Solo abrazos reales (con bebé, iniciados y finalizados, no cerrados por el sistema ni
+            // eliminados), por mes calendario de Argentina: antes contaba tareas y pruebas borradas.
+            var idElim = estadoRepositorio.ObtenerIdEstadoEliminado("Asignaciones");
+            var inicios = db.ASIGNACION.AsNoTracking()
+                .Where(a => a.idBebe != null && a.fechaHoraInicio != null && a.fechaHoraFin != null
+                            && !a.cierreAutomatico && a.idEstado != idElim)
+                .Select(a => a.fechaHoraInicio!.Value)
+                .ToList()
+                .Select(NegConversorFecha.HoraArgentina)
+                .ToList();
 
-            var cantidadAsignacionesPorMes = asignaciones
-                .GroupBy(a => new { Mes = a.fechaHoraAsignacion.Month, Año = a.fechaHoraAsignacion.Year })
+            var cantidadAsignacionesPorMes = inicios
+                .GroupBy(a => new { Mes = a.Month, Año = a.Year })
                 .Select(g => new EstadsiticaCantidadAsignacion()
                 {
                     Mes = g.Key.Mes,

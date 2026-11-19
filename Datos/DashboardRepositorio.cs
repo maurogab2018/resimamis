@@ -540,17 +540,44 @@ namespace ResimamisBackend.Datos
             };
         }
 
+        /// <summary>
+        /// Bebés activos según cómo va su día: el estado guardado vuelve a "Sin abrazar" al
+        /// terminar cada abrazo, así que solo no dice nada; esto cruza con las asignaciones de hoy.
+        /// </summary>
         public EstadisticaBebesPorEstadoRespuesta ObtenerBebesPorEstado()
         {
-            var porEstado = QueryBebesActivos()
-                .GroupBy(b => b.Estado != null ? b.Estado.nombre : "Sin estado")
+            var (inicioHoyUtc, finHoyUtc) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var idsActivos = QueryBebesActivos().Select(b => b.ID).ToList();
+            var deHoy = QueryAsignacionesActivas()
+                .Where(a => a.idBebe != null && idsActivos.Contains(a.idBebe.Value)
+                            && a.fechaHoraAsignacion >= inicioHoyUtc && a.fechaHoraAsignacion < finHoyUtc)
+                .Select(a => new { IdBebe = a.idBebe!.Value, a.fechaHoraInicio, a.fechaHoraFin, a.cierreAutomatico })
+                .ToList()
+                .GroupBy(a => a.IdBebe)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            string Situacion(int idBebe)
+            {
+                if (!deHoy.TryGetValue(idBebe, out var lista))
+                    return "Sin abrazo todavía";
+                if (lista.Any(a => a.fechaHoraInicio != null && a.fechaHoraFin == null))
+                    return "En abrazo ahora";
+                if (lista.Any(a => a.fechaHoraInicio != null && a.fechaHoraFin != null && !a.cierreAutomatico))
+                    return "Abrazado hoy";
+                if (lista.Any(a => a.fechaHoraInicio == null && a.fechaHoraFin == null))
+                    return "Asignado, esperando su abrazo";
+                return "Sin abrazo todavía";
+            }
+
+            string[] orden = { "Abrazado hoy", "En abrazo ahora", "Asignado, esperando su abrazo", "Sin abrazo todavía" };
+            var porEstado = idsActivos
+                .GroupBy(Situacion)
                 .Select(g => new EstadisticaBebesPorEstadoItem
                 {
                     EstadoBebe = g.Key,
                     Cantidad = g.Count()
                 })
-                .OrderByDescending(x => x.Cantidad)
-                .ThenBy(x => x.EstadoBebe)
+                .OrderBy(x => Array.IndexOf(orden, x.EstadoBebe))
                 .ToList();
 
             return new EstadisticaBebesPorEstadoRespuesta
