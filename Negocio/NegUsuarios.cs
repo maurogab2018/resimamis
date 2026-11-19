@@ -16,17 +16,20 @@ namespace ResimamisBackend.Negocio
         private readonly IEstadoRepositorio estadoRepositorio;
         private readonly IUsuarioRepositorio usuarioRepositorio;
         private readonly IVoluntariaRepositorio voluntariaRepositorio;
+        private readonly INegEnvioMail negEnvioMail;
 
         public NegUsuarios(
             ApplicationDbContext db,
             IEstadoRepositorio estadoRepositorio,
             IUsuarioRepositorio usuarioRepositorio,
-            IVoluntariaRepositorio voluntariaRepositorio)
+            IVoluntariaRepositorio voluntariaRepositorio,
+            INegEnvioMail negEnvioMail)
         {
             this.db = db;
             this.estadoRepositorio = estadoRepositorio;
             this.usuarioRepositorio = usuarioRepositorio;
             this.voluntariaRepositorio = voluntariaRepositorio;
+            this.negEnvioMail = negEnvioMail;
         }
 
         // AUTH ref:L — sesión JWT: el DNI del token debe ser un USUARIO operativo (no inventado ni dado de baja).
@@ -107,8 +110,50 @@ namespace ResimamisBackend.Negocio
         }
 
         // En fila: dos altas a la vez creaban varios usuarios para la misma voluntaria.
-        public bool RegistrarUsuario(int dniSolicitante, USUARIO usuario) =>
-            BloqueosDb.Ejecutar(db, BloqueosDb.Altas, () => RegistrarUsuarioSinBloqueo(dniSolicitante, usuario));
+        public bool RegistrarUsuario(int dniSolicitante, USUARIO usuario)
+        {
+            // La clave en texto se toma antes de que se guarde hasheada.
+            var claveInicial = usuario?.Contrasena;
+            var ok = BloqueosDb.Ejecutar(db, BloqueosDb.Altas, () => RegistrarUsuarioSinBloqueo(dniSolicitante, usuario!));
+            if (ok)
+                EnviarMailBienvenida(usuario!.IdVoluntaria, usuario.Dni, claveInicial);
+            return ok;
+        }
+
+        /// <summary>
+        /// Le manda a la voluntaria su DNI de acceso y la clave inicial. Va fuera del bloqueo y nunca
+        /// hace fallar el alta: sin correo configurado o si el envío falla, el usuario queda creado igual.
+        /// </summary>
+        private void EnviarMailBienvenida(int idVoluntaria, int dni, string? clave)
+        {
+            try
+            {
+                if (!negEnvioMail.EstaConfigurado() || string.IsNullOrWhiteSpace(clave))
+                    return;
+
+                var voluntaria = db.VOLUNTARIA.AsNoTracking().FirstOrDefault(v => v.IdVoluntaria == idVoluntaria);
+                if (voluntaria == null || string.IsNullOrWhiteSpace(voluntaria.Mail))
+                    return;
+
+                var urlFront = Environment.GetEnvironmentVariable("FRONT_URL") ?? "https://resimamis-tesis.vercel.app";
+                string H(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
+                var cuerpo = $@"
+<div style=""font-family:Arial,sans-serif;color:#152C70;max-width:480px"">
+  <h2 style=""color:#7F00FF"">¡Hola {H(voluntaria.Nombre)}!</h2>
+  <p>Ya tenés acceso a <b>Voluntarias Abrazadoras</b>.</p>
+  <p>DNI: <b>{dni}</b><br/>Clave: <b>{H(clave)}</b></p>
+  <p><a href=""{H(urlFront)}/login"" style=""color:#7F00FF"">Entrar a la app</a></p>
+  <p style=""font-size:13px"">Por seguridad, cambiá la clave apenas entres, desde <b>Mi perfil → Cambiar contraseña</b>.</p>
+</div>";
+
+                var resultado = negEnvioMail.EnviarMail(voluntaria.Mail, "Tu acceso a Voluntarias Abrazadoras", cuerpo);
+                Console.WriteLine($"[mail bienvenida] voluntaria {idVoluntaria}: {resultado}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[mail bienvenida] voluntaria {idVoluntaria}: error {ex.Message}");
+            }
+        }
 
         private bool RegistrarUsuarioSinBloqueo(int dniSolicitante, USUARIO usuario)
         {

@@ -187,7 +187,9 @@ namespace ResimamisBackend.Negocio
                 return resultado;
             }
 
-            if (!negEnvioMail.EstaConfigurado())
+            // El aviso de stock sigue atado a Email:Enabled: tener la clave de Brevo (para el mail de
+            // bienvenida) no debe empezar a mandarles avisos a todas las coordinadoras.
+            if (!configuration.GetValue("Email:Enabled", false) || !negEnvioMail.EstaConfigurado())
             {
                 resultado.mensaje = "Correo no configurado (Email:Enabled y Smtp). Revise appsettings o variables de entorno.";
                 return resultado;
