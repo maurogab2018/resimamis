@@ -27,7 +27,9 @@ namespace ResimamisBackend.Controllers
         {
             try
             {
-                return ApiResults.Success(negAsistente.ObtenerEstado());
+                int? dni = null;
+                try { dni = ObtenerDniAutenticado(User); } catch (ApplicationException) { }
+                return ApiResults.Success(negAsistente.ObtenerEstado(dni));
             }
             catch (Exception)
             {
@@ -57,6 +59,14 @@ namespace ResimamisBackend.Controllers
             catch (ForbiddenException ex)
             {
                 return ApiResults.Forbidden(ex.Message);
+            }
+            catch (LimiteAsistenteException ex)
+            {
+                return StatusCode(StatusCodes.Status429TooManyRequests, new ApiResponse
+                {
+                    message = ex.Message,
+                    errors = new List<string> { ex.Message }
+                });
             }
             catch (NotFoundException ex)
             {

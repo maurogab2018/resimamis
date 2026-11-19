@@ -27,9 +27,9 @@ internal sealed class OpenAiChatCompletions
         CancellationToken cancellationToken)
     {
         var client = httpClientFactory.CreateClient("OpenAI");
-        using var httpRequest = new HttpRequestMessage(
-            HttpMethod.Post,
-            "https://api.openai.com/v1/chat/completions");
+        // Relativo a la BaseAddress del cliente "OpenAI" (Asistente:BaseUrl, por defecto la API real):
+        // así se puede probar contra un servidor simulado sin gastar tokens.
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "chat/completions");
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         httpRequest.Content = new StringContent(
             JsonSerializer.Serialize(request, JsonOptions),
@@ -113,6 +113,14 @@ internal sealed class OpenAiFunction
 internal sealed class OpenAiChatResponse
 {
     public List<OpenAiChoice> Choices { get; set; } = new();
+    public OpenAiUsage? Usage { get; set; }
+}
+
+/// <summary>Tokens que cobró OpenAI por la llamada.</summary>
+internal sealed class OpenAiUsage
+{
+    public int PromptTokens { get; set; }
+    public int CompletionTokens { get; set; }
 }
 
 internal sealed class OpenAiChoice

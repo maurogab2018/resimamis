@@ -57,7 +57,10 @@ public static class ServiceCollectionExtensions
             var timeoutSeconds = config.GetValue("Asistente:HttpTimeoutSeconds", 180);
             if (timeoutSeconds < 30)
                 timeoutSeconds = 30;
-            client.BaseAddress = new Uri("https://api.openai.com/v1/");
+            var baseUrl = config["Asistente:BaseUrl"];
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                baseUrl = "https://api.openai.com/v1/";
+            client.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
             client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
         });
 

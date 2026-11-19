@@ -15,6 +15,7 @@ namespace ResimamisBackend.Datos
         public const long Asistencia = 7311003;
         public const long Abrazos = 7311004;
         public const long Altas = 7311005;
+        public const long Asistente = 7311006;
 
         /// <summary>Toma el lock dentro de la transacción actual (no hace nada fuera de Postgres).</summary>
         public static void Tomar(ApplicationDbContext db, long clave)

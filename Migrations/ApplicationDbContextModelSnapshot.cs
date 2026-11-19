@@ -123,6 +123,37 @@ namespace ResimamisBackend.Migrations
                     b.ToTable("ASISTENCIA");
                 });
 
+            modelBuilder.Entity("ResimamisBackend.Datos.ASISTENTEUSO", b =>
+                {
+                    b.Property<int>("idAsistenteUso")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("idAsistenteUso"));
+
+                    b.Property<int>("dni")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("fecha")
+                        .HasColumnType("date");
+
+                    b.Property<int>("preguntas")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("tokensEntrada")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("tokensSalida")
+                        .HasColumnType("integer");
+
+                    b.HasKey("idAsistenteUso");
+
+                    b.HasIndex("dni", "fecha")
+                        .IsUnique();
+
+                    b.ToTable("ASISTENTEUSO");
+                });
+
             modelBuilder.Entity("ResimamisBackend.Datos.BEBE", b =>
                 {
                     b.Property<int>("ID")

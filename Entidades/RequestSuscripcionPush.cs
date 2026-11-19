@@ -19,6 +19,14 @@ namespace ResimamisBackend.Entidades
         public string? mensaje { get; set; }
     }
 
+    public class ResultadoPushVoluntaria
+    {
+        public int idVoluntaria { get; set; }
+        public string nombre { get; set; } = "";
+        public int dispositivos { get; set; }
+        public int enviados { get; set; }
+    }
+
     public class RequestDesuscripcionPush
     {
         public string? endpoint { get; set; }

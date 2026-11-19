@@ -25,6 +25,15 @@ public interface INegNotificaciones
     /// </summary>
     void NotificarAsignaciones(IEnumerable<RespuestaAsignaciones> asignaciones);
 
+    /// <summary>
+    /// Push con un mensaje libre a varias voluntarias (lo usa el asistente, siempre con confirmación).
+    /// Devuelve, por voluntaria, a cuántos dispositivos llegó.
+    /// </summary>
+    List<ResultadoPushVoluntaria> EnviarPushAVoluntarias(IEnumerable<int> idsVoluntaria, string titulo, string mensaje);
+
+    /// <summary>Nombre y cantidad de dispositivos con push de cada voluntaria (para la vista previa).</summary>
+    List<ResultadoPushVoluntaria> DispositivosPorVoluntaria(IEnumerable<int> idsVoluntaria);
+
     /// <summary>La coordinadora le manda un mail a una voluntaria. Devuelve el resultado del envío.</summary>
     string EnviarMailAVoluntaria(int dniSolicitante, int idVoluntaria, string asunto, string mensaje);
 }

@@ -196,6 +196,47 @@ namespace ResimamisBackend.Negocio
             }
         }
 
+        // ---------- Push con mensaje libre (asistente) ----------
+
+        public List<ResultadoPushVoluntaria> DispositivosPorVoluntaria(IEnumerable<int> idsVoluntaria)
+        {
+            var ids = (idsVoluntaria ?? Enumerable.Empty<int>()).Where(i => i > 0).Distinct().ToList();
+            var vols = db.VOLUNTARIA.AsNoTracking()
+                .Where(v => ids.Contains(v.IdVoluntaria))
+                .Select(v => new { v.IdVoluntaria, v.Nombre, v.Apellido })
+                .ToList();
+            var cuenta = db.PUSHSUSCRIPCION.AsNoTracking()
+                .Where(p => ids.Contains(p.idVoluntaria))
+                .GroupBy(p => p.idVoluntaria)
+                .Select(g => new { g.Key, n = g.Count() })
+                .ToDictionary(x => x.Key, x => x.n);
+            return vols.Select(v => new ResultadoPushVoluntaria
+            {
+                idVoluntaria = v.IdVoluntaria,
+                nombre = $"{v.Nombre} {v.Apellido}".Trim(),
+                dispositivos = cuenta.GetValueOrDefault(v.IdVoluntaria),
+            }).ToList();
+        }
+
+        public List<ResultadoPushVoluntaria> EnviarPushAVoluntarias(IEnumerable<int> idsVoluntaria, string titulo, string mensaje)
+        {
+            var vapid = ResolverVapid() ?? throw new ApplicationException("Las notificaciones push no están configuradas.");
+            var resultado = DispositivosPorVoluntaria(idsVoluntaria);
+            var ids = resultado.Select(r => r.idVoluntaria).ToList();
+            var subs = db.PUSHSUSCRIPCION.AsNoTracking().Where(p => ids.Contains(p.idVoluntaria)).ToList();
+            var aviso = new AvisoPush(titulo, mensaje, $"{UrlFront}/tareas");
+            var vencidas = new List<string>();
+            foreach (var r in resultado)
+            {
+                var (enviados, malas) = EnviarPush(vapid, subs.Where(s => s.idVoluntaria == r.idVoluntaria).ToList(), aviso);
+                r.enviados = enviados;
+                vencidas.AddRange(malas);
+            }
+            BorrarSuscripciones(db, vencidas);
+            Console.WriteLine($"[push asistente] {resultado.Count} voluntaria(s), {resultado.Count(r => r.enviados > 0)} con aviso entregado");
+            return resultado;
+        }
+
         // ---------- Mail suelto a una voluntaria ----------
 
         public string EnviarMailAVoluntaria(int dniSolicitante, int idVoluntaria, string asunto, string mensaje)

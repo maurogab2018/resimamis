@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using ResimamisBackend.Datos;
 using ResimamisBackend.Entidades;
@@ -82,22 +83,30 @@ namespace ResimamisBackend.Negocio
         private readonly INegProveedores negProveedores;
         private readonly INegGenericos negGenericos;
         private readonly INegRegistroActividad negRegistroActividad;
+        private readonly INegNotificaciones negNotificaciones;
+        private readonly ApplicationDbContext db;
         private readonly OpenAiChatCompletions openAi;
         private int? dniSolicitanteActual;
         private bool confirmacionGenerarValida;
         private bool asignacionesGeneradasEnEstaPregunta;
+        private bool confirmacionPushValida;
+        private bool pushEnviadoEnEstaPregunta;
+        /// <summary>Escritura que en esta respuesta quedó esperando el OK (la muestra el front como botones).</summary>
+        private string? accionPendiente;
+
+        public const string AccionGenerar = "generar_asignaciones";
+        public const string AccionPush = "avisar_push";
 
         private static readonly System.Text.RegularExpressions.Regex RegexEncabezado = new(
-            @"^[ \t]*#{1,6}[ \t]*", System.Text.RegularExpressions.RegexOptions.Multiline);
+            @"^[ \t]*#{1,6}[ \t]*(.+?)[ \t]*$", System.Text.RegularExpressions.RegexOptions.Multiline);
 
         /// <summary>
-        /// El front muestra la respuesta como texto plano, así que el Markdown del modelo se veía
-        /// crudo (**nombre**, ### Título). Se sacan negritas, encabezados y backticks; las listas
-        /// con guion o número quedan como están porque se leen bien en texto.
+        /// El front entiende un Markdown chico: **negrita**, listas, tablas con | y links internos
+        /// [nombre](bebe:12) / (voluntaria:5) / (madre:3). Los títulos (#) pasan a negrita y se sacan
+        /// los backticks y el subrayado __, que el front no dibuja.
         /// </summary>
         private static string LimpiarFormato(string texto) =>
-            RegexEncabezado.Replace(texto, "")
-                .Replace("**", "")
+            RegexEncabezado.Replace(texto, "**$1**")
                 .Replace("__", "")
                 .Replace("`", "");
 
@@ -139,9 +148,13 @@ namespace ResimamisBackend.Negocio
             INegProveedores negProveedores,
             INegGenericos negGenericos,
             INegRegistroActividad negRegistroActividad,
+            INegNotificaciones negNotificaciones,
+            ApplicationDbContext db,
             IHttpClientFactory httpClientFactory)
         {
             this.negRegistroActividad = negRegistroActividad;
+            this.negNotificaciones = negNotificaciones;
+            this.db = db;
             this.configuration = configuration;
             this.negUsuarios = negUsuarios;
             this.negDashboard = negDashboard;
@@ -159,7 +172,7 @@ namespace ResimamisBackend.Negocio
             openAi = new OpenAiChatCompletions(httpClientFactory);
         }
 
-        public AsistenteEstadoRespuesta ObtenerEstado()
+        public AsistenteEstadoRespuesta ObtenerEstado(int? dniSolicitante = null)
         {
             var (enabled, model, key) = LeerConfig();
             return new AsistenteEstadoRespuesta
@@ -167,8 +180,68 @@ namespace ResimamisBackend.Negocio
                 Habilitado = enabled && !string.IsNullOrWhiteSpace(key),
                 Proveedor = "OpenAI",
                 Modelo = model,
-                QuePuedeConsultar = EjemplosPregunta
+                QuePuedeConsultar = EjemplosPregunta,
+                PreguntasHoy = dniSolicitante.HasValue ? UsoDeHoy(dniSolicitante.Value)?.preguntas ?? 0 : 0,
+                LimiteDiario = LimiteDiario(),
             };
+        }
+
+        // ---------- Tope de uso ----------
+
+        /// <summary>Preguntas por usuaria y por día (Asistente:MaxPreguntasDia). 0 = sin tope.</summary>
+        private int LimiteDiario() => Math.Max(0, configuration.GetValue("Asistente:MaxPreguntasDia", 30));
+
+        private static DateOnly HoyArgentina() => NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
+
+        private ASISTENTEUSO? UsoDeHoy(int dni)
+        {
+            var hoy = HoyArgentina();
+            return db.ASISTENTEUSO.AsNoTracking().FirstOrDefault(u => u.dni == dni && u.fecha == hoy);
+        }
+
+        /// <summary>
+        /// Cuenta la pregunta antes de llamar a OpenAI y frena si ya llegó al tope: así una pregunta
+        /// que falla a mitad de camino igual cuenta, y nadie puede gastar de más reintentando.
+        /// </summary>
+        private int ReservarPregunta(int dni)
+        {
+            var hoy = HoyArgentina();
+            var limite = LimiteDiario();
+            return BloqueosDb.Ejecutar(db, BloqueosDb.Asistente, () =>
+            {
+                var uso = db.ASISTENTEUSO.FirstOrDefault(u => u.dni == dni && u.fecha == hoy);
+                if (uso == null)
+                {
+                    uso = new ASISTENTEUSO { dni = dni, fecha = hoy };
+                    db.ASISTENTEUSO.Add(uso);
+                }
+                if (limite > 0 && uso.preguntas >= limite)
+                    throw new LimiteAsistenteException(limite);
+                uso.preguntas++;
+                db.SaveChanges();
+                return uso.preguntas;
+            });
+        }
+
+        private void SumarTokens(int dni, int entrada, int salida)
+        {
+            if (entrada <= 0 && salida <= 0)
+                return;
+            try
+            {
+                var hoy = HoyArgentina();
+                var uso = db.ASISTENTEUSO.FirstOrDefault(u => u.dni == dni && u.fecha == hoy);
+                if (uso == null)
+                    return;
+                uso.tokensEntrada += entrada;
+                uso.tokensSalida += salida;
+                db.SaveChanges();
+                Console.WriteLine($"[asistente] dni {dni}: pregunta {uso.preguntas} del día, tokens {entrada}+{salida} (hoy {uso.tokensEntrada}+{uso.tokensSalida})");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[asistente] no se pudo registrar el uso: {ex.Message}");
+            }
         }
 
         public async Task<AsistentePreguntaRespuesta> Preguntar(
@@ -184,8 +257,15 @@ namespace ResimamisBackend.Negocio
                 throw new ApplicationException("Debe enviar una pregunta.");
             if (pregunta.Length > MaxPregunta)
                 throw new ApplicationException($"La pregunta no puede superar {MaxPregunta} caracteres.");
-            confirmacionGenerarValida = EsConfirmacionDeGenerar(pregunta, request?.Historial);
+            var esConfirmacion = EsConfirmacionDeGenerar(pregunta, request?.Historial);
+            var accionConfirmada = request?.AccionConfirmada?.Trim();
+            // Generar acepta un "sí" escrito (como siempre); el aviso push solo con el botón Confirmar,
+            // que manda la acción exacta que había quedado pendiente.
+            confirmacionGenerarValida = esConfirmacion && (string.IsNullOrEmpty(accionConfirmada) || accionConfirmada == AccionGenerar);
+            confirmacionPushValida = esConfirmacion && accionConfirmada == AccionPush;
             asignacionesGeneradasEnEstaPregunta = false;
+            pushEnviadoEnEstaPregunta = false;
+            accionPendiente = null;
 
             var (enabled, model, apiKey) = LeerConfig();
             if (!enabled)
@@ -193,80 +273,109 @@ namespace ResimamisBackend.Negocio
             if (string.IsNullOrWhiteSpace(apiKey))
                 throw new ApplicationException("Falta la clave de OpenAI. Configure la variable apiKey (Render), OPENAI_API_KEY o Asistente:ApiKey.");
 
-            var mensajes = new List<OpenAiMessage>
+            var preguntasHoy = ReservarPregunta(dniSolicitante);
+            var tokensEntrada = 0;
+            var tokensSalida = 0;
+            void Contar(OpenAiChatResponse r)
             {
-                new() { Role = "system", Content = PromptSistema() }
-            };
-            AgregarHistorial(mensajes, request?.Historial);
-            mensajes.Add(new OpenAiMessage { Role = "user", Content = pregunta });
+                tokensEntrada += r.Usage?.PromptTokens ?? 0;
+                tokensSalida += r.Usage?.CompletionTokens ?? 0;
+            }
 
-            var usadas = new List<string>();
-            for (var i = 0; i < MaxVueltasHerramientas; i++)
+            try
             {
-                var completion = await openAi.CompletarAsync(
+                var mensajes = new List<OpenAiMessage>
+                {
+                    new() { Role = "system", Content = PromptSistema() }
+                };
+                AgregarHistorial(mensajes, request?.Historial);
+                mensajes.Add(new OpenAiMessage { Role = "user", Content = pregunta });
+
+                var usadas = new List<string>();
+                for (var i = 0; i < MaxVueltasHerramientas; i++)
+                {
+                    var completion = await openAi.CompletarAsync(
+                        apiKey,
+                        new OpenAiChatRequest
+                        {
+                            Model = model,
+                            Messages = mensajes,
+                            Tools = DefinirHerramientas(),
+                            MaxTokens = 2500,
+                            Temperature = 0.35
+                        },
+                        cancellationToken);
+                    Contar(completion);
+
+                    var mensaje = completion.Choices[0].Message;
+                    var toolCalls = mensaje.ToolCalls;
+                    if (toolCalls == null || toolCalls.Count == 0)
+                    {
+                        var texto = mensaje.Content?.Trim();
+                        if (string.IsNullOrWhiteSpace(texto))
+                            throw new ApplicationException("El asistente no generó una respuesta.");
+                        return ArmarRespuesta(texto, usadas, preguntasHoy);
+                    }
+
+                    mensajes.Add(new OpenAiMessage
+                    {
+                        Role = "assistant",
+                        Content = mensaje.Content,
+                        ToolCalls = toolCalls
+                    });
+
+                    foreach (var call in toolCalls)
+                    {
+                        var nombre = call.Function?.Name ?? "";
+                        usadas.Add(nombre);
+                        var resultado = EjecutarHerramienta(nombre, call.Function?.Arguments);
+                        mensajes.Add(new OpenAiMessage
+                        {
+                            Role = "tool",
+                            ToolCallId = call.Id,
+                            Content = resultado
+                        });
+                    }
+                }
+
+                var cierre = await openAi.CompletarAsync(
                     apiKey,
                     new OpenAiChatRequest
                     {
                         Model = model,
                         Messages = mensajes,
-                        Tools = DefinirHerramientas(),
                         MaxTokens = 2500,
                         Temperature = 0.35
                     },
-                    cancellationToken);
-
-                var mensaje = completion.Choices[0].Message;
-                var toolCalls = mensaje.ToolCalls;
-                if (toolCalls == null || toolCalls.Count == 0)
-                {
-                    var texto = mensaje.Content?.Trim();
-                    if (string.IsNullOrWhiteSpace(texto))
-                        throw new ApplicationException("El asistente no generó una respuesta.");
-                    return new AsistentePreguntaRespuesta
-                    {
-                        Respuesta = LimpiarFormato(texto),
-                        HerramientasUsadas = usadas.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
-                    };
-                }
-
-                mensajes.Add(new OpenAiMessage
-                {
-                    Role = "assistant",
-                    Content = mensaje.Content,
-                    ToolCalls = toolCalls
-                });
-
-                foreach (var call in toolCalls)
-                {
-                    var nombre = call.Function?.Name ?? "";
-                    usadas.Add(nombre);
-                    var resultado = EjecutarHerramienta(nombre, call.Function?.Arguments);
-                    mensajes.Add(new OpenAiMessage
-                    {
-                        Role = "tool",
-                        ToolCallId = call.Id,
-                        Content = resultado
-                    });
-                }
+                        cancellationToken);
+                Contar(cierre);
+                var textoCierre = cierre.Choices[0].Message.Content?.Trim();
+                if (string.IsNullOrWhiteSpace(textoCierre))
+                    throw new ApplicationException("El asistente no pudo completar la investigación. Reformulá la pregunta.");
+                return ArmarRespuesta(textoCierre, usadas, preguntasHoy);
             }
+            finally
+            {
+                SumarTokens(dniSolicitante, tokensEntrada, tokensSalida);
+            }
+        }
 
-            var cierre = await openAi.CompletarAsync(
-                apiKey,
-                new OpenAiChatRequest
-                {
-                    Model = model,
-                    Messages = mensajes,
-                    MaxTokens = 2500,
-                    Temperature = 0.35
-                },
-                    cancellationToken);
-            var textoCierre = cierre.Choices[0].Message.Content?.Trim();
-            if (string.IsNullOrWhiteSpace(textoCierre))
-                throw new ApplicationException("El asistente no pudo completar la investigación. Reformulá la pregunta.");
+        private AsistentePreguntaRespuesta ArmarRespuesta(string texto, List<string> usadas, int preguntasHoy)
+        {
+            var respuesta = LimpiarFormato(texto);
+            // Si una escritura quedó esperando el OK, la respuesta tiene que pedirlo: el próximo "sí"
+            // solo cuenta como confirmación cuando el mensaje anterior la pidió (EsConfirmacionDeGenerar).
+            if (accionPendiente != null && !respuesta.Contains("confirm", StringComparison.OrdinalIgnoreCase))
+                respuesta += accionPendiente == AccionPush
+                    ? "\n\n¿Confirmás que envíe el aviso?"
+                    : "\n\n¿Confirmás que genere las asignaciones?";
             return new AsistentePreguntaRespuesta
             {
-                Respuesta = LimpiarFormato(textoCierre),
-                HerramientasUsadas = usadas.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+                Respuesta = respuesta,
+                HerramientasUsadas = usadas.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                AccionPendiente = accionPendiente,
+                PreguntasHoy = preguntasHoy,
+                LimiteDiario = LimiteDiario(),
             };
         }
 
@@ -314,7 +423,13 @@ namespace ResimamisBackend.Negocio
             return $"""
             Sos el asistente de Resimamis para coordinadoras de un programa de abrazos en neonatología.
             Respondé siempre en español, claro y útil.
-            Formato: texto plano. Sin negritas (**), sin títulos (#) ni tablas; para listas usá guiones o números.
+            Formato (la app lo dibuja):
+            - **negrita** para resaltar datos clave. Sin títulos con #.
+            - Listas con guion (- ) o números (1. ).
+            - Tablas cortas con | solo para comparar varias filas (máximo 4 columnas y 10 filas).
+            - Cuando nombres a un bebé, una voluntaria o una madre y tengas su id (de una tool), escribilo como link interno:
+              [Juana Pérez](bebe:12), [Martina Zapata](voluntaria:5), [Lucía Gómez](madre:3). Nunca inventes ids; sin id, escribí solo el nombre.
+            - No uses links a páginas web.
 
             Contexto de fecha (obligatorio):
             - Hoy en calendario Argentina es {hoy:yyyy-MM-dd}. Usá SIEMPRE esa fecha para "hoy".
@@ -379,14 +494,19 @@ namespace ResimamisBackend.Negocio
             Fechas en tools de período: yyyy-MM-dd, "hoy"/"ayer", o periodo="esta_semana"|"semana_pasada"|"este_mes"|"mes_pasado"|"ultimos_7"|"ultimos_30" (Argentina). Rankings sin fechas = 365 días; otros períodos sin fechas = 30 días.
             Pesos y ganancias están en gramos. Duraciones de abrazo están en minutos.
 
-            Única acción de escritura permitida:
-            - Generar asignaciones de abrazo del día (parea bebés disponibles con voluntarias libres).
-            Flujo obligatorio:
+            Acciones de escritura permitidas (solo estas dos, siempre con confirmación):
+            A) Generar asignaciones de abrazo del día (parea bebés disponibles con voluntarias libres).
             1) Llamá bebes_disponibles_abrazo y voluntarias_libres.
             2) Mostrá a la coordinadora cuántos y quiénes hay (nombres).
-            3) Pedí confirmación explícita (“¿Confirmás que genere las asignaciones?”).
+            3) Llamá generar_asignaciones_abrazos con confirmar=false y pedí confirmación explícita (“¿Confirmás que genere las asignaciones?”).
             4) Solo si ella confirma, llamá generar_asignaciones_abrazos con confirmar=true.
-            Nunca generes sin confirmación. No hagas altas, bajas ni otras escrituras.
+            B) Avisar por notificación push a voluntarias (por ejemplo, a las que dejaron de venir o a las de un turno).
+            1) Conseguí los ids con las tools de consulta (alertas_y_prioridades, buscar_voluntarias, asistencias_hoy, etc.).
+            2) Llamá avisar_voluntarias_push con confirmar=false: te devuelve quiénes tienen el push activado.
+            3) Mostrá a quiénes les va a llegar y el texto, y pedí confirmación (“¿Confirmás que envíe el aviso?”).
+            4) Solo si ella confirma, llamá avisar_voluntarias_push con los mismos datos y confirmar=true.
+            Nunca ejecutes sin confirmación. La app le muestra a la coordinadora botones Confirmar / Cancelar.
+            No hagas altas, bajas, mails ni otras escrituras.
 
             Vocabulario (no mezclar):
             - Asistencia / fichaje: ingreso y salida de la voluntaria. Tools: asistencias_hoy, asistencias_periodo, ranking_asistencias.
@@ -424,7 +544,7 @@ namespace ResimamisBackend.Negocio
                 Function = new OpenAiFunction
                 {
                     Name = "generar_asignaciones_abrazos",
-                    Description = "ÚNICA escritura: genera asignaciones del día emparejando bebés disponibles con voluntarias libres (misma lógica que POST /api/Asignacion/generar). Requiere confirmar=true después de mostrar listas y pedir OK a la coordinadora.",
+                    Description = "Escritura: genera asignaciones del día emparejando bebés disponibles con voluntarias libres (misma lógica que POST /api/Asignacion/generar). Con confirmar=false devuelve la vista previa; confirmar=true solo después del OK de la coordinadora.",
                     Parameters = new
                     {
                         type = "object",
@@ -437,6 +557,38 @@ namespace ResimamisBackend.Negocio
                             }
                         },
                         required = new[] { "confirmar" }
+                    }
+                }
+            },
+            new OpenAiTool
+            {
+                Function = new OpenAiFunction
+                {
+                    Name = "avisar_voluntarias_push",
+                    Description = "Escritura: manda una notificación push con un mensaje corto a las voluntarias indicadas (solo les llega a las que la activaron en Mi perfil). Con confirmar=false devuelve a quiénes les llegaría; confirmar=true solo después del OK de la coordinadora.",
+                    Parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            ids_voluntarias = new
+                            {
+                                type = "array",
+                                items = new { type = "integer" },
+                                description = "Ids de voluntaria (de buscar_voluntarias, alertas_y_prioridades, etc.). Máximo 50."
+                            },
+                            mensaje = new
+                            {
+                                type = "string",
+                                description = "Texto del aviso, cálido y breve (máximo 180 caracteres). Ej.: 'Te extrañamos en la Neo, ¿venís esta semana?'."
+                            },
+                            confirmar = new
+                            {
+                                type = "boolean",
+                                description = "true solo si la coordinadora confirmó explícitamente el envío."
+                            }
+                        },
+                        required = new[] { "ids_voluntarias", "mensaje", "confirmar" }
                     }
                 }
             },
@@ -850,6 +1002,7 @@ namespace ResimamisBackend.Negocio
                     "bebes_disponibles_abrazo" => Json(ResumirBebesDisponiblesAbrazo()),
                     "voluntarias_libres" => Json(ResumirVoluntariasLibres()),
                     "generar_asignaciones_abrazos" => Json(GenerarAsignacionesAbrazos(args)),
+                    "avisar_voluntarias_push" => Json(AvisarVoluntariasPush(args)),
                     "buscar_bebes" => Json(BuscarBebes(LeerString(args, "texto"))),
                     "abrazos_bebe" => Json(AbrazosBebe(args)),
                     "buscar_voluntarias" => Json(BuscarVoluntarias(LeerString(args, "texto"))),
@@ -1754,6 +1907,7 @@ namespace ResimamisBackend.Negocio
 
             if (LeerBool(args, "confirmar") != true || !confirmacionGenerarValida)
             {
+                accionPendiente = AccionGenerar;
                 var bebes = ResumirBebesDisponiblesAbrazo();
                 var vols = ResumirVoluntariasLibres();
                 return new
@@ -1784,6 +1938,61 @@ namespace ResimamisBackend.Negocio
                     a.estadoAsignacion,
                     a.fechaHoraAsignacion
                 }).ToList()
+            };
+        }
+
+        private const int MaxVoluntariasPush = 50;
+        private const int MaxMensajePush = 180;
+
+        private object AvisarVoluntariasPush(JsonDocument args)
+        {
+            if (pushEnviadoEnEstaPregunta)
+                return new { enviado = false, error = "El aviso ya se envió en esta respuesta; no se manda dos veces." };
+
+            var ids = LeerListaInt(args, "ids_voluntarias");
+            if (ids.Count == 0)
+                return new { enviado = false, error = "Faltan los ids de las voluntarias. Buscalos con las tools de consulta." };
+            if (ids.Count > MaxVoluntariasPush)
+                return new { enviado = false, error = $"Son demasiadas voluntarias (máximo {MaxVoluntariasPush} por aviso)." };
+
+            var mensaje = (LeerString(args, "mensaje") ?? "").Trim();
+            if (mensaje.Length == 0)
+                return new { enviado = false, error = "Falta el texto del aviso." };
+            if (mensaje.Length > MaxMensajePush)
+                mensaje = mensaje[..MaxMensajePush].TrimEnd() + "…";
+
+            var destinatarias = negNotificaciones.DispositivosPorVoluntaria(ids);
+            if (destinatarias.Count == 0)
+                return new { enviado = false, error = "No encontré voluntarias con esos ids." };
+
+            var conPush = destinatarias.Where(d => d.dispositivos > 0).ToList();
+            var sinPush = destinatarias.Where(d => d.dispositivos == 0).Select(d => new { d.idVoluntaria, d.nombre }).ToList();
+
+            if (LeerBool(args, "confirmar") != true || !confirmacionPushValida)
+            {
+                if (conPush.Count > 0)
+                    accionPendiente = AccionPush;
+                return new
+                {
+                    enviado = false,
+                    error = conPush.Count == 0
+                        ? "Ninguna de esas voluntarias tiene las notificaciones activadas; no hay a quién avisar. Contale a la coordinadora que pueden activarlas en Mi perfil."
+                        : "Falta confirmación. Mostrá a quiénes les llega y el texto, y preguntá '¿Confirmás que envíe el aviso?'. Esperá su OK.",
+                    mensaje,
+                    lesLlega = conPush.Select(d => new { d.idVoluntaria, d.nombre }).ToList(),
+                    sinNotificacionesActivas = sinPush,
+                };
+            }
+
+            pushEnviadoEnEstaPregunta = true;
+            var resultado = negNotificaciones.EnviarPushAVoluntarias(conPush.Select(d => d.idVoluntaria), "Voluntarias Abrazadoras", mensaje);
+            return new
+            {
+                enviado = true,
+                mensaje,
+                entregados = resultado.Where(r => r.enviados > 0).Select(r => new { r.idVoluntaria, r.nombre }).ToList(),
+                noEntregados = resultado.Where(r => r.enviados == 0).Select(r => new { r.idVoluntaria, r.nombre }).ToList(),
+                sinNotificacionesActivas = sinPush,
             };
         }
 
@@ -2323,6 +2532,21 @@ namespace ResimamisBackend.Negocio
             if (el.ValueKind == JsonValueKind.String && int.TryParse(el.GetString(), out n))
                 return n;
             return null;
+        }
+
+        private static List<int> LeerListaInt(JsonDocument args, string name)
+        {
+            var lista = new List<int>();
+            if (!args.RootElement.TryGetProperty(name, out var el) || el.ValueKind != JsonValueKind.Array)
+                return lista;
+            foreach (var item in el.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Number && item.TryGetInt32(out var n) && n > 0)
+                    lista.Add(n);
+                else if (item.ValueKind == JsonValueKind.String && int.TryParse(item.GetString(), out n) && n > 0)
+                    lista.Add(n);
+            }
+            return lista.Distinct().ToList();
         }
 
         private static bool? LeerBool(JsonDocument args, string name)
