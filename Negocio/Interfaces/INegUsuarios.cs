@@ -10,7 +10,7 @@ public interface INegUsuarios
     bool EsSesionOperativaPorDni(int dni);
     void ValidarCoordinadora(int dniSolicitante);
     RespuestaLogin Loguear(RequestLogin usuario);
-    bool RegistrarUsuario(int dniSolicitante, USUARIO usuario);
+    AltaUsuarioRespuesta RegistrarUsuario(int dniSolicitante, USUARIO usuario);
     List<UsuarioListado> ListarUsuarios(int dniSolicitante);
     List<VOLUNTARIA> ListarVoluntariasSinUsuario(int dniSolicitante);
     object ConsultarUsuarioPorId(int idUsuario, int dniSolicitante);

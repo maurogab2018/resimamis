@@ -110,30 +110,43 @@ namespace ResimamisBackend.Negocio
         }
 
         // En fila: dos altas a la vez creaban varios usuarios para la misma voluntaria.
-        public bool RegistrarUsuario(int dniSolicitante, USUARIO usuario)
+        public AltaUsuarioRespuesta RegistrarUsuario(int dniSolicitante, USUARIO usuario)
         {
             // La clave en texto se toma antes de que se guarde hasheada.
             var claveInicial = usuario?.Contrasena;
             var ok = BloqueosDb.Ejecutar(db, BloqueosDb.Altas, () => RegistrarUsuarioSinBloqueo(dniSolicitante, usuario!));
+            var respuesta = new AltaUsuarioRespuesta { Creado = ok };
             if (ok)
-                EnviarMailBienvenida(usuario!.IdVoluntaria, usuario.Dni, claveInicial);
-            return ok;
+                EnviarMailBienvenida(usuario!.IdVoluntaria, usuario.Dni, claveInicial, respuesta);
+            return respuesta;
         }
 
         /// <summary>
         /// Le manda a la voluntaria su DNI de acceso y la clave inicial. Va fuera del bloqueo y nunca
         /// hace fallar el alta: sin correo configurado o si el envío falla, el usuario queda creado igual.
         /// </summary>
-        private void EnviarMailBienvenida(int idVoluntaria, int dni, string? clave)
+        private void EnviarMailBienvenida(int idVoluntaria, int dni, string? clave, AltaUsuarioRespuesta respuesta)
         {
             try
             {
-                if (!negEnvioMail.EstaConfigurado() || string.IsNullOrWhiteSpace(clave))
+                if (!negEnvioMail.EstaConfigurado())
+                {
+                    respuesta.MotivoMail = "El envío de mails no está configurado en el servidor.";
                     return;
+                }
+                if (string.IsNullOrWhiteSpace(clave))
+                {
+                    respuesta.MotivoMail = "No se indicó una clave para mandarle.";
+                    return;
+                }
 
                 var voluntaria = db.VOLUNTARIA.AsNoTracking().FirstOrDefault(v => v.IdVoluntaria == idVoluntaria);
                 if (voluntaria == null || string.IsNullOrWhiteSpace(voluntaria.Mail))
+                {
+                    respuesta.MotivoMail = "La voluntaria no tiene mail cargado.";
                     return;
+                }
+                respuesta.MailDestino = voluntaria.Mail;
 
                 var urlFront = Environment.GetEnvironmentVariable("FRONT_URL") ?? "https://resimamis-tesis.vercel.app";
                 string H(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
@@ -147,10 +160,14 @@ namespace ResimamisBackend.Negocio
 </div>";
 
                 var resultado = negEnvioMail.EnviarMail(voluntaria.Mail, "Tu acceso a Voluntarias Abrazadoras", cuerpo);
+                respuesta.MailEnviado = resultado == "Correo enviado correctamente.";
+                if (!respuesta.MailEnviado)
+                    respuesta.MotivoMail = "El servidor de mails no aceptó el envío.";
                 Console.WriteLine($"[mail bienvenida] voluntaria {idVoluntaria}: {resultado}");
             }
             catch (Exception ex)
             {
+                respuesta.MotivoMail = "No se pudo enviar el mail.";
                 Console.WriteLine($"[mail bienvenida] voluntaria {idVoluntaria}: error {ex.Message}");
             }
         }
