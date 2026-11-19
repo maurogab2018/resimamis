@@ -46,6 +46,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INegInsumos, NegInsumos>();
         services.AddScoped<INegAsignacion, NegAsignacion>();
         services.AddScoped<INegEnvioMail, NegEnvioMail>();
+        services.AddScoped<INegNotificaciones, NegNotificaciones>();
         services.AddScoped<INegDashboard, NegDashboard>();
         services.AddScoped<INegEstadisticasAvanzadas, NegEstadisticasAvanzadas>();
         services.AddScoped<INegAsistente, NegAsistente>();

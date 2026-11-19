@@ -219,6 +219,22 @@ namespace ResimamisBackend.Negocio
             return ok;
         }
 
+        public bool cambiarSala(int idBebe, int idSala)
+        {
+            if (idSala <= 0)
+                throw new ApplicationException("Indicá una sala válida.");
+            var bebe = db.BEBE.FirstOrDefault(b => b.ID == idBebe)
+                ?? throw new NotFoundException("Bebé no encontrado con ese Id.");
+            if (bebe.FechaSalida.HasValue)
+                throw new ApplicationException("El bebé ya egresó; no se puede cambiar de sala.");
+            negSalas.ValidarSalaActivaParaBebe(idSala);
+            if (bebe.IdSala == idSala)
+                return true;
+            bebe.IdSala = idSala;
+            db.SaveChanges();
+            return true;
+        }
+
         public bool eliminarBebe(int idBebe)
         {
             var ok = repositorioBebe.eliminarBebeLogico(idBebe);

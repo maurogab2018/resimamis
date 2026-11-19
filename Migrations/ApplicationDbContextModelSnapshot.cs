@@ -471,6 +471,45 @@ namespace ResimamisBackend.Migrations
                     b.ToTable("PROVEEDOR");
                 });
 
+            modelBuilder.Entity("ResimamisBackend.Datos.PUSHSUSCRIPCION", b =>
+                {
+                    b.Property<int>("idPushSuscripcion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("idPushSuscripcion"));
+
+                    b.Property<string>("auth")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("endpoint")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime>("fechaAlta")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("idVoluntaria")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("p256dh")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("idPushSuscripcion");
+
+                    b.HasIndex("endpoint")
+                        .IsUnique();
+
+                    b.HasIndex("idVoluntaria");
+
+                    b.ToTable("PUSHSUSCRIPCION");
+                });
+
             modelBuilder.Entity("ResimamisBackend.Datos.REGISTROACTIVIDAD", b =>
                 {
                     b.Property<int>("idRegistroActividad")

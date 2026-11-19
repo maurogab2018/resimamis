@@ -13,8 +13,31 @@ namespace ResimamisBackend.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class VoluntariaController(INegVoluntaria negVoluntaria) : ControllerBase
+    public class VoluntariaController(INegVoluntaria negVoluntaria, INegNotificaciones negNotificaciones) : ControllerBase
     {
+        /// <summary>La coordinadora le manda un mail a la voluntaria (botón "Enviar mail" del listado).</summary>
+        [HttpPost("id/{Id}/mail")]
+        public IActionResult EnviarMail(int Id, [FromBody] RequestMailVoluntaria body)
+        {
+            try
+            {
+                var claim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                    ?? User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+                if (!int.TryParse(claim, out var dni))
+                    return ApiResults.Unauthorized();
+                var resultado = negNotificaciones.EnviarMailAVoluntaria(dni, Id, body?.asunto ?? "", body?.mensaje ?? "");
+                return ApiResults.Success(resultado);
+            }
+            catch (ForbiddenException ex) { return ApiResults.Forbidden(ex.Message); }
+            catch (NotFoundException ex) { return ApiResults.NotFound(ex.Message); }
+            catch (ApplicationException ex) { return ApiResults.BadRequest(ex.Message); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[mail voluntaria] error: {ex.Message}");
+                return ApiResults.InternalServerError();
+            }
+        }
+
         private static readonly JsonSerializerOptions VoluntariaJsonOptions = new()
         {
             PropertyNameCaseInsensitive = true,

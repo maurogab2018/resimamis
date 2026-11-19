@@ -231,6 +231,24 @@ namespace ResimamisBackend.Controllers
             }
         }
 
+        public class RequestCambioSala { public int idSala { get; set; } }
+
+        /// <summary>Mueve el bebé a otra sala (panel de salas: arrastrar el bebé a otra columna).</summary>
+        [HttpPut("{id:int}/sala")]
+        public IActionResult PutSala(int id, [FromBody] RequestCambioSala body)
+        {
+            try
+            {
+                return ApiResults.Success(neg_Bebes.cambiarSala(id, body?.idSala ?? 0));
+            }
+            catch (NotFoundException ex) { return ApiResults.NotFound(ex.Message); }
+            catch (ApplicationException ex) { return ApiResults.BadRequest(ex.Message); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[bebe sala] error: {ex.Message}");
+                return ApiResults.InternalServerError();
+            }
+        }
 
         [HttpPut]
         public IActionResult Put([FromBody] JsonElement body)

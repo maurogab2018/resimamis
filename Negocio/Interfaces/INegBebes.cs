@@ -15,4 +15,6 @@ public interface INegBebes
     List<BEBE> listarBebesAbrazar();
     List<ESTADO> listarEstadosBebes();
     BEBE actualizarEstadoBebe(int idBebe, int idEstado);
+    /// <summary>Mueve el bebé a otra sala activa (panel de salas). No toca ningún otro dato.</summary>
+    bool cambiarSala(int idBebe, int idSala);
 }

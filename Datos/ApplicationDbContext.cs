@@ -59,6 +59,8 @@ namespace ResimamisBackend.Datos
 
         public DbSet<REGISTROACTIVIDAD> REGISTROACTIVIDAD { get; set; }
 
+        public DbSet<PUSHSUSCRIPCION> PUSHSUSCRIPCION { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -189,6 +191,12 @@ namespace ResimamisBackend.Datos
                 .HasIndex(r => r.fechaHora);
             modelBuilder.Entity<REGISTROACTIVIDAD>()
                 .HasIndex(r => new { r.tipoRegistro, r.idRegistro });
+
+            modelBuilder.Entity<PUSHSUSCRIPCION>()
+                .HasIndex(p => p.endpoint)
+                .IsUnique();
+            modelBuilder.Entity<PUSHSUSCRIPCION>()
+                .HasIndex(p => p.idVoluntaria);
         }
     }
 }

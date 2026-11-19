@@ -11,7 +11,7 @@ namespace ResimamisBackend.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class AsignacionController(INegAsignacion negAsignacion) : ControllerBase
+    public class AsignacionController(INegAsignacion negAsignacion, INegNotificaciones negNotificaciones) : ControllerBase
     {
         private static int ObtenerDniAutenticado(ClaimsPrincipal user)
         {
@@ -244,6 +244,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.generarAsiganacionTarea(request);
+                negNotificaciones.NotificarAsignaciones(new[] { respuesta });
                 return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
@@ -298,6 +299,7 @@ namespace ResimamisBackend.Controllers
             try
             {
                 var respuesta = negAsignacion.generarAsignacionesSeleccion(request);
+                negNotificaciones.NotificarAsignaciones(respuesta);
                 return ApiResults.Success(respuesta);
             }
             catch (NotFoundException ex)
