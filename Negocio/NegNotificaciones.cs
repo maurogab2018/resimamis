@@ -240,6 +240,74 @@ namespace ResimamisBackend.Negocio
             return resultado;
         }
 
+        // ---------- Recordatorio de turno ----------
+
+        /// <summary>Turnos ya recordados hoy ("fecha:idHorarioVoluntaria"), para no repetir el aviso.</summary>
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> TurnosRecordados = new();
+
+        public int EnviarRecordatoriosTurno(TimeSpan anticipacion)
+        {
+            var vapid = ResolverVapid();
+            if (vapid == null) return 0;
+
+            var ahoraAr = NegConversorFecha.HoraArgentina(DateTime.UtcNow);
+            var hoy = DateOnly.FromDateTime(ahoraAr);
+            // DIA: 1 = Lunes … 7 = Domingo.
+            var idDia = ((int)ahoraAr.DayOfWeek + 6) % 7 + 1;
+            var horaActual = ahoraAr.TimeOfDay;
+            var limite = horaActual + anticipacion;
+
+            // Turnos de hoy que empiezan dentro de la ventana de anticipación.
+            var turnos = (from vh in db.VOLUNTARIAHORARIO.AsNoTracking()
+                          join h in db.HORARIO.AsNoTracking() on vh.IdHorario equals h.IdHorario
+                          join v in db.VOLUNTARIA.AsNoTracking() on vh.IdVoluntaria equals v.IdVoluntaria
+                          where vh.Activa && h.IdDia == idDia
+                                && h.HoraIngreso > horaActual && h.HoraIngreso <= limite
+                                && (v.Estado == null || v.Estado.nombre != "Eliminado")
+                          select new { vh.IdHorarioVoluntaria, vh.IdVoluntaria, v.Nombre, h.Turno, h.HoraIngreso })
+                .ToList()
+                .Where(t => !TurnosRecordados.ContainsKey($"{hoy:yyyy-MM-dd}:{t.IdHorarioVoluntaria}"))
+                .ToList();
+            if (turnos.Count == 0) return 0;
+
+            // A la que ya fichó la entrada no hace falta recordarle.
+            var (inicioHoyUtc, finHoyUtc) = NegConversorFecha.RangoDiaHoyArgentinaEnUtc();
+            var ids = turnos.Select(t => t.IdVoluntaria).Distinct().ToList();
+            var yaVinieron = db.ASISTENCIA.AsNoTracking()
+                .Where(a => a.IdVoluntaria != null && ids.Contains(a.IdVoluntaria.Value)
+                            && a.FechaHoraIngreso >= inicioHoyUtc && a.FechaHoraIngreso < finHoyUtc)
+                .Select(a => a.IdVoluntaria!.Value)
+                .Distinct()
+                .ToHashSet();
+            var subs = db.PUSHSUSCRIPCION.AsNoTracking().Where(p => ids.Contains(p.idVoluntaria)).ToList();
+
+            var enviadas = 0;
+            var vencidas = new List<string>();
+            foreach (var t in turnos)
+            {
+                TurnosRecordados.TryAdd($"{hoy:yyyy-MM-dd}:{t.IdHorarioVoluntaria}", 0);
+                if (yaVinieron.Contains(t.IdVoluntaria)) continue;
+                var susc = subs.Where(s => s.idVoluntaria == t.IdVoluntaria).ToList();
+                if (susc.Count == 0) continue;
+                var turno = string.IsNullOrWhiteSpace(t.Turno) ? "" : $" de la {t.Turno.Trim().ToLowerInvariant()}";
+                var aviso = new AvisoPush(
+                    "Recordatorio de turno",
+                    $"Hola {t.Nombre}, tu turno{turno} empieza a las {t.HoraIngreso:hh\\:mm}. ¡Te esperamos!",
+                    $"{UrlFront}/tareas");
+                var (n, malas) = EnviarPush(vapid, susc, aviso);
+                if (n > 0) enviadas++;
+                vencidas.AddRange(malas);
+            }
+            BorrarSuscripciones(db, vencidas);
+
+            // Se descartan las marcas de días anteriores.
+            foreach (var k in TurnosRecordados.Keys.Where(k => !k.StartsWith($"{hoy:yyyy-MM-dd}:")))
+                TurnosRecordados.TryRemove(k, out _);
+
+            Console.WriteLine($"[push recordatorio] {turnos.Count} turno(s) por empezar, {enviadas} recordatorio(s) entregado(s)");
+            return enviadas;
+        }
+
         // ---------- Mail suelto a una voluntaria ----------
 
         public string EnviarMailAVoluntaria(int dniSolicitante, int idVoluntaria, string asunto, string mensaje)

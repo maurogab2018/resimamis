@@ -1339,16 +1339,53 @@ namespace ResimamisBackend.Negocio
             };
         }
 
+        private static string SinAcentos(string s)
+        {
+            var d = s.ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD);
+            var sb = new System.Text.StringBuilder(d.Length);
+            foreach (var c in d)
+                if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
+                    sb.Append(c);
+            return sb.ToString();
+        }
+
+        /// <summary>Raíz singular aproximada: "chupetes" → "chupet", "gasas" → "gasa".</summary>
+        private static string RaizSingular(string palabra)
+        {
+            if (palabra.Length > 4 && palabra.EndsWith("es")) return palabra[..^2];
+            if (palabra.Length > 3 && palabra.EndsWith("s")) return palabra[..^1];
+            return palabra;
+        }
+
         private object StockInsumos(string? texto)
         {
             texto = texto?.Trim() ?? "";
-            IEnumerable<INSUMO> q = negInsumos.obtenerInsumos() ?? new List<INSUMO>();
+            var todos = negInsumos.obtenerInsumos() ?? new List<INSUMO>();
+            IEnumerable<INSUMO> q = todos;
+            var sinCoincidencia = false;
             if (!string.IsNullOrWhiteSpace(texto))
             {
-                var t = texto.ToLowerInvariant();
-                q = q.Where(i =>
-                    (i.nombre ?? "").ToLowerInvariant().Contains(t)
-                    || (i.descripcion ?? "").ToLowerInvariant().Contains(t));
+                // "chupetes" tiene que encontrar "Chupete": se compara sin acentos y por raíz de cada palabra.
+                var raices = SinAcentos(texto)
+                    .Split(new[] { ' ', ',', '.', '-', '/' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(RaizSingular)
+                    .Where(r => r.Length >= 3)
+                    .ToList();
+                if (raices.Count == 0) raices.Add(SinAcentos(texto));
+                var filtrados = todos.Where(i =>
+                {
+                    var hay = SinAcentos((i.nombre ?? "") + " " + (i.descripcion ?? ""));
+                    return raices.All(r => hay.Contains(r));
+                }).ToList();
+                if (filtrados.Count == 0)
+                    filtrados = todos.Where(i =>
+                    {
+                        var hay = SinAcentos((i.nombre ?? "") + " " + (i.descripcion ?? ""));
+                        return raices.Any(r => hay.Contains(r));
+                    }).ToList();
+                // Sin coincidencias se devuelve todo el stock para que el modelo elija, en vez de responder vacío.
+                sinCoincidencia = filtrados.Count == 0;
+                q = sinCoincidencia ? todos : filtrados;
             }
 
             var items = q
@@ -1370,7 +1407,9 @@ namespace ResimamisBackend.Negocio
             return new
             {
                 criterio = "stock_insumos",
-                aclaracion = "Stock operativo. Para el recorte de solo bajo mínimo usá insumos_bajo_stock.",
+                aclaracion = sinCoincidencia
+                    ? $"Ningún insumo coincide con '{texto}'. Se listan todos: elegí el que corresponda o decí que no existe."
+                    : "Stock operativo. Para el recorte de solo bajo mínimo usá insumos_bajo_stock.",
                 filtro = string.IsNullOrWhiteSpace(texto) ? null : texto,
                 total = items.Count,
                 bajoMinimo = items.Count(i => i.bajoMinimo),

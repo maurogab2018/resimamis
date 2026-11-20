@@ -34,6 +34,12 @@ public interface INegNotificaciones
     /// <summary>Nombre y cantidad de dispositivos con push de cada voluntaria (para la vista previa).</summary>
     List<ResultadoPushVoluntaria> DispositivosPorVoluntaria(IEnumerable<int> idsVoluntaria);
 
+    /// <summary>
+    /// Push de recordatorio a las voluntarias cuyo turno de hoy empieza dentro de <paramref name="anticipacion"/>
+    /// y que todavía no ficharon la entrada. Cada turno se recuerda una sola vez por día.
+    /// </summary>
+    int EnviarRecordatoriosTurno(TimeSpan anticipacion);
+
     /// <summary>La coordinadora le manda un mail a una voluntaria. Devuelve el resultado del envío.</summary>
     string EnviarMailAVoluntaria(int dniSolicitante, int idVoluntaria, string asunto, string mensaje);
 }

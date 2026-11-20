@@ -51,6 +51,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INegEstadisticasAvanzadas, NegEstadisticasAvanzadas>();
         services.AddScoped<INegAsistente, NegAsistente>();
         services.AddHostedService<CierreAbrazosDiarioServicio>();
+        services.AddHostedService<RecordatorioTurnoServicio>();
         services.AddHttpClient("OpenAI", (sp, client) =>
         {
             var config = sp.GetRequiredService<IConfiguration>();
