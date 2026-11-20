@@ -4,6 +4,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- El proyecto de tests vive anidado en este repo; excluir sus .cs del compile del main. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);ResimamisBackend.Tests\**\*</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
