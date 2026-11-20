@@ -4,6 +4,7 @@ using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 using ResimamisBackend.Negocio.Interfaces;
+using ResimamisBackend.Tests.Infra;
 
 namespace ResimamisBackend.Tests.Negocio;
 
@@ -17,6 +18,11 @@ public class NegMadresTests
     // modificarMadre y consultarMadrePorDni no usan el ApplicationDbContext (solo registrarMadre
     // lo usa vía BloqueosDb), así que se puede pasar null para esos caminos.
     private NegMadres Sut => new(_madreRepo.Object, _negBebes.Object, _genericos.Object, _actividad.Object, null!);
+
+    // registrarMadre envuelve todo en BloqueosDb.Ejecutar (abre una transacción), así que necesita
+    // un db real; con InMemory el lock se saltea y la transacción es un no-op.
+    private NegMadres SutConDb(ApplicationDbContext db) =>
+        new(_madreRepo.Object, _negBebes.Object, _genericos.Object, _actividad.Object, db);
 
     private static MADRE MadreValida() => new()
     {
@@ -185,5 +191,62 @@ public class NegMadresTests
         var r = Sut.modificarMadre(parcial, 10, out _);
 
         Assert.True(r.Exito);
+    }
+
+    // --- registrarMadre (BloqueosDb + db InMemory) ---
+
+    private static MADRE MadreConBebe()
+    {
+        var m = MadreValida();
+        m.Bebe = new List<BEBE>
+        {
+            new()
+            {
+                nombre = "Juan",
+                apellido = "López",
+                Sexo = "M",
+                FechaNacimiento = DateTime.UtcNow.Date.AddDays(-5),
+            },
+        };
+        return m;
+    }
+
+    [Fact]
+    public void RegistrarMadre_Valida_RegistraYExito()
+    {
+        using var db = TestDb.Crear();
+        _genericos.Setup(g => g.existeLocalidad(It.IsAny<int>())).Returns(true);
+        _madreRepo.Setup(r => r.registrarMadre(It.IsAny<MADRE>())).Returns(true);
+
+        var r = SutConDb(db).registrarMadre(MadreConBebe());
+
+        Assert.True(r.Exito);
+        _madreRepo.Verify(x => x.registrarMadre(It.IsAny<MADRE>()), Times.Once);
+    }
+
+    [Fact]
+    public void RegistrarMadre_SinBebe_FallaYNoLlamaAlRepositorio()
+    {
+        using var db = TestDb.Crear();
+        _genericos.Setup(g => g.existeLocalidad(It.IsAny<int>())).Returns(true);
+
+        var madre = MadreValida(); // sin Bebe
+        var r = SutConDb(db).registrarMadre(madre);
+
+        Assert.False(r.Exito);
+        _madreRepo.Verify(x => x.registrarMadre(It.IsAny<MADRE>()), Times.Never);
+    }
+
+    [Fact]
+    public void RegistrarMadre_RepositorioDevuelveFalse_AgregaError()
+    {
+        using var db = TestDb.Crear();
+        _genericos.Setup(g => g.existeLocalidad(It.IsAny<int>())).Returns(true);
+        _madreRepo.Setup(r => r.registrarMadre(It.IsAny<MADRE>())).Returns(false);
+
+        var r = SutConDb(db).registrarMadre(MadreConBebe());
+
+        Assert.False(r.Exito);
+        Assert.Contains(r.Errores, e => e.Contains("Error al registrar la madre"));
     }
 }

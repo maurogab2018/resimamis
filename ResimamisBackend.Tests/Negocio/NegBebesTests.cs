@@ -4,6 +4,7 @@ using ResimamisBackend.Datos.Interfaces;
 using ResimamisBackend.Entidades;
 using ResimamisBackend.Negocio;
 using ResimamisBackend.Negocio.Interfaces;
+using ResimamisBackend.Tests.Infra;
 
 namespace ResimamisBackend.Tests.Negocio;
 
@@ -17,6 +18,10 @@ public class NegBebesTests
 
     // ValidarCamposBebe y actualizarEstadoBebe no usan el ApplicationDbContext.
     private NegBebes Sut => new(_bebeRepo.Object, _madreRepo.Object, _salas.Object, _genericos.Object, _actividad.Object, null!);
+
+    // registrarBebe (vía BloqueosDb) y cambiarSala sí tocan el db: InMemory.
+    private NegBebes SutConDb(ApplicationDbContext db) =>
+        new(_bebeRepo.Object, _madreRepo.Object, _salas.Object, _genericos.Object, _actividad.Object, db);
 
     private static BEBE BebeValido() => new()
     {
@@ -190,5 +195,82 @@ public class NegBebesTests
 
         Assert.NotNull(result);
         _bebeRepo.Verify(r => r.cambioEstadoBebe(It.IsAny<BEBE>(), 2), Times.Once);
+    }
+
+    // --- registrarBebe (BloqueosDb + db InMemory) ---
+
+    [Fact]
+    public void RegistrarBebe_Valido_Registra()
+    {
+        using var db = TestDb.Crear();
+        _bebeRepo.Setup(r => r.registrarBebe(It.IsAny<BEBE>())).Returns(true);
+
+        Assert.True(SutConDb(db).registrarBebe(BebeValido()));
+        _bebeRepo.Verify(r => r.registrarBebe(It.IsAny<BEBE>()), Times.Once);
+    }
+
+    [Fact]
+    public void RegistrarBebe_Invalido_Lanza()
+    {
+        using var db = TestDb.Crear();
+        var b = BebeValido();
+        b.Sexo = "X"; // inválido
+
+        Assert.Throws<ApplicationException>(() => SutConDb(db).registrarBebe(b));
+        _bebeRepo.Verify(r => r.registrarBebe(It.IsAny<BEBE>()), Times.Never);
+    }
+
+    [Fact]
+    public void RegistrarBebe_MadreDadaDeBaja_Lanza()
+    {
+        using var db = TestDb.Crear();
+        var madre = new MADRE { IdMadre = 5 };
+        _madreRepo.Setup(r => r.consultarMadre(5)).Returns(madre);
+        _madreRepo.Setup(r => r.estaDadaDeBaja(madre)).Returns(true);
+
+        var b = BebeValido();
+        b.IdMadre = 5;
+
+        Assert.Throws<ApplicationException>(() => SutConDb(db).registrarBebe(b));
+    }
+
+    // --- cambiarSala (db InMemory) ---
+
+    [Fact]
+    public void CambiarSala_IdSalaInvalido_Lanza()
+    {
+        using var db = TestDb.Crear();
+        Assert.Throws<ApplicationException>(() => SutConDb(db).cambiarSala(1, 0));
+    }
+
+    [Fact]
+    public void CambiarSala_BebeInexistente_LanzaNotFound()
+    {
+        using var db = TestDb.Crear();
+        Assert.Throws<NotFoundException>(() => SutConDb(db).cambiarSala(99, 2));
+    }
+
+    [Fact]
+    public void CambiarSala_BebeEgresado_Lanza()
+    {
+        using var db = TestDb.Crear();
+        db.BEBE.Add(new BEBE { ID = 1, nombre = "Juan", FechaSalida = DateTime.UtcNow });
+        db.SaveChanges();
+
+        Assert.Throws<ApplicationException>(() => SutConDb(db).cambiarSala(1, 2));
+    }
+
+    [Fact]
+    public void CambiarSala_Valida_ActualizaLaSala()
+    {
+        using var db = TestDb.Crear();
+        db.BEBE.Add(new BEBE { ID = 1, nombre = "Juan", IdSala = 1 });
+        db.SaveChanges();
+
+        var ok = SutConDb(db).cambiarSala(1, 2);
+
+        Assert.True(ok);
+        Assert.Equal(2, db.BEBE.Single(b => b.ID == 1).IdSala);
+        _salas.Verify(s => s.ValidarSalaActivaParaBebe(2), Times.Once);
     }
 }
