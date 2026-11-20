@@ -145,4 +145,45 @@ public class NegMadresTests
 
         Assert.True(r.Exito);
     }
+
+    [Fact]
+    public void ModificarMadre_MotivoAbrazoDe251_Falla()
+    {
+        // Spec: MotivoAbrazo máx 250 caracteres.
+        ConMadreExistenteValida();
+        var parcial = new MADRE { MotivoAbrazo = new string('x', 251) };
+
+        var r = Sut.modificarMadre(parcial, 10, out _);
+
+        Assert.False(r.Exito);
+        Assert.Contains(r.Errores, e => e.Contains("MotivoAbrazo"));
+    }
+
+    [Fact]
+    public void ModificarMadre_CelularDe16Digitos_Falla()
+    {
+        // Spec: celular 10-15 dígitos.
+        ConMadreExistenteValida();
+        var parcial = new MADRE { Celular = 1234567890123456L }; // 16 dígitos
+
+        var r = Sut.modificarMadre(parcial, 10, out _);
+
+        Assert.False(r.Exito);
+        Assert.Contains(r.Errores, e => e.Contains("Celular"));
+    }
+
+    [Fact]
+    public void ModificarMadre_CelularDe15Digitos_Ok()
+    {
+        // Antes el backend topaba en 13 dígitos; ahora acepta hasta 15 (alineado a la spec).
+        ConMadreExistenteValida();
+        _madreRepo.Setup(r => r.existeOtraMadreConDni(It.IsAny<int>(), It.IsAny<int>())).Returns(false);
+        _madreRepo.Setup(r => r.modificarMadre(It.IsAny<MADRE>(), It.IsAny<MADRE>())).Returns(MadreValida());
+
+        var parcial = new MADRE { Celular = 123456789012345L }; // 15 dígitos
+
+        var r = Sut.modificarMadre(parcial, 10, out _);
+
+        Assert.True(r.Exito);
+    }
 }

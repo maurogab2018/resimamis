@@ -222,14 +222,14 @@ namespace ResimamisBackend.Negocio
 
             if (string.IsNullOrWhiteSpace(madre.MotivoAbrazo))
                 resultado.Errores.Add("MotivoAbrazo es obligatorio.");
-            else if (madre.MotivoAbrazo.Length > 100)
-                resultado.Errores.Add("MotivoAbrazo no permite más de 100 caracteres.");
+            else if (madre.MotivoAbrazo.Length > 250)
+                resultado.Errores.Add("MotivoAbrazo no permite más de 250 caracteres.");
 
             var celularStr = madre.Celular.ToString();
             if (madre.Celular == 0)
                 resultado.Errores.Add("Celular es obligatorio.");
-            else if (!Regex.IsMatch(celularStr, @"^\d{10,13}$"))
-                resultado.Errores.Add("Celular tiene que tener entre 10 y 13 dígitos.");
+            else if (!Regex.IsMatch(celularStr, @"^\d{10,15}$"))
+                resultado.Errores.Add("Celular tiene que tener entre 10 y 15 dígitos.");
         }
 
         public ResultadoValidacion modificarMadre(MADRE madre, int Id, out MADRE? madreActualizada)
