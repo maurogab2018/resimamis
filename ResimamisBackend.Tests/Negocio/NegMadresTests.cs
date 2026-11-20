@@ -118,4 +118,31 @@ public class NegMadresTests
         Assert.NotNull(actualizada);
         _madreRepo.Verify(x => x.modificarMadre(It.IsAny<MADRE>(), It.IsAny<MADRE>()), Times.Once);
     }
+
+    [Fact]
+    public void ModificarMadre_MenorDe13_Falla()
+    {
+        // Regla de negocio: edad mínima 13 años (01-negocio.md).
+        ConMadreExistenteValida();
+        var parcial = new MADRE { FechaNacimiento = DateTime.UtcNow.Date.AddYears(-12) };
+
+        var r = Sut.modificarMadre(parcial, 10, out _);
+
+        Assert.False(r.Exito);
+        Assert.Contains(r.Errores, e => e.Contains("edad"));
+    }
+
+    [Fact]
+    public void ModificarMadre_13OMas_Ok()
+    {
+        ConMadreExistenteValida();
+        _madreRepo.Setup(r => r.existeOtraMadreConDni(It.IsAny<int>(), It.IsAny<int>())).Returns(false);
+        _madreRepo.Setup(r => r.modificarMadre(It.IsAny<MADRE>(), It.IsAny<MADRE>())).Returns(MadreValida());
+
+        var parcial = new MADRE { FechaNacimiento = DateTime.UtcNow.Date.AddYears(-13).AddDays(-1) };
+
+        var r = Sut.modificarMadre(parcial, 10, out _);
+
+        Assert.True(r.Exito);
+    }
 }

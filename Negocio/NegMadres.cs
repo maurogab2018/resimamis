@@ -195,7 +195,7 @@ namespace ResimamisBackend.Negocio
                 var edad = hoy.Year - madre.FechaNacimiento.Date.Year;
                 if (madre.FechaNacimiento.Date > hoy.AddYears(-edad))
                     edad--;
-                if (edad < 10 || edad > 80)
+                if (edad < 13 || edad > 80)
                     resultado.Errores.Add("FechaNacimiento no corresponde a una edad válida.");
             }
 
