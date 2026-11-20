@@ -15,6 +15,7 @@ namespace ResimamisBackend.Negocio
         private readonly IVoluntariaRepositorio voluntariaRepositorio;
         private readonly IConfiguration configuration;
         private readonly INegRegistroActividad registroActividad;
+        private readonly INegNotificaciones negNotificaciones;
 
         public NegInsumos(
             IInsumoRepositorio insumoRepositorio,
@@ -22,9 +23,11 @@ namespace ResimamisBackend.Negocio
             INegEnvioMail negEnvioMail,
             IVoluntariaRepositorio voluntariaRepositorio,
             IConfiguration configuration,
-            INegRegistroActividad registroActividad)
+            INegRegistroActividad registroActividad,
+            INegNotificaciones negNotificaciones)
         {
             this.registroActividad = registroActividad;
+            this.negNotificaciones = negNotificaciones;
             this.insumoRepositorio = insumoRepositorio;
             this.negProveedores = negProveedores;
             this.negEnvioMail = negEnvioMail;
@@ -130,6 +133,11 @@ namespace ResimamisBackend.Negocio
                 {
                     // El movimiento no debe fallar si el mail falla.
                 }
+
+                // Push a las coordinadoras solo cuando una salida deja el insumo en o bajo el mínimo
+                // (una entrada que no alcanza a reponerlo no repite el aviso).
+                if (esEntrada == "N")
+                    negNotificaciones.AvisarStockBajo(movimiento.idInsumo);
             }
             return ok;
         }

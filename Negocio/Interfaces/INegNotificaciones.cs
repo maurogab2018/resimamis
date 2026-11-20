@@ -35,6 +35,12 @@ public interface INegNotificaciones
     List<ResultadoPushVoluntaria> DispositivosPorVoluntaria(IEnumerable<int> idsVoluntaria);
 
     /// <summary>
+    /// Si el insumo quedó en o bajo su stock mínimo, avisa por push a las coordinadoras que activaron
+    /// las notificaciones. Va en segundo plano y nunca hace fallar el movimiento.
+    /// </summary>
+    void AvisarStockBajo(int idInsumo);
+
+    /// <summary>
     /// Push de recordatorio a las voluntarias cuyo turno de hoy empieza dentro de <paramref name="anticipacion"/>
     /// y que todavía no ficharon la entrada. Cada turno se recuerda una sola vez por día.
     /// </summary>

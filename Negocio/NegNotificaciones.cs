@@ -240,6 +240,67 @@ namespace ResimamisBackend.Negocio
             return resultado;
         }
 
+        // ---------- Aviso de stock bajo a coordinadoras ----------
+
+        public void AvisarStockBajo(int idInsumo)
+        {
+            try
+            {
+                var vapid = ResolverVapid();
+                if (vapid == null)
+                    return;
+
+                var insumo = db.INSUMO.AsNoTracking()
+                    .Where(i => i.idInsumo == idInsumo)
+                    .Select(i => new { i.nombre, i.stockActual, i.stockMinimo })
+                    .FirstOrDefault();
+                if (insumo == null || insumo.stockActual > insumo.stockMinimo)
+                    return;
+
+                var coordinadoras = db.VOLUNTARIA.AsNoTracking()
+                    .Include(v => v.RolInfo)
+                    .Include(v => v.Estado)
+                    .ToList()
+                    .Where(v => RolesVoluntaria.EsCoordinadora(v.IdRol, v.RolInfo?.Nombre)
+                                && v.Estado?.nombre != "Eliminado")
+                    .Select(v => v.IdVoluntaria)
+                    .ToList();
+                var subs = db.PUSHSUSCRIPCION.AsNoTracking()
+                    .Where(p => coordinadoras.Contains(p.idVoluntaria))
+                    .ToList();
+                if (subs.Count == 0)
+                    return;
+
+                var texto = insumo.stockActual <= 0
+                    ? $"{insumo.nombre}: no queda stock (mínimo {insumo.stockMinimo}). Hay que reponer."
+                    : $"{insumo.nombre}: quedan {insumo.stockActual} (mínimo {insumo.stockMinimo}). Hay que reponer.";
+                var aviso = new AvisoPush("Stock bajo", texto, $"{UrlFront}/insumos");
+
+                // Todo está en memoria: el DbContext de la request no se usa en segundo plano.
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        var (enviados, vencidas) = EnviarPush(vapid, subs, aviso);
+                        Console.WriteLine($"[push stock bajo] {insumo.nombre}: push a {enviados} dispositivo(s) de coordinadoras");
+                        if (vencidas.Count > 0)
+                        {
+                            using var scope = scopeFactory.CreateScope();
+                            BorrarSuscripciones(scope.ServiceProvider.GetRequiredService<ApplicationDbContext>(), vencidas);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[push stock bajo] error: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[push stock bajo] error preparando el aviso: {ex.Message}");
+            }
+        }
+
         // ---------- Recordatorio de turno ----------
 
         /// <summary>Turnos ya recordados hoy ("fecha:idHorarioVoluntaria"), para no repetir el aviso.</summary>
