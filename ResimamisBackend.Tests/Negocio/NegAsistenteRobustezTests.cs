@@ -264,7 +264,11 @@ public class NegAsistenteRobustezTests
             new BEBE { ID = 40, nombre = "Lucas", apellido = "González", FechaSalida = new DateTime(2026, 10, 1) });
         db.SaveChanges();
         var bebes = new Mock<INegBebes>();
-        bebes.Setup(b => b.consultarBebe(16)).Returns(new BEBE { ID = 16, nombre = "Mia", apellido = "Acosta", PesoNacimiento = 1320 });
+        bebes.Setup(b => b.consultarBebe(16)).Returns(new BEBE
+        {
+            ID = 16, nombre = "Mia", apellido = "Acosta", PesoNacimiento = 1320,
+            Madre = new MADRE { IdMadre = 16, Nombre = "Florencia", Apellido = "Acosta" }
+        });
         bebes.Setup(b => b.consultarBebe(40)).Returns(new BEBE { ID = 40, nombre = "Lucas", apellido = "González", PesoNacimiento = 1850 });
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -304,6 +308,18 @@ public class NegAsistenteRobustezTests
 
         bebes.Verify(b => b.consultarBebe(It.IsAny<int>()), Times.Never);
         Assert.Contains("NO muestres datos de otra persona", openAi.Cuerpos[1]);
+    }
+
+    [Fact]
+    public async Task BuscarMadreConNombreDeBebe_DevuelveLaMamaDeEseBebe()
+    {
+        var (neg, openAi, _) = CrearConBebes(
+            () => LlamarHerramienta("buscar_madres", "{\"texto\":\"mia acosta\"}"),
+            () => Texto("listo"));
+        await neg.Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "y la mama?" });
+
+        Assert.Contains("Florencia", openAi.Cuerpos[1]);
+        Assert.Contains("es un beb", openAi.Cuerpos[1]);
     }
 
     [Fact]

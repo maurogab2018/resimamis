@@ -538,6 +538,8 @@ namespace ResimamisBackend.Negocio
             - "Mamás con más de un hijo / con N hijos" → listar_madres con min_hijos.
             - Insumos que más salieron / se usaron / consumo en un período → movimientos_stock y usá porInsumo y los totales (no cuentes la muestra).
             - "¿Hay bebés que nunca recibieron un abrazo?" → bebes_dias_sin_abrazo y mirá nuncaAbrazado=true.
+            - "La mamá de un bebé" / "¿y la mamá?" → ficha_bebe de ese bebé (trae madre con idMadre) y si piden más, ficha_madre con ese id. No busques el nombre del bebé como si fuera una mamá.
+            - El estado del bebé ("Sin abrazar", "Abrazado", "Asignado") es del día de HOY. Nunca digas que un bebé "no recibió abrazos" por su estado: para eso usá abrazos_bebe.
             - "Varones / nenas / por sexo" → bebesActivosPorSexo de los Datos rápidos o conteos_generales.
             - "El bebé más pesado / liviano / chico / grande / que más tiempo lleva": por defecto entre los bebés INTERNADOS (listar_bebes). Solo incluí egresados si lo piden.
             - "Sus visitas" cuando se habla de una mamá = visitas a SU bebé → visitas_bebe con el bebé de esa mamá y el período pedido (periodo='este_mes'). No mezcles con el total general de visitas.
@@ -1383,6 +1385,7 @@ namespace ResimamisBackend.Negocio
                 sexo = b.Sexo,
                 sala = b.Sala?.Nombre,
                 estado = b.Estado?.nombre,
+                estadoSignifica = "Estado del DÍA DE HOY ('Sin abrazar' = todavía no recibió abrazo hoy; NO significa que nunca recibió). Para el historial usá abrazos_bebe.",
                 fechaNacimiento = b.FechaNacimiento,
                 // Para "el bebé más chico / más grande": edad real, no días desde el ingreso a NEO.
                 edadDias = b.FechaNacimiento.HasValue
@@ -1826,12 +1829,38 @@ namespace ResimamisBackend.Negocio
                 }
             }
 
-            return (negMadres.listarMadres() ?? new List<MADRE>())
+            var madres = (negMadres.listarMadres() ?? new List<MADRE>())
                 .Where(m => CoincidePersona(m.Nombre, m.Apellido, texto))
                 .Take(15)
                 .Select(MapearMadreBusqueda)
                 .Cast<object>()
                 .ToList();
+            if (madres.Count > 0)
+                return madres;
+
+            // "¿Y la mamá?" después de hablar de Mia: el modelo a veces busca "Mia Acosta" como mamá.
+            // Si el texto es el nombre de un BEBÉ, se devuelve la mamá de ese bebé.
+            try
+            {
+                var deBebes = BuscarPersonas("bebe", texto)
+                    .Take(5)
+                    .Select(p => negBebes.consultarBebe(p.Id))
+                    .Where(b => b?.Madre != null)
+                    .Select(b => (object)new
+                    {
+                        nota = $"'{texto}' es un bebé: esta es SU mamá.",
+                        bebe = new { idBebe = b.ID, nombre = $"{b.nombre} {b.apellido}".Trim() },
+                        madre = MapearMadreBusqueda(b.Madre!)
+                    })
+                    .ToList();
+                if (deBebes.Count > 0)
+                    return deBebes;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[asistente] buscar_madres: no se pudo buscar por bebé: {ex.Message}");
+            }
+            return madres;
         }
 
         private static object MapearMadreBusqueda(MADRE m) =>
