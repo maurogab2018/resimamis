@@ -180,10 +180,10 @@ public class NegAsistenteRobustezTests
     {
         var openAi = new OpenAiFalso(
             () => Error(HttpStatusCode.TooManyRequests),
-            () => Texto("Hay **79 chupetes** en el depósito."));
+            () => Texto("Hay chupetes de sobra en el depósito."));
         var r = await Preguntar(Crear(openAi), "cuantos chupetes hay");
 
-        Assert.Equal("Hay **79 chupetes** en el depósito.", r.Respuesta);
+        Assert.Equal("Hay chupetes de sobra en el depósito.", r.Respuesta);
         Assert.Equal(2, openAi.Llamadas);
     }
 
@@ -254,6 +254,100 @@ public class NegAsistenteRobustezTests
         var segundo = openAi.Cuerpos[1];
         Assert.Contains("\\u0022idVoluntaria\\u0022:5", segundo);
         Assert.DoesNotContain("\\u0022idVoluntaria\\u0022:6", segundo);
+    }
+
+    private static (NegAsistente neg, OpenAiFalso openAi, Mock<INegBebes> bebes) CrearConBebes(params Func<HttpResponseMessage>[] respuestas)
+    {
+        var db = TestDb.Crear();
+        db.BEBE.AddRange(
+            new BEBE { ID = 16, nombre = "Mia", apellido = "Acosta" },
+            new BEBE { ID = 40, nombre = "Lucas", apellido = "González", FechaSalida = new DateTime(2026, 10, 1) });
+        db.SaveChanges();
+        var bebes = new Mock<INegBebes>();
+        bebes.Setup(b => b.consultarBebe(16)).Returns(new BEBE { ID = 16, nombre = "Mia", apellido = "Acosta", PesoNacimiento = 1320 });
+        bebes.Setup(b => b.consultarBebe(40)).Returns(new BEBE { ID = 40, nombre = "Lucas", apellido = "González", PesoNacimiento = 1850 });
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Asistente:Enabled"] = "true",
+            ["Asistente:ApiKey"] = "sk-test",
+        }).Build();
+        var openAi = new OpenAiFalso(respuestas);
+        var neg = new NegAsistente(config, Mock.Of<INegUsuarios>(), Mock.Of<INegDashboard>(), bebes.Object,
+            Mock.Of<INegInsumos>(), Mock.Of<INegAsistencia>(), Mock.Of<INegVoluntaria>(), Mock.Of<INegAsignacion>(),
+            Mock.Of<INegVisitas>(), Mock.Of<INegMadres>(), Mock.Of<INegSalas>(), Mock.Of<INegTareas>(),
+            Mock.Of<INegProveedores>(), Mock.Of<INegGenericos>(), Mock.Of<INegRegistroActividad>(),
+            Mock.Of<INegNotificaciones>(), db, new FabricaHttp(openAi));
+        return (neg, openAi, bebes);
+    }
+
+    [Fact]
+    public async Task IdEquivocadoConNombre_GanaElNombre_NuncaOtroBebe()
+    {
+        // El modelo pide la ficha con el id de Lucas pero el nombre de Mia: se tiene que consultar a Mia.
+        var (neg, openAi, bebes) = CrearConBebes(
+            () => LlamarHerramienta("ficha_bebe", "{\"id_bebe\":40,\"nombre_bebe\":\"mia acosta\"}"),
+            () => Texto("Mia Acosta pesó 1320 g al nacer."));
+        var r = await neg.Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "peso de mia acosta" });
+
+        bebes.Verify(b => b.consultarBebe(16), Times.Once);
+        bebes.Verify(b => b.consultarBebe(40), Times.Never);
+        Assert.Contains("[Mia Acosta](bebe:16)", r.Respuesta);
+    }
+
+    [Fact]
+    public async Task NombreQueNoExiste_DevuelveErrorYNoConsultaOtro()
+    {
+        var (neg, openAi, bebes) = CrearConBebes(
+            () => LlamarHerramienta("ficha_bebe", "{\"id_bebe\":40,\"nombre_bebe\":\"Juana Inexistente\"}"),
+            () => Texto("No encontré a Juana."));
+        await neg.Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "ficha de juana inexistente" });
+
+        bebes.Verify(b => b.consultarBebe(It.IsAny<int>()), Times.Never);
+        Assert.Contains("NO muestres datos de otra persona", openAi.Cuerpos[1]);
+    }
+
+    [Fact]
+    public async Task RespuestaSinLink_ElServidorAgregaElLink()
+    {
+        var (neg, _, _) = CrearConBebes(
+            () => LlamarHerramienta("ficha_bebe", "{\"id_bebe\":16}"),
+            () => Texto("La bebé **Mia Acosta** pesó 1320 g."));
+        var r = await neg.Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "bebe mia acosta" });
+
+        Assert.Equal("La bebé **[Mia Acosta](bebe:16)** pesó 1320 g.", r.Respuesta);
+    }
+
+    [Fact]
+    public async Task NumeroInventadoSinHerramientas_ExigeConsultarYUsaElDatoReal()
+    {
+        var openAi = new OpenAiFalso(
+            () => Texto("El insumo bajo el mínimo es **Gasas**: 68 unidades (mínimo 100)."),
+            () => LlamarHerramienta("insumos_bajo_stock", "{}"),
+            () => Texto("El insumo bajo el mínimo es **Toallitas húmedas**: 24 (mínimo 30)."));
+        var r = await Preguntar(Crear(openAi), "cual esta bajo el minimo?");
+
+        Assert.Contains("Toallitas", r.Respuesta);
+        Assert.Contains("\"tool_choice\":\"required\"", openAi.Cuerpos[1]);
+        Assert.Contains("68", openAi.Cuerpos[1]);
+    }
+
+    [Fact]
+    public async Task NumeroQueVieneDelHistorial_NoSeRechaza()
+    {
+        var openAi = new OpenAiFalso(() => Texto("Mia Acosta pesó **1320 gramos** al nacer."));
+        var neg = Crear(openAi);
+        var r = await neg.Preguntar(Dni, new AsistentePreguntaRequest
+        {
+            Pregunta = "peso",
+            Historial = new List<AsistenteMensaje>
+            {
+                new() { Rol = "usuario", Contenido = "bebe mia acosta" },
+                new() { Rol = "asistente", Contenido = "[Mia Acosta](bebe:16): peso al nacer 1320 gramos." },
+            }
+        });
+
+        Assert.Equal(1, openAi.Llamadas);
+        Assert.Contains("1320", r.Respuesta);
     }
 
     [Fact]
