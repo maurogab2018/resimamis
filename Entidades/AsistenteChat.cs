@@ -48,6 +48,9 @@ public class LimiteAsistenteException : ApplicationException
 public class AsistenteEstadoRespuesta
 {
     public bool Habilitado { get; set; }
+
+    /// <summary>OpenAI configurado. Si es false, el asistente igual responde con los datos del sistema.</summary>
+    public bool ModeloDisponible { get; set; }
     public string Proveedor { get; set; } = "OpenAI";
     public string Modelo { get; set; } = "";
     public string[] QuePuedeConsultar { get; set; } = [];

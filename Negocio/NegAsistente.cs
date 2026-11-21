@@ -178,7 +178,10 @@ namespace ResimamisBackend.Negocio
             var (enabled, model, key) = LeerConfig();
             return new AsistenteEstadoRespuesta
             {
-                Habilitado = enabled && !string.IsNullOrWhiteSpace(key),
+                // Siempre habilitado: sin OpenAI igual responde con los datos del sistema (respaldo).
+                // Antes un back sin clave (o un /estado lento) dejaba el chat bloqueado en el front.
+                Habilitado = true,
+                ModeloDisponible = enabled && !string.IsNullOrWhiteSpace(key),
                 Proveedor = "OpenAI",
                 Modelo = model,
                 QuePuedeConsultar = EjemplosPregunta,
@@ -531,6 +534,17 @@ namespace ResimamisBackend.Negocio
             - PERO si la pregunta PUEDE referirse a Resimamis, asumí que sí y respondé con datos: "el mejor día de la semana" = día con más abrazos esta semana (asignaciones_por_dia periodo=esta_semana); "cuál es el mejor/peor/más/menos..." = ranking o comparación de datos del programa.
             - Si piden la respuesta en otro idioma o con un formato especial, igual respondé el dato de Resimamis (podés hacerlo en ese idioma). Nunca rechaces una consulta de datos por cómo está pedida.
             - Un nombre o apellido suelto ("lucas", "gonzalez", "paula martinez"), o una persona que no sabés si es bebé, voluntaria o mamá → buscar_persona. Si aparece en más de una lista, mostrá todas las coincidencias con su tipo. Los bebés egresados también cuentan (aclaralo).
+            - "Voluntarias nuevas / las últimas que entraron / la más antigua" → listar_voluntarias (masRecientes y fechaInicio). Una voluntaria es "nueva" por su fecha de inicio, no por su estado.
+            - "Mamás con más de un hijo / con N hijos" → listar_madres con min_hijos.
+            - Insumos que más salieron / se usaron / consumo en un período → movimientos_stock y usá porInsumo y los totales (no cuentes la muestra).
+            - "¿Hay bebés que nunca recibieron un abrazo?" → bebes_dias_sin_abrazo y mirá nuncaAbrazado=true.
+            - "Varones / nenas / por sexo" → bebesActivosPorSexo de los Datos rápidos o conteos_generales.
+            - "El bebé más pesado / liviano / chico / grande / que más tiempo lleva": por defecto entre los bebés INTERNADOS (listar_bebes). Solo incluí egresados si lo piden.
+            - "Sus visitas" cuando se habla de una mamá = visitas a SU bebé → visitas_bebe con el bebé de esa mamá y el período pedido (periodo='este_mes'). No mezcles con el total general de visitas.
+            - Mamás de una localidad (cuántas, cómo se llaman) → listar_madres con localidad. No uses buscar_madres para localidades.
+            - "El bebé más chico / más grande" = menor / mayor EDAD (edadDias de listar_bebes, por fecha de nacimiento). "Más liviano / pesado" = pesoActualGramos. Nunca uses los días desde el ingreso a NEO para eso.
+            - Abrazos de un día concreto con quién los hizo ("¿y los de ayer quién los hizo?", "¿quién hizo más el 18?") → reporte_diario con esa fecha (trae cada abrazo con su responsable). Nunca digas que no tenés acceso a eso.
+            - En un seguimiento sobre un período ("¿y cuál fue el día con más?"), usá EXACTAMENTE el mismo período del mensaje anterior (mismo parámetro periodo o mismas fechas).
             - "¿Cuál bebé lleva más días sin abrazo?" (en general o de UNA sala) → bebes_dias_sin_abrazo y filtrá por el campo sala. Nunca uses la fecha de ingreso para eso.
             - Si piden un nombre sin tildes o con errores ("paula martinez", "mia acosta"), buscalo igual: las búsquedas toleran acentos y errores. Si no aparece, probá solo con el nombre o solo con el apellido antes de decir que no existe.
             - "Informe", "reporte", "resumen para la directora / para presentar": armalo vos sin preguntar, con resumen_periodo (este_mes), coordinacion_hoy, insumos_bajo_stock y alertas_y_prioridades, en secciones con viñetas.
@@ -656,6 +670,14 @@ namespace ResimamisBackend.Negocio
         private static List<OpenAiTool> DefinirHerramientas() =>
         [
             Tool("conteos_generales", "Totales actuales de TODO Resimamis en una consulta: bebés activos (y por sala), bebés históricos por estado, voluntarias por rol (coordinadoras incluidas), mamás, insumos cargados / bajo mínimo / unidades, salas. Usala para cualquier '¿cuántos/cuántas X hay?' general."),
+            ToolConParametros("listar_madres",
+                "Lista mamás con filtros: localidad ('mamás de Río Cuarto', '¿cuántas son de Córdoba?'), cantidad de hijos ('mamás con más de un hijo' → min_hijos=2) y/o nombre. Devuelve total real, nombres y cantidadHijos. Tolera acentos y errores.",
+                new
+                {
+                    localidad = new { type = "string", description = "Localidad o parte (ej. 'rio cuarto', 'cordoba')." },
+                    min_hijos = new { type = "integer", description = "Mínimo de hijos (más de un hijo = 2)." },
+                    texto = new { type = "string", description = "Nombre o apellido opcional." }
+                }),
             ToolConParametros("buscar_persona",
                 "Busca un NOMBRE SUELTO a la vez en bebés (internados y egresados), voluntarias/coordinadoras y mamás. Usala cuando la coordinadora escribe solo un nombre o apellido ('lucas', 'gonzalez', 'paula martinez') o no queda claro si es bebé, voluntaria o mamá.",
                 new { texto = new { type = "string", description = "Nombre, apellido o ambos, tal como lo escribió." } }),
@@ -903,8 +925,19 @@ namespace ResimamisBackend.Negocio
                 Function = new OpenAiFunction
                 {
                     Name = "visitas_bebe",
-                    Description = "Visitas familiares de un bebé (historial). Si no tenés id, usá buscar_bebes.",
-                    Parameters = SchemaId("id_bebe", "Id del bebé.")
+                    Description = "Visitas familiares de UN bebé: historial completo o de un período (periodo='este_mes', 'esta_semana', etc.). También para 'las visitas de la mamá X' (son las visitas a su bebé).",
+                    Parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            id_bebe = new { type = "integer", description = "Id del bebé (del link [Nombre](bebe:id))." },
+                            nombre_bebe = new { type = "string", description = "Nombre y apellido del bebé (mandalo siempre)." },
+                            periodo = new { type = "string", description = "Opcional: hoy, esta_semana, semana_pasada, este_mes, mes_pasado, ultimos_30, un mes (2026-10)..." },
+                            fecha_desde = new { type = "string", description = "Opcional yyyy-MM-dd." },
+                            fecha_hasta = new { type = "string", description = "Opcional yyyy-MM-dd." }
+                        }
+                    }
                 }
             },
             new OpenAiTool
@@ -1129,6 +1162,7 @@ namespace ResimamisBackend.Negocio
                 return nombre switch
                 {
                     "conteos_generales" => Json(ConteosGenerales()),
+                    "listar_madres" => Json(ListarMadres(args)),
                     "buscar_persona" => Json(BuscarPersona(LeerString(args, "texto") ?? LeerString(args, "nombre"))),
                     "ranking_bebes_abrazos" => Json(RankingBebesAbrazos(args)),
                     "coordinacion_hoy" => Json(ResumirCoordinacionHoy()),
@@ -1281,7 +1315,9 @@ namespace ResimamisBackend.Negocio
                 nombre = v.Nombre,
                 apellido = v.Apellido,
                 estado = v.Estado?.nombre,
-                rol = v.rol
+                rol = v.rol,
+                // Para "voluntarias nuevas / la más antigua".
+                fechaInicio = v.FechaInicio.Year > 1900 ? DateOnly.FromDateTime(v.FechaInicio).ToString("yyyy-MM-dd") : null
             };
 
         private List<object> BuscarBebes(string? texto)
@@ -1347,6 +1383,12 @@ namespace ResimamisBackend.Negocio
                 sexo = b.Sexo,
                 sala = b.Sala?.Nombre,
                 estado = b.Estado?.nombre,
+                fechaNacimiento = b.FechaNacimiento,
+                // Para "el bebé más chico / más grande": edad real, no días desde el ingreso a NEO.
+                edadDias = b.FechaNacimiento.HasValue
+                    ? Math.Max(0, HoyArgentina().DayNumber - DateOnly.FromDateTime(b.FechaNacimiento.Value.Date).DayNumber)
+                    : (int?)null,
+                pesoActualGramos = b.PesoDiaAbrazos ?? b.PesoIngresoNEO ?? b.PesoNacimiento,
                 fechaIngresoNeo = b.FechaIngresoNEO,
                 fechaSalida = b.FechaSalida
             };
@@ -1530,6 +1572,9 @@ namespace ResimamisBackend.Negocio
                 totalPorRol = todas
                     .GroupBy(v => string.IsNullOrWhiteSpace(v.rol) ? "Sin rol" : v.rol!)
                     .ToDictionary(g => g.Key, g => g.Count()),
+                // "¿Quiénes son las voluntarias nuevas?": las 5 con fecha de inicio más reciente.
+                masRecientes = filtradas.Where(v => v.FechaInicio.Year > 1900)
+                    .OrderByDescending(v => v.FechaInicio).Take(5).Select(MapearVoluntariaBusqueda).ToList(),
                 voluntarias = items
             };
         }
@@ -1625,12 +1670,36 @@ namespace ResimamisBackend.Negocio
                 })
                 .ToList();
 
+            static bool EsEntrada(ConsultaMovimiento m) =>
+                (m.esEntrada ?? "").Trim().ToUpperInvariant() is "S" or "SI" or "SÍ" or "TRUE" or "1" or "E";
+
+            // Totales sobre TODOS los movimientos del período (la muestra es solo de 40):
+            // "¿cuál se usó más?" se responde con porInsumo, no contando la muestra.
+            var porInsumo = lista
+                .GroupBy(m => string.IsNullOrWhiteSpace(m.nombreInsumo) ? $"Insumo {m.idInsumo}" : m.nombreInsumo)
+                .Select(g => new
+                {
+                    insumo = g.Key,
+                    unidadesQueSalieron = g.Where(m => !EsEntrada(m)).Sum(m => m.cantidad ?? 0),
+                    movimientosDeSalida = g.Count(m => !EsEntrada(m)),
+                    unidadesQueEntraron = g.Where(EsEntrada).Sum(m => m.cantidad ?? 0),
+                    movimientosDeEntrada = g.Count(EsEntrada),
+                })
+                .OrderByDescending(x => x.unidadesQueSalieron)
+                .ToList();
+
             return new
             {
                 criterio = "movimientos_stock",
+                aclaracion = "totales y porInsumo cuentan TODO el período; 'muestra' son solo los 40 más recientes. Para '¿cuál se usó más?' usá porInsumo (ordenado por unidades que salieron).",
                 fechaInicio = DateOnly.FromDateTime(desde.Date),
                 fechaFin = DateOnly.FromDateTime(hasta.Date),
                 total = lista.Count,
+                totalMovimientosDeSalida = lista.Count(m => !EsEntrada(m)),
+                totalUnidadesQueSalieron = lista.Where(m => !EsEntrada(m)).Sum(m => m.cantidad ?? 0),
+                totalMovimientosDeEntrada = lista.Count(EsEntrada),
+                totalUnidadesQueEntraron = lista.Where(EsEntrada).Sum(m => m.cantidad ?? 0),
+                porInsumo,
                 muestra = items
             };
         }
@@ -1698,12 +1767,26 @@ namespace ResimamisBackend.Negocio
                 .Where(v => v.activa)
                 .OrderByDescending(v => v.fechaHoraVisita)
                 .ToList();
+            // "Sus visitas de este mes / de la semana": período opcional (fechas en calendario Argentina).
+            var conPeriodo = LeerString(args, "periodo") != null || LeerString(args, "fecha_desde") != null;
+            DateOnly? periodoDesde = null, periodoHasta = null;
+            if (conPeriodo)
+            {
+                periodoDesde = DateOnly.FromDateTime(Desde(args));
+                periodoHasta = DateOnly.FromDateTime(Hasta(args));
+                lista = lista.Where(v =>
+                {
+                    var dia = DateOnly.FromDateTime(NegConversorFecha.HoraArgentina(v.fechaHoraVisita));
+                    return dia >= periodoDesde && dia <= periodoHasta;
+                }).ToList();
+            }
 
             return new
             {
                 criterio = "visitas_de_un_bebe",
                 idBebe = bebe.ID,
                 nombreBebe = $"{bebe.nombre} {bebe.apellido}".Trim(),
+                periodo = conPeriodo ? $"{periodoDesde:yyyy-MM-dd} a {periodoHasta:yyyy-MM-dd}" : "todo el historial",
                 total = lista.Count,
                 visitas = lista.Take(MaxItemsLista).Select(v => new
                 {

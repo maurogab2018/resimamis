@@ -362,6 +362,11 @@ namespace ResimamisBackend.Negocio
                 criterio = "conteos_generales",
                 aclaracion = "Totales actuales de Resimamis. bebesActivos = internados hoy (sin egreso). Las coordinadoras son voluntarias con rol Coordinadora.",
                 bebesActivos = porSala?.TotalBebes ?? Seguro(() => negBebes.listarBebes()?.Count),
+                bebesActivosPorSexo = Seguro(() => (negBebes.listarBebes() ?? new List<BEBE>())
+                    .GroupBy(b => string.IsNullOrWhiteSpace(b.Sexo) ? "Sin dato"
+                        : b.Sexo!.Trim().ToUpperInvariant().StartsWith("M") ? "Varones (M)"
+                        : b.Sexo!.Trim().ToUpperInvariant().StartsWith("F") ? "Nenas (F)" : b.Sexo!)
+                    .ToDictionary(g => g.Key, g => g.Count())),
                 bebesPorSala = porSala?.PorSala.Select(s => new { sala = s.NombreSala, cantidad = s.CantidadBebes }),
                 bebesHistoricosPorEstado = porEstado?.PorEstado.Select(e => new { estado = e.EstadoBebe, cantidad = e.Cantidad }),
                 bebesHistoricosTotal = porEstado?.TotalBebes,

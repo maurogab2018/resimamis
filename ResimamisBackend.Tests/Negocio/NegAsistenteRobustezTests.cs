@@ -332,6 +332,22 @@ public class NegAsistenteRobustezTests
     }
 
     [Fact]
+    public async Task CuentaConDatosRespaldados_NoSeRechaza()
+    {
+        var openAi = new OpenAiFalso(() => Texto("Hay 24 toallitas; faltan **276** para el máximo de 300."));
+        var neg = Crear(openAi);
+        await neg.Preguntar(Dni, new AsistentePreguntaRequest
+        {
+            Pregunta = "cuanto falta para el maximo",
+            Historial = new List<AsistenteMensaje>
+            {
+                new() { Rol = "asistente", Contenido = "Toallitas húmedas: 24 (mínimo 30, máximo 300)." },
+            }
+        });
+        Assert.Equal(1, openAi.Llamadas);
+    }
+
+    [Fact]
     public async Task NumeroQueVieneDelHistorial_NoSeRechaza()
     {
         var openAi = new OpenAiFalso(() => Texto("Mia Acosta pesó **1320 gramos** al nacer."));

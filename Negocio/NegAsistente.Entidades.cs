@@ -159,6 +159,52 @@ namespace ResimamisBackend.Negocio
             };
         }
 
+        /// <summary>Mamás filtradas por localidad y/o nombre (tolera acentos y errores: "rio cuarto", "cordova").</summary>
+        private object ListarMadres(JsonDocument args)
+        {
+            var localidad = (LeerString(args, "localidad") ?? LeerString(args, "filtro_localidad") ?? "").Trim();
+            var texto = (LeerString(args, "texto") ?? "").Trim();
+            var todas = negMadres.listarMadres() ?? new List<MADRE>();
+            IEnumerable<MADRE> q = todas;
+            string? localidadUsada = null;
+            if (localidad.Length > 0)
+            {
+                var objetivo = SinAcentos(localidad);
+                var porContiene = todas.Where(m => SinAcentos(m.LocalidadDetalle?.nombre ?? "").Contains(objetivo)).ToList();
+                if (porContiene.Count > 0)
+                {
+                    q = porContiene;
+                    localidadUsada = localidad;
+                }
+                else
+                {
+                    var nombres = todas.Select(m => m.LocalidadDetalle?.nombre).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToArray();
+                    localidadUsada = ElegirOpcion(localidad, nombres!);
+                    q = localidadUsada == null ? Enumerable.Empty<MADRE>() : todas.Where(m => m.LocalidadDetalle?.nombre == localidadUsada);
+                }
+            }
+            if (texto.Length > 0)
+                q = q.Where(m => CoincidePersona(m.Nombre, m.Apellido, texto));
+            var minHijos = LeerInt(args, "min_hijos");
+            if (minHijos is > 0)
+                q = q.Where(m => m.CantidadHijos >= minHijos);
+
+            var lista = q.OrderByDescending(m => m.CantidadHijos).ToList();
+            return new
+            {
+                criterio = "listar_madres",
+                filtroLocalidad = localidadUsada ?? (localidad.Length > 0 ? localidad : null),
+                aclaracion = localidad.Length > 0 && localidadUsada == null
+                    ? $"No hay mamás de '{localidad}'. Mostrá las localidades disponibles."
+                    : "'total' es la cantidad real; la lista muestra hasta 40.",
+                localidadesDisponibles = localidad.Length > 0 && localidadUsada == null
+                    ? todas.GroupBy(m => m.LocalidadDetalle?.nombre ?? "Sin localidad").Select(g => new { localidad = g.Key, cantidad = g.Count() })
+                    : null,
+                total = lista.Count,
+                madres = lista.Take(MaxItemsLista).Select(MapearMadreBusqueda).ToList()
+            };
+        }
+
         // ---------- Verificador de números ----------
 
         /// <summary>Todo lo que el modelo pudo ver en esta pregunta: Datos rápidos, historial y resultados de herramientas.</summary>
@@ -176,6 +222,8 @@ namespace ResimamisBackend.Negocio
             var limpio = RegexFechaOLink.Replace(respuesta, " ");
             var fuente = evidencia.ToString();
             var faltan = new List<string>();
+            var respaldados = new List<decimal>();
+            var dudosos = new List<(string crudo, decimal valor)>();
             foreach (Match m in RegexNumero.Matches(limpio))
             {
                 var crudo = m.Value;
@@ -183,11 +231,25 @@ namespace ResimamisBackend.Negocio
                 if (!decimal.TryParse(sinMiles.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var valor))
                     continue;
                 if (valor <= 10 || (valor >= 1990 && valor <= 2100 && valor == Math.Floor(valor)))
+                {
+                    respaldados.Add(valor);
                     continue;
+                }
                 var entero = Math.Floor(valor).ToString(System.Globalization.CultureInfo.InvariantCulture);
                 if (fuente.Contains(sinMiles) || fuente.Contains(sinMiles.Replace(',', '.')) || Regex.IsMatch(fuente, $@"(?<!\d){Regex.Escape(entero)}(?!\d)"))
+                {
+                    respaldados.Add(valor);
                     continue;
-                faltan.Add(crudo);
+                }
+                dudosos.Add((crudo, valor));
+            }
+
+            // Una cuenta con datos respaldados de la misma respuesta no es invento: "faltan 276 (300 − 24)".
+            foreach (var (crudo, valor) in dudosos)
+            {
+                var esCuenta = respaldados.Any(a => respaldados.Any(b =>
+                    Math.Abs(a - b - valor) < 0.6m || Math.Abs(a + b - valor) < 0.6m));
+                if (!esCuenta) faltan.Add(crudo);
             }
             return faltan.Distinct().ToList();
         }
