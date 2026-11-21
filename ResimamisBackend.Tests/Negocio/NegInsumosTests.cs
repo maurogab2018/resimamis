@@ -18,7 +18,7 @@ public class NegInsumosTests
 
     private NegInsumos Sut => new(
         _insumoRepo.Object, _proveedores.Object, _mail.Object,
-        _voluntariaRepo.Object, _config.Object, _actividad.Object);
+        _voluntariaRepo.Object, _config.Object, _actividad.Object, Mock.Of<INegNotificaciones>());
 
     private static INSUMO InsumoValido() => new()
     {

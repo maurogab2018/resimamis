@@ -21,7 +21,32 @@ internal sealed class OpenAiChatCompletions
         this.httpClientFactory = httpClientFactory;
     }
 
+    /// <summary>Intentos por llamada: el primero del día suele fallar por red fría o un 429/5xx pasajero.</summary>
+    private const int MaxIntentos = 3;
+    private static readonly TimeSpan TimeoutPorIntento = TimeSpan.FromSeconds(60);
+
     public async Task<OpenAiChatResponse> CompletarAsync(
+        string apiKey,
+        OpenAiChatRequest request,
+        CancellationToken cancellationToken)
+    {
+        for (var intento = 1; ; intento++)
+        {
+            try
+            {
+                return await CompletarUnaVezAsync(apiKey, request, cancellationToken);
+            }
+            catch (OpenAiTransitorioException ex) when (intento < MaxIntentos && !cancellationToken.IsCancellationRequested)
+            {
+                var espera = ex.Espera ?? TimeSpan.FromSeconds(intento * 2);
+                if (espera > TimeSpan.FromSeconds(8)) espera = TimeSpan.FromSeconds(8);
+                Console.WriteLine($"[asistente] OpenAI falló (intento {intento}/{MaxIntentos}): {ex.Message}. Reintento en {espera.TotalSeconds}s");
+                await Task.Delay(espera, cancellationToken);
+            }
+        }
+    }
+
+    private async Task<OpenAiChatResponse> CompletarUnaVezAsync(
         string apiKey,
         OpenAiChatRequest request,
         CancellationToken cancellationToken)
@@ -36,28 +61,46 @@ internal sealed class OpenAiChatCompletions
             Encoding.UTF8,
             "application/json");
 
+        // Tope por intento: si uno se cuelga, se corta y se reintenta en vez de esperar los 180 s del cliente.
+        using var porIntento = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        porIntento.CancelAfter(TimeoutPorIntento);
         try
         {
             using var response = await client.SendAsync(
                 httpRequest,
-                cancellationToken);
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                porIntento.Token);
+            var body = await response.Content.ReadAsStringAsync(porIntento.Token);
             if (!response.IsSuccessStatusCode)
             {
                 var detalle = ExtraerErrorOpenAi(body);
-                throw new ApplicationException(
-                    $"Error al consultar OpenAI ({(int)response.StatusCode}): {detalle}");
+                var codigo = (int)response.StatusCode;
+                var mensaje = $"Error al consultar OpenAI ({codigo}): {detalle}";
+                // 408/409/429/5xx son pasajeros; 400/401/403/404 no se arreglan reintentando.
+                if (codigo is 408 or 409 or 429 or >= 500)
+                    throw new OpenAiTransitorioException(mensaje, response.Headers.RetryAfter?.Delta);
+                throw new ApplicationException(mensaje);
             }
 
-            var parsed = JsonSerializer.Deserialize<OpenAiChatResponse>(body, JsonOptions);
-            if (parsed?.Choices == null || parsed.Choices.Count == 0)
-                throw new ApplicationException("OpenAI no devolvió una respuesta.");
+            OpenAiChatResponse? parsed;
+            try
+            {
+                parsed = JsonSerializer.Deserialize<OpenAiChatResponse>(body, JsonOptions);
+            }
+            catch (JsonException)
+            {
+                throw new OpenAiTransitorioException("OpenAI devolvió una respuesta ilegible.");
+            }
+            if (parsed?.Choices == null || parsed.Choices.Count == 0 || parsed.Choices[0].Message == null)
+                throw new OpenAiTransitorioException("OpenAI no devolvió una respuesta.");
             return parsed;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new ApplicationException(
-                "OpenAI tardó demasiado en responder. Reintentá la pregunta.");
+            throw new OpenAiTransitorioException("OpenAI tardó demasiado en responder.");
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new OpenAiTransitorioException("No se pudo conectar con OpenAI: " + ex.Message);
         }
     }
 
@@ -78,11 +121,24 @@ internal sealed class OpenAiChatCompletions
     }
 }
 
+/// <summary>Falla de OpenAI que puede andar al reintentar (red, timeout, 429, 5xx, respuesta vacía).</summary>
+internal sealed class OpenAiTransitorioException : ApplicationException
+{
+    public TimeSpan? Espera { get; }
+
+    public OpenAiTransitorioException(string message, TimeSpan? espera = null) : base(message)
+    {
+        Espera = espera;
+    }
+}
+
 internal sealed class OpenAiChatRequest
 {
     public string Model { get; set; } = "";
     public List<OpenAiMessage> Messages { get; set; } = new();
     public List<OpenAiTool>? Tools { get; set; }
+    /// <summary>"auto" o "required" (obliga a usar al menos una herramienta). Null = default de OpenAI.</summary>
+    public string? ToolChoice { get; set; }
     public int? MaxTokens { get; set; }
     public double? Temperature { get; set; }
 }
