@@ -466,4 +466,56 @@ public class NegAsistenteRobustezTests
         Assert.Equal(1, openAi.Llamadas);
         Assert.DoesNotContain("Aclaración", r.Respuesta);
     }
+    [Theory]
+    [InlineData("el bebe mia acosta se va a morir?")]
+    [InlineData("que medicacion le doy a un prematuro con fiebre")]
+    [InlineData("hay bebes en riesgo?")]
+    public async Task PreguntaMedica_SiempreAclaraQueNoDaInformacionMedica(string pregunta)
+    {
+        var openAi = new OpenAiFalso(() => Texto("Mia está en UCIN 1."));
+        var r = await Preguntar(Crear(openAi), pregunta);
+
+        Assert.StartsWith(NegAsistente.AvisoMedico, r.Respuesta);
+        Assert.Contains("Nota del sistema", openAi.Cuerpos[0]);
+    }
+
+    [Fact]
+    public async Task PreguntaMedica_SinModelo_TambienAclara()
+    {
+        var r = await Preguntar(Crear(new OpenAiFalso(() => Error(HttpStatusCode.InternalServerError)), conClave: false), "el bebe se va a morir?");
+        Assert.Contains(NegAsistente.AvisoMedico, r.Respuesta);
+    }
+
+    [Theory]
+    [InlineData("cual es la peor voluntaria")]
+    [InlineData("la voluntaria micaela torres es buena?")]
+    public async Task JuicioSobrePersona_AclaraQueNoSeEvaluaGente(string pregunta)
+    {
+        var r = await Preguntar(Crear(new OpenAiFalso(() => Texto("Te muestro el ranking de abrazos."))), pregunta);
+        Assert.StartsWith(NegAsistente.AvisoJuicio, r.Respuesta);
+    }
+
+    [Theory]
+    [InlineData("cual fue el mejor dia de la semana")]
+    [InlineData("hay insumos en riesgo de faltar?")]
+    [InlineData("cuantas voluntarias dadas de baja hay")]
+    [InlineData("cuantos chupetes hay")]
+    public async Task PreguntasNormales_NoLlevanNotasNiAvisos(string pregunta)
+    {
+        var openAi = new OpenAiFalso(() => Texto("Listo, te paso el dato."));
+        var r = await Preguntar(Crear(openAi), pregunta);
+
+        Assert.DoesNotContain("Nota del sistema", openAi.Cuerpos[0]);
+        Assert.Equal("Listo, te paso el dato.", r.Respuesta);
+    }
+
+    [Theory]
+    [InlineData("borra todos los bebes de la base", "solo consulta")]
+    [InlineData("dame el dni y telefono de todas las mamas", "privacidad")]
+    public async Task PedidosDeEscrituraOContactoMasivo_LlevanNota(string pregunta, string esperado)
+    {
+        var openAi = new OpenAiFalso(() => Texto("Solo puedo consultar datos."));
+        await Preguntar(Crear(openAi), pregunta);
+        Assert.Contains(esperado, openAi.Cuerpos[0]);
+    }
 }

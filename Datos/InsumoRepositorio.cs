@@ -69,21 +69,28 @@ namespace ResimamisBackend.Datos
                 .ThenByDescending(m => m.idMovimiento)
                 .ToList();
 
-            return movimientos.Select(MapConsultaMovimiento).ToList();
+            // Nombres de insumos, bebés, voluntarias y proveedores en 4 consultas en total
+            // (antes eran hasta 4 por movimiento: con un mes de movimientos tardaba más de un minuto).
+            var idsInsumo = movimientos.Select(m => m.idInsumo).Distinct().ToList();
+            var idsBebe = movimientos.Where(m => m.idBebe.HasValue).Select(m => m.idBebe!.Value).Distinct().ToList();
+            var idsVoluntaria = movimientos.Where(m => m.idVoluntaria.HasValue).Select(m => m.idVoluntaria!.Value).Distinct().ToList();
+            var idsProveedor = movimientos.Where(m => m.idProveedor.HasValue).Select(m => m.idProveedor!.Value).Distinct().ToList();
+
+            var insumos = db.INSUMO.AsNoTracking().Where(i => idsInsumo.Contains(i.idInsumo)).ToDictionary(i => i.idInsumo);
+            var bebes = db.BEBE.AsNoTracking().Where(b => idsBebe.Contains(b.ID)).ToDictionary(b => b.ID);
+            var voluntarias = db.VOLUNTARIA.AsNoTracking().Where(v => idsVoluntaria.Contains(v.IdVoluntaria)).ToDictionary(v => v.IdVoluntaria);
+            var proveedores = db.PROVEEDOR.AsNoTracking().Where(p => idsProveedor.Contains(p.idProveedor)).ToDictionary(p => p.idProveedor);
+
+            return movimientos.Select(m => MapConsultaMovimiento(m,
+                    insumos.GetValueOrDefault(m.idInsumo),
+                    m.idBebe.HasValue ? bebes.GetValueOrDefault(m.idBebe.Value) : null,
+                    m.idVoluntaria.HasValue ? voluntarias.GetValueOrDefault(m.idVoluntaria.Value) : null,
+                    m.idProveedor.HasValue ? proveedores.GetValueOrDefault(m.idProveedor.Value) : null))
+                .ToList();
         }
 
-        private ConsultaMovimiento MapConsultaMovimiento(MOVIMIENTOSTOCK m)
+        private static ConsultaMovimiento MapConsultaMovimiento(MOVIMIENTOSTOCK m, INSUMO? insumo, BEBE? bebe, VOLUNTARIA? voluntaria, PROVEEDOR? proveedor)
         {
-            var insumo = db.INSUMO.AsNoTracking().FirstOrDefault(i => i.idInsumo == m.idInsumo);
-            var bebe = m.idBebe.HasValue
-                ? db.BEBE.AsNoTracking().FirstOrDefault(b => b.ID == m.idBebe.Value)
-                : null;
-            var voluntaria = m.idVoluntaria.HasValue
-                ? db.VOLUNTARIA.AsNoTracking().FirstOrDefault(v => v.IdVoluntaria == m.idVoluntaria.Value)
-                : null;
-            var proveedor = m.idProveedor.HasValue
-                ? db.PROVEEDOR.AsNoTracking().FirstOrDefault(p => p.idProveedor == m.idProveedor.Value)
-                : null;
 
             return new ConsultaMovimiento
             {

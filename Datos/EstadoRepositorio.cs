@@ -12,30 +12,40 @@ namespace ResimamisBackend.Datos
             this.db = db;
         }
 
-        /// <summary>Resuelve el id de ESTADO con nombre "Eliminado" para el ámbito indicado.</summary>
-        public int ObtenerIdEstadoEliminado(string nombreAmbito)
-        {
-            var row = db.ESTADO
-                .AsNoTracking()
-                .Include(e => e.ambito)
-                .FirstOrDefault(e => e.nombre == "Eliminado" && e.ambito.nombre == nombreAmbito);
-            if (row == null)
-                throw new ApplicationException(
-                    $"No existe el estado 'Eliminado' para el ámbito '{nombreAmbito}'. Ejecute las migraciones o inserte el registro en ESTADO.");
-            return row.idEstado;
-        }
+        /// <summary>
+        /// Ids ya resueltos en este pedido (el repositorio es scoped). Los estados no cambian durante un
+        /// request y antes se consultaban cientos de veces por cada pregunta del asistente.
+        /// </summary>
+        private readonly Dictionary<(string Nombre, string Ambito), int> cache = new();
 
-        /// <summary>Ej. nombreEstado "Creada", nombreAmbito "Asistencias".</summary>
-        public int ObtenerIdEstadoPorNombreYAmbito(string nombreEstado, string nombreAmbito)
+        private int? Buscar(string nombreEstado, string nombreAmbito)
         {
+            if (cache.TryGetValue((nombreEstado, nombreAmbito), out var guardado))
+                return guardado;
             var row = db.ESTADO
                 .AsNoTracking()
                 .Include(e => e.ambito)
                 .FirstOrDefault(e => e.nombre == nombreEstado && e.ambito.nombre == nombreAmbito);
             if (row == null)
-                throw new ApplicationException(
-                    $"No existe el estado '{nombreEstado}' para el ámbito '{nombreAmbito}'. Ejecute las migraciones o inserte el registro en ESTADO.");
+                return null;
+            cache[(nombreEstado, nombreAmbito)] = row.idEstado;
             return row.idEstado;
+        }
+
+        /// <summary>Resuelve el id de ESTADO con nombre "Eliminado" para el ámbito indicado.</summary>
+        public int ObtenerIdEstadoEliminado(string nombreAmbito)
+        {
+            return Buscar("Eliminado", nombreAmbito)
+                ?? throw new ApplicationException(
+                    $"No existe el estado 'Eliminado' para el ámbito '{nombreAmbito}'. Ejecute las migraciones o inserte el registro en ESTADO.");
+        }
+
+        /// <summary>Ej. nombreEstado "Creada", nombreAmbito "Asistencias".</summary>
+        public int ObtenerIdEstadoPorNombreYAmbito(string nombreEstado, string nombreAmbito)
+        {
+            return Buscar(nombreEstado, nombreAmbito)
+                ?? throw new ApplicationException(
+                    $"No existe el estado '{nombreEstado}' para el ámbito '{nombreAmbito}'. Ejecute las migraciones o inserte el registro en ESTADO.");
         }
 
         /// <summary>Prueba varios nombres en orden (útil cuando prod y seed usan nombres distintos).</summary>
@@ -46,12 +56,9 @@ namespace ResimamisBackend.Datos
 
             foreach (var nombre in nombresEstado)
             {
-                var row = db.ESTADO
-                    .AsNoTracking()
-                    .Include(e => e.ambito)
-                    .FirstOrDefault(e => e.nombre == nombre && e.ambito.nombre == nombreAmbito);
-                if (row != null)
-                    return row.idEstado;
+                var id = Buscar(nombre, nombreAmbito);
+                if (id != null)
+                    return id.Value;
             }
 
             throw new ApplicationException(

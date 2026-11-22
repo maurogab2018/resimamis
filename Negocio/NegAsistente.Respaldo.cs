@@ -32,7 +32,7 @@ namespace ResimamisBackend.Negocio
             string texto;
             try
             {
-                texto = ArmarTextoRespaldo(pregunta);
+                texto = AjustarPorIntencion(pregunta, ArmarTextoRespaldo(pregunta));
             }
             catch (Exception ex)
             {
@@ -296,6 +296,54 @@ namespace ResimamisBackend.Negocio
                 .ToList();
             return tokens.Count > 0 && tokens.All(t =>
                 palabras.Any(p => p.StartsWith(t) || Parecidas(t, p)));
+        }
+
+        /// <summary>
+        /// Asignaciones por día + abrazos FINALIZADOS por día. El dashboard llama "abrazos" a las
+        /// asignaciones con bebé, y el modelo lo confundía con abrazos dados (211 vs 179 reales).
+        /// </summary>
+        private object AsignacionesPorDia(DateTime desde, DateTime hasta)
+        {
+            var base_ = negDashboard.ObtenerAsignacionesPorDia(desde, hasta);
+            Dictionary<DateOnly, int> finalizados = new();
+            try
+            {
+                var (inicioUtc, finUtc) = NegConversorFecha.RangoFechasArgentinaEnUtc(desde, hasta);
+                finalizados = db.ASIGNACION
+                    .Where(a => a.idBebe != null && a.fechaHoraInicio != null && a.fechaHoraFin != null && !a.cierreAutomatico
+                                && a.fechaHoraFin >= inicioUtc && a.fechaHoraFin < finUtc)
+                    .Select(a => a.fechaHoraFin!.Value)
+                    .ToList()
+                    .GroupBy(NegConversorFecha.FechaCalendarioArgentina)
+                    .ToDictionary(g => g.Key, g => g.Count());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[asistente] asignaciones_por_dia: no se pudieron contar los finalizados: {ex.Message}");
+            }
+
+            var dias = base_.PorDia.Select(d => d.Fecha).Union(finalizados.Keys).OrderBy(d => d).ToList();
+            var porDia = dias.Select(f =>
+            {
+                var d = base_.PorDia.FirstOrDefault(x => x.Fecha == f);
+                return new
+                {
+                    fecha = f,
+                    asignacionesCreadas = d?.CantidadAsignaciones ?? 0,
+                    abrazosFinalizados = finalizados.GetValueOrDefault(f),
+                };
+            }).ToList();
+
+            return new
+            {
+                criterio = "asignaciones_por_dia",
+                aclaracion = "abrazosFinalizados = abrazos que se dieron de verdad (usá esto para '¿cuántos abrazos hubo?'). asignacionesCreadas = asignaciones armadas, no todas terminan en abrazo.",
+                base_.FechaInicio,
+                base_.FechaFin,
+                totalAbrazosFinalizados = finalizados.Values.Sum(),
+                totalAsignacionesCreadas = base_.TotalAsignaciones,
+                porDia
+            };
         }
 
         private object RankingBebesAbrazos(JsonDocument args)

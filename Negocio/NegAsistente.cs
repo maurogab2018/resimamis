@@ -333,6 +333,9 @@ namespace ResimamisBackend.Negocio
                 };
                 AgregarHistorial(mensajes, request?.Historial);
                 mensajes.Add(new OpenAiMessage { Role = "user", Content = pregunta });
+                var nota = NotaDeIntencion(pregunta);
+                if (nota != null)
+                    mensajes.Add(new OpenAiMessage { Role = "system", Content = nota });
                 // Lo que el modelo "sabe" en esta pregunta: contra esto se verifican los números de la respuesta.
                 evidencia.Clear();
                 evidenciaHerramientas.Clear();
@@ -424,14 +427,14 @@ namespace ResimamisBackend.Negocio
                                 {
                                     Role = "system",
                                     Content = $"Tu respuesta dice '{string.Join("', '", sensibles)}', pero ningún dato de Resimamis lo respalda: el sistema NO registra fallecimientos, " +
-                                              "enfermedades ni diagnósticos, y una baja no indica el motivo. No aceptes lo que afirma la pregunta si los datos no lo dicen. " +
+                                              "enfermedades ni pronósticos (el único dato médico es el diagnóstico de ingreso/egreso de la ficha del bebé), y una baja no indica el motivo. No aceptes lo que afirma la pregunta si los datos no lo dicen. " +
                                               "Reescribí la respuesta: aclará que el sistema no guarda ese dato y mostrá solo lo que sí devolvieron las herramientas " +
                                               "(por ejemplo, las bajas con su fecha y quién la registró). Si la pregunta traía un número distinto al real, corregilo."
                                 });
                                 continue;
                             }
                         }
-                        return ArmarRespuesta(ConAclaracionSiHaceFalta(texto), usadas, preguntasHoy);
+                        return ArmarRespuesta(AjustarPorIntencion(pregunta, ConAclaracionSiHaceFalta(texto)), usadas, preguntasHoy);
                     }
 
                     mensajes.Add(new OpenAiMessage
@@ -475,7 +478,7 @@ namespace ResimamisBackend.Negocio
                 var textoCierre = cierre.Choices[0].Message.Content?.Trim();
                 if (string.IsNullOrWhiteSpace(textoCierre))
                     return RespuestaDeRespaldo(pregunta, preguntasHoy, usadas);
-                return ArmarRespuesta(ConAclaracionSiHaceFalta(textoCierre), usadas, preguntasHoy);
+                return ArmarRespuesta(AjustarPorIntencion(pregunta, ConAclaracionSiHaceFalta(textoCierre)), usadas, preguntasHoy);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -563,7 +566,16 @@ namespace ResimamisBackend.Negocio
             - SIEMPRE respondé algo útil y referido a Resimamis. Nunca contestes solo "no entiendo" ni "no puedo".
             - Ante la duda, CONSULTÁ una herramienta antes de responder. Es mejor consultar de más que inventar o rendirse.
             - NUNCA aceptes lo que afirma la pregunta si los datos no lo respaldan. Si dice "hay 8" y el dato da 7, corregilo ("Son 7, no 8"). Si da por hecho algo que el sistema no registra, aclaralo en vez de repetirlo.
-            - Resimamis NO registra fallecimientos, enfermedades, diagnósticos ni el motivo de baja de una mamá o una voluntaria. "Dada de baja" solo significa que ya no está activa en el sistema; un bebé dado de baja es un egreso del NEO. Nunca digas que alguien murió, falleció o está enfermo. Si lo preguntan ("madres muertas", "bebés fallecidos"), decí que el sistema no guarda ese dato y ofrecé lo que sí hay (historial_bajas: quién fue dada de baja, cuándo y quién lo registró).
+            - Preguntas médicas o de pronóstico ("¿se va a morir?", "¿está grave?", "¿qué medicación le doy?", "¿está en riesgo?"): decí en una oración que no das información médica y que eso lo responde el equipo médico de neonatología. Después ofrecé lo que sí sabe Resimamis de ese bebé (sala, peso, abrazos). No vuelques conteos generales que nadie pidió.
+            - Pedidos de borrar, modificar, dar de alta o de baja ("borrá todos los bebés", "cambiá el stock"): decí claro que el asistente solo consulta y no puede hacer eso, y que se hace desde la pantalla correspondiente. No muestres datos que no pidieron.
+            - Preguntas SOBRE Resimamis en cualquier idioma ("what is resimamis?", "o que é resimamis?"): explicá qué es Resimamis en ese idioma. No es un tema ajeno.
+            - Nunca califiques a una persona ("la peor voluntaria", "¿es buena?", "¿es mala madre?"): aclará que el sistema no evalúa personas y ofrecé datos de actividad. Si piden "la que menos abrazos dio", ranking_abrazos_voluntarias con orden='menos'.
+            - DNI, teléfono, celular o dirección: solo de UNA persona puntual que nombren. Nunca listes datos de contacto de muchas personas juntas ("dame el dni y teléfono de todas"): explicá que por privacidad se consultan de a una y ofrecé buscar a una persona.
+            - "Abrazos dados / hechos / que hubo" en un período = abrazos FINALIZADOS (resumen_periodo → abrazos finalizados). Las asignaciones NO son abrazos: si mostrás las dos, nombralas distinto.
+            - Si desglosás voluntarias por rol, mostrá TODOS los roles de voluntariasPorRol / totalPorRol, para que la suma dé el total.
+            - No inventes explicaciones ni causas que los datos no dicen ("porque están todas ocupadas", "porque faltan voluntarias"). Si una lista viene vacía, decí que está vacía y ofrecé qué consultar.
+            - No muestres estados internos de la base ("Creado", "Eliminado", "Activo/Inactivo" de un registro): un bebé "Eliminado" con fecha de salida es "egresado"; un insumo "Creado" es simplemente un insumo cargado (no lo menciones).
+            - Resimamis NO registra fallecimientos, enfermedades actuales, pronósticos ni el motivo de baja de una mamá o una voluntaria. El único dato médico es el diagnóstico de ingreso/egreso de la ficha del bebé (ficha_bebe): podés mostrarlo tal cual, sin interpretarlo ni sacar conclusiones. "Dada de baja" solo significa que ya no está activa en el sistema; un bebé dado de baja es un egreso del NEO. Nunca digas que alguien murió, falleció o está enfermo. Si lo preguntan ("madres muertas", "bebés fallecidos"), decí que el sistema no guarda ese dato y ofrecé lo que sí hay (historial_bajas: quién fue dada de baja, cuándo y quién lo registró).
             - Las coordinadoras escriben rápido: abreviado, sin acentos, sin signos y con errores. Interpretá siempre la intención: "volunt libs hoy" = voluntarias libres hoy; "bbs" / "bbes" = bebés; "asist" = asistencias; "abz" / "abr" = abrazos; "vis" = visitas; "coord" = coordinadoras; "stk" = stock; "q" = qué; "cuants" = cuántos; "x" = por. Nunca pidas que reformule si se puede adivinar.
             - Palabra suelta, con error de tipeo o sin contexto ("chupte", "pañal", "leche", "gasas"): probablemente es un insumo → stock_insumos con ese texto. Si es un nombre de persona → buscar_bebes / buscar_voluntarias / buscar_madres.
             - "¿Cuántos X hay?" / "¿hay X?": si X puede ser un insumo → stock_insumos; bebés, voluntarias, coordinadoras, mamás, salas o insumos en general → los "Datos rápidos" de abajo o conteos_generales; para nombres → listar_bebes / listar_voluntarias (filtro_rol='coordinadora') / buscar_madres.
@@ -736,7 +748,7 @@ namespace ResimamisBackend.Negocio
             Tool("visitas_hoy", "Visitas familiares de HOY (calendario Argentina): total, bebés visitados y detalle (visitante, familiar, bebé, hora). Usá esta para 'visitas de hoy'."),
             Tool("asignaciones_hoy", "Lista de asignaciones/abrazos del día HOY (bebe, voluntaria, estado, sala). Para detalle del día, no uses solo el contador de coordinacion_hoy."),
             ToolPeriodo("resumen_periodo", "KPIs del período: asignaciones, abrazos finalizados, visitas, promedios."),
-            ToolPeriodo("asignaciones_por_dia", "Cantidad de asignaciones y abrazos por día en un rango (NO detalle de hoy: para lista de hoy usá asignaciones_hoy)."),
+            ToolPeriodo("asignaciones_por_dia", "ASIGNACIONES creadas por día en un rango (NO son abrazos finalizados: para 'cuántos abrazos hubo' usá resumen_periodo). NO detalle de hoy: para lista de hoy usá asignaciones_hoy)."),
             ToolPeriodo("visitas_periodo", "Estadísticas de visitas en un rango (NO para solo hoy: para hoy usá visitas_hoy). Total, por día, por familiar y por bebé (porBebe, de mayor a menor)."),
             ToolPeriodoOpcional("evolucion_peso", "Evolución de peso ingreso vs egreso (gramos): promedio, mínima y máxima ganancia."),
             ToolPeriodoOpcional("ranking_abrazos_voluntarias", "Ranking de voluntarias por ABRAZOS FINALIZADOS (no fichajes). Sin fechas: últimos 365 días. Parámetro extra: top (1-20)."),
@@ -1177,7 +1189,8 @@ namespace ResimamisBackend.Negocio
                     fecha_desde = new { type = "string", description = "Inicio yyyy-MM-dd o 'hoy'/'ayer' (Argentina). Si falta, últimos 30 días (rankings: 365)." },
                     fecha_hasta = new { type = "string", description = "Fin yyyy-MM-dd o 'hoy'/'ayer' (Argentina)." },
                     periodo = new { type = "string", description = "Alias: hoy, ayer, esta_semana, semana_pasada, este_mes, mes_pasado, ultimos_7, ultimos_30, este_anio, anio_pasado, ultimos_365, un año (2026) o un mes (2026-10)." },
-                    top = new { type = "integer", description = "Solo ranking: cantidad de voluntarias (default 10)." }
+                    top = new { type = "integer", description = "Solo ranking: cantidad de voluntarias (default 10)." },
+                    orden = new { type = "string", description = "Solo ranking: 'mas' (default, las que más) o 'menos' (las que menos abrazos/asistencias tienen)." }
                 }
             };
 
@@ -1219,10 +1232,10 @@ namespace ResimamisBackend.Negocio
                     "visitas_hoy" => Json(ResumirVisitasHoy()),
                     "asignaciones_hoy" => Json(ResumirAsignacionesHoy()),
                     "resumen_periodo" => Json(negDashboard.ObtenerResumen(Desde(args), Hasta(args))),
-                    "asignaciones_por_dia" => Json(negDashboard.ObtenerAsignacionesPorDia(Desde(args), Hasta(args))),
+                    "asignaciones_por_dia" => Json(AsignacionesPorDia(Desde(args), Hasta(args))),
                     "visitas_periodo" => Json(ResumirVisitasPeriodo(Desde(args), Hasta(args))),
                     "evolucion_peso" => Json(ResumirPeso(negDashboard.ObtenerEvolucionPesoBebes(DesdeOpcional(args), HastaOpcional(args)))),
-                    "ranking_abrazos_voluntarias" => Json(ResumirRankingAbrazos(Desde(args, 364), Hasta(args, 364), Top(args))),
+                    "ranking_abrazos_voluntarias" => Json(ResumirRankingAbrazos(Desde(args, 364), Hasta(args, 364), Top(args), PideMenos(args))),
                     "ranking_voluntarias" => Json(ResumirRankingAbrazos(Desde(args, 364), Hasta(args, 364), Top(args))),
                     "ranking_asistencias" => Json(ResumirRankingAsistencias(Desde(args, 364), Hasta(args, 364), Top(args))),
                     "duracion_abrazos" => Json(negDashboard.ObtenerDuracionAbrazos(DesdeOpcional(args), HastaOpcional(args))),
@@ -2281,11 +2294,24 @@ namespace ResimamisBackend.Negocio
                 rol = v.rol
             }).ToList();
 
+            // Con la lista vacía el modelo inventaba "están todas ocupadas": se le da el dato real.
+            int? ficharonHoy = null;
+            if (items.Count == 0)
+            {
+                try { ficharonHoy = negDashboard.ObtenerCoordinacionHoy()?.VoluntariasConAsistenciaHoy; }
+                catch (Exception ex) { Console.WriteLine($"[asistente] voluntarias_libres: no se pudo leer el día: {ex.Message}"); }
+            }
+
             return new
             {
                 criterio = "voluntarias_libres_hoy",
-                aclaracion = "Voluntarias libres hoy para asignar abrazo. Solo lectura.",
+                aclaracion = "Voluntarias libres hoy para asignar abrazo (fichadas y sin abrazo ni tarea en curso). Solo lectura.",
                 total = items.Count,
+                voluntariasQueFicharonHoy = ficharonHoy,
+                motivoSiNoHay = items.Count > 0 ? null
+                    : ficharonHoy == 0 ? "Todavía no fichó ninguna voluntaria hoy: por eso no hay libres."
+                    : ficharonHoy > 0 ? $"Ficharon {ficharonHoy} hoy, pero ninguna está libre ahora (están en abrazo o tarea)."
+                    : "No hay voluntarias libres. No inventes el motivo.",
                 voluntarias = items
             };
         }
@@ -2623,9 +2649,18 @@ namespace ResimamisBackend.Negocio
             };
         }
 
-        private object ResumirRankingAbrazos(DateTime desde, DateTime hasta, int top)
+        /// <summary>"Las que menos", "la peor", "la que menos abrazos dio" → orden='menos'.</summary>
+        private static bool PideMenos(JsonDocument args)
         {
-            var ranking = negDashboard.ObtenerRankingVoluntariasAbrazos(desde, hasta, top);
+            var orden = SinAcentos(LeerString(args, "orden") ?? "");
+            return orden.StartsWith("menos") || orden.StartsWith("asc") || orden is "min" or "peor" or "peores";
+        }
+
+        private object ResumirRankingAbrazos(DateTime desde, DateTime hasta, int top, bool menos = false)
+        {
+            // Para "las que menos" se trae el ranking completo y se toman las últimas.
+            var pedir = menos ? 1000 : top;
+            var ranking = negDashboard.ObtenerRankingVoluntariasAbrazos(desde, hasta, pedir);
             var amplio = false;
             if (ranking.Ranking.Count == 0)
             {
@@ -2633,23 +2668,29 @@ namespace ResimamisBackend.Negocio
                 var amplioDesde = hoy.AddDays(-364);
                 if (desde.Date > amplioDesde.Date || hasta.Date < hoy.Date)
                 {
-                    ranking = negDashboard.ObtenerRankingVoluntariasAbrazos(amplioDesde, hoy, top);
+                    ranking = negDashboard.ObtenerRankingVoluntariasAbrazos(amplioDesde, hoy, pedir);
                     amplio = true;
                 }
             }
 
+            var items = menos
+                ? ranking.Ranking.OrderBy(r => r.CantidadAbrazosFinalizados).ThenBy(r => r.NombreVoluntaria).Take(top).ToList()
+                : ranking.Ranking;
+
             return new
             {
                 criterio = "abrazos_finalizados",
-                aclaracion = amplio
-                    ? "El rango pedido no tenía abrazos finalizados; se amplió a los últimos 365 días."
-                    : "Ranking por abrazos finalizados (fechaHoraFin en el período). No es ranking de asistencias/fichajes.",
+                orden = menos ? "de MENOS a más abrazos (la primera es la que menos dio)" : "de MÁS a menos abrazos (la primera es la que más dio)",
+                aclaracion = (amplio
+                    ? "El rango pedido no tenía abrazos finalizados; se amplió a los últimos 365 días. "
+                    : "Ranking por abrazos finalizados (fechaHoraFin en el período). No es ranking de asistencias/fichajes. ") +
+                    (menos ? "Solo aparecen las que dieron al menos un abrazo en el período. Es un dato de actividad, no una evaluación de la persona." : ""),
                 ranking.FechaInicio,
                 ranking.FechaFin,
-                ranking.Top,
+                Top = top,
                 rangoAmpliado = amplio,
-                totalVoluntarias = ranking.Ranking.Count,
-                ranking.Ranking
+                totalVoluntariasConAbrazos = ranking.Ranking.Count,
+                ranking = items
             };
         }
 

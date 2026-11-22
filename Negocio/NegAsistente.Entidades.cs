@@ -201,8 +201,72 @@ namespace ResimamisBackend.Negocio
                     ? todas.GroupBy(m => m.LocalidadDetalle?.nombre ?? "Sin localidad").Select(g => new { localidad = g.Key, cantidad = g.Count() })
                     : null,
                 total = lista.Count,
-                madres = lista.Take(MaxItemsLista).Select(MapearMadreBusqueda).ToList()
+                datosDeContacto = "Las listas no traen DNI ni teléfono: esos datos se dan solo de UNA mamá puntual (ficha_madre).",
+                madres = lista.Take(MaxItemsLista).Select(m => new { idMadre = m.IdMadre, nombre = m.Nombre, apellido = m.Apellido, localidad = m.LocalidadDetalle?.nombre, cantidadHijos = m.CantidadHijos }).ToList()
             };
+        }
+
+        // ---------- Intención de la pregunta (médica, juicio, escritura, contacto masivo) ----------
+
+        private static readonly Regex RegexMedicaFuerte = new(
+            @"\b(morir\w*|muere|muera|mueren|medicaci\w*|medicament\w*|remedio\w*|fiebre|dosis|pronostic\w*|sobreviv\w*|grave|gravedad|curar\w*|tratamiento\w*)\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RegexMedicaConBebe = new(@"\b(riesgo|salud|peligro)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RegexJuicio = new(@"\b(peor|peores|mejor|mejores|buena|bueno|mala|malo|vag[ao]s?|inutil\w*|confiable)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RegexPersona = new(@"\b(voluntari\w*|mama\w*|madre\w*|coordinador\w*|persona\w*|chica\w*)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RegexEscritura = new(
+            @"\b(borr[ae]|borrar|borren|borrame|elimin[ae]|eliminar|eliminame|modific[ae]|modificar|actualiz[ae]|actualizar|dar de (alta|baja)|dale de (alta|baja)|da de (alta|baja)|resetea|resetear|vacia|vaciar)\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RegexContacto = new(@"\b(dni|telefono\w*|celular\w*|direccion\w*|domicilio\w*|contacto\w*|mail\w*)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex RegexMasivo = new(@"\b(todas|todos|lista|listado|completo|cada una)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        public const string AvisoMedico = "No doy información médica ni pronósticos: eso lo responde el equipo médico de neonatología.";
+        public const string AvisoJuicio = "El sistema no evalúa a las personas; lo que sí puedo mostrarte son datos de actividad.";
+
+        private static bool EsPreguntaMedica(string pregunta)
+        {
+            var p = SinAcentos(pregunta);
+            return RegexMedicaFuerte.IsMatch(p) || (RegexMedicaConBebe.IsMatch(p) && p.Contains("beb"));
+        }
+
+        private static bool EsJuicioSobrePersona(string pregunta)
+        {
+            var p = SinAcentos(pregunta);
+            return RegexJuicio.IsMatch(p) && RegexPersona.IsMatch(p);
+        }
+
+        private static bool PideEscritura(string pregunta) => RegexEscritura.IsMatch(SinAcentos(pregunta));
+
+        private static bool PideContactoMasivo(string pregunta)
+        {
+            var p = SinAcentos(pregunta);
+            return RegexContacto.IsMatch(p) && RegexMasivo.IsMatch(p);
+        }
+
+        /// <summary>Notas para el modelo según lo que se detecta en la pregunta (null si no hay nada especial).</summary>
+        private static string? NotaDeIntencion(string pregunta)
+        {
+            var notas = new List<string>();
+            if (EsPreguntaMedica(pregunta))
+                notas.Add($"Es una pregunta médica o de pronóstico. Empezá con: \"{AvisoMedico}\" Después, si nombran a un bebé, ofrecé sus datos de Resimamis (sala, peso, abrazos). No vuelques conteos generales.");
+            if (EsJuicioSobrePersona(pregunta))
+                notas.Add($"Pide calificar a una persona. Empezá con: \"{AvisoJuicio}\" Si sirve, mostrá datos de actividad (ranking_abrazos_voluntarias, con orden='menos' si piden 'la peor' o 'la que menos').");
+            if (PideEscritura(pregunta))
+                notas.Add("Si te piden borrar, eliminar, modificar o dar de alta/baja algo: decí que el asistente solo consulta y que eso se hace desde la pantalla correspondiente. No muestres datos que no pidieron. Si preguntan CÓMO se hace, explicalo con guia_operativa. (Si no es un pedido de modificación, ignorá esta nota.)");
+            if (PideContactoMasivo(pregunta))
+                notas.Add("Pide datos de contacto de muchas personas: por privacidad no se listan juntos. Ofrecé buscar a UNA persona puntual.");
+            return notas.Count == 0 ? null : "Nota del sistema sobre esta pregunta: " + string.Join(" ", notas);
+        }
+
+        /// <summary>Si el modelo ignoró la nota, se agrega el aviso igual (médico y juicio son los que no pueden faltar).</summary>
+        private static string AjustarPorIntencion(string pregunta, string texto)
+        {
+            var t = SinAcentos(texto);
+            if (EsJuicioSobrePersona(pregunta) && !Regex.IsMatch(t, @"no (se )?(evalua|califica|juzga|puntua)", RegexOptions.IgnoreCase))
+                texto = AvisoJuicio + "\n\n" + texto;
+            if (EsPreguntaMedica(pregunta) && !t.Contains("medic"))
+                texto = AvisoMedico + "\n\n" + texto;
+            return texto;
         }
 
         // ---------- Afirmaciones que el sistema no registra ----------
@@ -210,13 +274,13 @@ namespace ResimamisBackend.Negocio
         /// <summary>Solo lo que devolvieron las herramientas (sin la pregunta: la pregunta puede traer una premisa falsa).</summary>
         private readonly System.Text.StringBuilder evidenciaHerramientas = new();
 
-        /// <summary>Muerte, enfermedad o diagnóstico: Resimamis no guarda nada de eso (una baja no dice el motivo).</summary>
+        /// <summary>Muerte, enfermedad o diagnóstico: solo vale si lo trajo una herramienta (ficha_bebe trae el diagnóstico de ingreso/egreso) (una baja no dice el motivo).</summary>
         private static readonly Regex RegexAfirmacionSensible = new(
             @"\b(fallec\w*|muert[oae]s?|muri[óo]|murieron|defunci\w*|[óo]bitos?|enferm[oa]s?|enfermedad\w*|diagn[óo]stic\w*)\b",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         internal const string AclaracionSinRegistro =
-            "Aclaración: Resimamis no registra fallecimientos, enfermedades ni diagnósticos. Que una persona esté dada de baja solo significa que ya no está activa en el sistema; no indica el motivo.";
+            "Aclaración: Resimamis no registra fallecimientos, enfermedades ni pronósticos (solo la ficha de cada bebé puede tener su diagnóstico de ingreso o egreso). Que una persona esté dada de baja solo significa que ya no está activa en el sistema; no indica el motivo.";
 
         /// <summary>
         /// Palabras de la respuesta sobre muerte/enfermedad que no salen de ninguna herramienta
