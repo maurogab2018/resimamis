@@ -164,4 +164,110 @@ public class NegAsistenteHerramientasTests
         Assert.Contains(lista, m => m.nombreBebe == "Mia" && m.apellidoBebe == "Acosta" && m.nombreMovimiento == "Salida de insumos");
         Assert.Contains(lista, m => m.nombreProveedor == "Farmacia Sur" && m.nombreMovimiento == "Entrada de insumos");
     }
+    [Fact]
+    public async Task LinkInventado_SeExigeConsultarYSeUsaElNombreReal()
+    {
+        var db = TestDb.Crear();
+        db.BEBE.Add(new BEBE { ID = 1, nombre = "Lucas", apellido = "González" });
+        db.SaveChanges();
+        var openAi = new OpenAiGuion(
+            () => Texto("Ingresaron: [Bebé 1](bebe:1)."),
+            () => Texto("Ingresó [Lucas González](bebe:1)."));
+
+        var r = await Crear(openAi, db).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "como se llaman los bebes que ingresaron" });
+
+        Assert.Equal(2, openAi.Cuerpos.Count);
+        Assert.Contains("[Lucas González](bebe:1)", r.Respuesta);
+        Assert.DoesNotContain("Bebé 1", r.Respuesta);
+    }
+
+    [Fact]
+    public async Task LinkInventado_SiInsiste_SeSacaElLinkYSeMarca()
+    {
+        var db = TestDb.Crear();
+        db.BEBE.Add(new BEBE { ID = 1, nombre = "Lucas", apellido = "González" });
+        db.SaveChanges();
+        var openAi = new OpenAiGuion(() => Texto("Ingresaron: [Bebé 1](bebe:1)."));
+
+        var r = await Crear(openAi, db).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "como se llaman los bebes que ingresaron" });
+
+        Assert.DoesNotContain("(bebe:1)", r.Respuesta);
+        Assert.Contains("Bebé 1 (sin verificar)", r.Respuesta);
+    }
+
+    [Theory]
+    [InlineData("[Lucas](bebe:1)")]
+    [InlineData("[Lucas González](bebe:1)")]
+    [InlineData("[lucas gonzalez](bebe:1)")]
+    public async Task LinkCorrecto_NoGastaOtraLlamada(string link)
+    {
+        var db = TestDb.Crear();
+        db.BEBE.Add(new BEBE { ID = 1, nombre = "Lucas", apellido = "González" });
+        db.SaveChanges();
+        var openAi = new OpenAiGuion(() => Texto($"El bebé es {link}."));
+
+        var r = await Crear(openAi, db).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "quien es lucas" });
+
+        Assert.Single(openAi.Cuerpos);
+        Assert.Contains(link, r.Respuesta);
+    }
+
+    [Fact]
+    public async Task PedidoDeBorrar_AclaraQueSoloConsulta()
+    {
+        var r = await Crear(new OpenAiGuion(() => Texto("Te muestro los bebés activos.")))
+            .Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "borra todos los bebes de la base" });
+        Assert.StartsWith(NegAsistente.AvisoSoloConsulta, r.Respuesta);
+    }
+
+    [Fact]
+    public async Task GuiaOperativa_ComoDarDeAltaUnaMama_ExplicaLaPantalla()
+    {
+        var openAi = new OpenAiGuion(() => Herramienta("guia_operativa", "{\"tema\":\"madres\"}"), () => Texto("listo"));
+        await Crear(openAi).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "como doy de alta una mama nueva" });
+        Assert.Contains("Nueva madre", ResultadoHerramienta(openAi));
+    }
+
+    [Fact]
+    public async Task BebesIngresados_TraeLosNombresReales()
+    {
+        var db = TestDb.Crear();
+        var hoy = DateTime.Today;
+        db.BEBE.AddRange(
+            new BEBE { ID = 1, nombre = "Lucas", apellido = "Gómez", FechaIngresoNEO = hoy.AddDays(-1) },
+            new BEBE { ID = 2, nombre = "Sol", apellido = "Ríos", FechaIngresoNEO = hoy.AddDays(-200), FechaSalida = hoy.AddDays(-2) });
+        db.SaveChanges();
+        var openAi = new OpenAiGuion(() => Herramienta("bebes_ingresados_egresados", "{\"periodo\":\"ultimos_7\"}"), () => Texto("listo"));
+
+        await Crear(openAi, db).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "que bebes ingresaron esta semana" });
+
+        var resultado = ResultadoHerramienta(openAi);
+        Assert.Contains("\"totalIngresados\":1", resultado);
+        Assert.Contains("Lucas G", resultado);
+        Assert.Contains("\"totalEgresados\":1", resultado);
+    }
+
+    [Fact]
+    public void AbrazosDeUnaVoluntaria_ElTotalNoSeCortaEn50()
+    {
+        var db = TestDb.Crear();
+        db.VOLUNTARIA.Add(new VOLUNTARIA { IdVoluntaria = 9, Nombre = "Paula", Apellido = "Martínez", Mail = "p@x.com" });
+        var inicio = DateTime.UtcNow.AddDays(-100);
+        for (var i = 0; i < 70; i++)
+            db.ASIGNACION.Add(new ASIGNACION
+            {
+                idVoluntaria = 9, idBebe = 1, idEstado = 1,
+                fechaHoraAsignacion = inicio.AddHours(i), fechaHoraInicio = inicio.AddHours(i), fechaHoraFin = inicio.AddHours(i).AddMinutes(30)
+            });
+        db.SaveChanges();
+        var estados = new Mock<IEstadoRepositorio>();
+        estados.Setup(e => e.ObtenerIdEstadoEliminado(It.IsAny<string>())).Returns(999);
+        var repo = new DashboardRepositorio(db, estados.Object, Mock.Of<IBebeRepositorio>());
+
+        var r = repo.ObtenerAbrazosVoluntaria(9, null, null, null);
+
+        Assert.Equal(70, r.TotalAbrazos);
+        Assert.Equal(70, r.AbrazosFinalizados);
+        Assert.True(r.Abrazos.Count <= 50); // el detalle sigue limitado a los 50 más recientes
+    }
 }

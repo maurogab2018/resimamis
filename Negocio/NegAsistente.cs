@@ -340,6 +340,7 @@ namespace ResimamisBackend.Negocio
                 evidencia.Clear();
                 evidenciaHerramientas.Clear();
                 var corrigioPremisa = false;
+                var corrigioLinks = false;
                 foreach (var m in mensajes)
                     evidencia.AppendLine(m.Content);
 
@@ -434,7 +435,29 @@ namespace ResimamisBackend.Negocio
                                 continue;
                             }
                         }
-                        return ArmarRespuesta(AjustarPorIntencion(pregunta, ConAclaracionSiHaceFalta(texto)), usadas, preguntasHoy);
+
+                        // Links con nombres que no son de esa persona (ej. "[Bebé 1](bebe:1)"): nombres inventados.
+                        if (!corrigioLinks)
+                        {
+                            var malos = LinksQueNoCoinciden(texto);
+                            if (malos.Count > 0)
+                            {
+                                corrigioLinks = true;
+                                insistioActual = true;
+                                Console.WriteLine($"[asistente] links inventados ({string.Join(", ", malos.Take(5))}): exijo consultar.");
+                                mensajes.Add(new OpenAiMessage { Role = "assistant", Content = texto });
+                                mensajes.Add(new OpenAiMessage
+                                {
+                                    Role = "system",
+                                    Content = $"Estos nombres no coinciden con la persona real de ese id: {string.Join(", ", malos.Take(10))}. NO inventes nombres ni ids. " +
+                                              "Consultá la herramienta que trae esa lista (por ejemplo bebes_ingresados_egresados, listar_bebes, listar_voluntarias, listar_madres) " +
+                                              "y usá exactamente los nombres e ids que devuelve. Si no hay forma de obtenerlos, decí solo la cantidad."
+                                });
+                                toolChoice = "required";
+                                continue;
+                            }
+                        }
+                        return ArmarRespuesta(QuitarLinksInvalidos(AjustarPorIntencion(pregunta, ConAclaracionSiHaceFalta(texto))), usadas, preguntasHoy);
                     }
 
                     mensajes.Add(new OpenAiMessage
@@ -478,7 +501,7 @@ namespace ResimamisBackend.Negocio
                 var textoCierre = cierre.Choices[0].Message.Content?.Trim();
                 if (string.IsNullOrWhiteSpace(textoCierre))
                     return RespuestaDeRespaldo(pregunta, preguntasHoy, usadas);
-                return ArmarRespuesta(AjustarPorIntencion(pregunta, ConAclaracionSiHaceFalta(textoCierre)), usadas, preguntasHoy);
+                return ArmarRespuesta(QuitarLinksInvalidos(AjustarPorIntencion(pregunta, ConAclaracionSiHaceFalta(textoCierre))), usadas, preguntasHoy);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -748,6 +771,7 @@ namespace ResimamisBackend.Negocio
             Tool("visitas_hoy", "Visitas familiares de HOY (calendario Argentina): total, bebés visitados y detalle (visitante, familiar, bebé, hora). Usá esta para 'visitas de hoy'."),
             Tool("asignaciones_hoy", "Lista de asignaciones/abrazos del día HOY (bebe, voluntaria, estado, sala). Para detalle del día, no uses solo el contador de coordinacion_hoy."),
             ToolPeriodo("resumen_periodo", "KPIs del período: asignaciones, abrazos finalizados, visitas, promedios."),
+            ToolPeriodo("bebes_ingresados_egresados", "Bebés que INGRESARON al NEO y que EGRESARON en un período, con nombre, fecha y sala. Para '¿cuántos bebés ingresaron/egresaron este mes y cómo se llaman?'."),
             ToolPeriodo("asignaciones_por_dia", "ASIGNACIONES creadas por día en un rango (NO son abrazos finalizados: para 'cuántos abrazos hubo' usá resumen_periodo). NO detalle de hoy: para lista de hoy usá asignaciones_hoy)."),
             ToolPeriodo("visitas_periodo", "Estadísticas de visitas en un rango (NO para solo hoy: para hoy usá visitas_hoy). Total, por día, por familiar y por bebé (porBebe, de mayor a menor)."),
             ToolPeriodoOpcional("evolucion_peso", "Evolución de peso ingreso vs egreso (gramos): promedio, mínima y máxima ganancia."),
@@ -1113,7 +1137,7 @@ namespace ResimamisBackend.Negocio
                             tema = new
                             {
                                 type = "string",
-                                description = "general | abrazos | asistencias | visitas | insumos | estados | asignaciones | cobertura"
+                                description = "general | abrazos | asistencias | visitas | insumos | estados | asignaciones | cobertura | altas (cómo cargar mamá, bebé, voluntaria, visita o movimiento)"
                             }
                         }
                     }
@@ -1232,6 +1256,7 @@ namespace ResimamisBackend.Negocio
                     "visitas_hoy" => Json(ResumirVisitasHoy()),
                     "asignaciones_hoy" => Json(ResumirAsignacionesHoy()),
                     "resumen_periodo" => Json(negDashboard.ObtenerResumen(Desde(args), Hasta(args))),
+                    "bebes_ingresados_egresados" => Json(BebesIngresadosEgresados(Desde(args), Hasta(args))),
                     "asignaciones_por_dia" => Json(AsignacionesPorDia(Desde(args), Hasta(args))),
                     "visitas_periodo" => Json(ResumirVisitasPeriodo(Desde(args), Hasta(args))),
                     "evolucion_peso" => Json(ResumirPeso(negDashboard.ObtenerEvolucionPesoBebes(DesdeOpcional(args), HastaOpcional(args)))),
@@ -1796,6 +1821,8 @@ namespace ResimamisBackend.Negocio
                 reporte.FechaFin,
                 idVoluntariaFiltro = idVol,
                 totalFichajes = registros.Count,
+                totalHorasFichadas = Math.Round(registros.Sum(r => r.DuracionMinutos ?? 0) / 60.0, 1),
+                notaHoras = "totalHorasFichadas suma TODAS las asistencias del período con salida registrada (las que no tienen salida no suman).",
                 voluntariasDistintas = registros.Select(r => r.IdVoluntaria).Distinct().Count(),
                 porVoluntaria,
                 muestra = registros
@@ -2251,8 +2278,24 @@ namespace ResimamisBackend.Negocio
                 {
                     queEs = "Porcentaje de bebés activos con al menos un abrazo FINALIZADO hoy, más la lista de quienes todavía no lo recibieron.",
                     tool = "cobertura_hoy"
+                },
+                ["altas"] = new
+                {
+                    queEs = "Cómo se cargan datos nuevos. El asistente NO los carga: se hace desde cada pantalla del menú.",
+                    mamaYBebe = "Menú Madres → 'Nueva madre': se cargan los datos de la mamá y, en el mismo formulario, su bebé ('Nuevo bebé').",
+                    bebeDeMamaExistente = "Menú Bebés → 'Registrar bebé', eligiendo a la mamá que ya está cargada.",
+                    voluntaria = "Menú Voluntarias → 'Nueva voluntaria' (solo coordinadoras). Recibe un mail de bienvenida para entrar.",
+                    visita = "Perfil del bebé → sección Visitas → 'Nueva visita'.",
+                    insumos = "Menú Insumos → 'Registrar movimiento' (entrada o salida de stock) o 'Agregar insumo' para uno nuevo del catálogo.",
+                    bajas = "Desde el perfil de la mamá, del bebé o de la voluntaria. Un bebé se da de baja cuando egresa del NEO."
                 }
             };
+
+            // "cómo doy de alta una mamá", "registrar bebé", "cargar voluntaria" → altas.
+            var temaPlano = SinAcentos(tema);
+            if (new[] { "alta", "registr", "cargar", "nuev", "madre", "mama", "bebe", "voluntari", "baja", "agregar" }.Any(temaPlano.Contains)
+                && !textos.ContainsKey(tema))
+                tema = "altas";
 
             tema = ElegirOpcion(tema, textos.Keys.ToArray()) ?? tema;
             if (textos.TryGetValue(tema, out var elegido))
@@ -2674,8 +2717,9 @@ namespace ResimamisBackend.Negocio
             }
 
             var items = menos
-                ? ranking.Ranking.OrderBy(r => r.CantidadAbrazosFinalizados).ThenBy(r => r.NombreVoluntaria).Take(top).ToList()
-                : ranking.Ranking;
+                ? ranking.Ranking.OrderBy(r => r.CantidadAbrazosFinalizados).ThenBy(r => r.NombreVoluntaria).Take(top)
+                    .Select((r, i) => (object)new { puesto = i + 1, r.IdVoluntaria, r.NombreVoluntaria, r.CantidadAbrazosFinalizados }).ToList()
+                : ranking.Ranking.Cast<object>().ToList();
 
             return new
             {

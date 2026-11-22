@@ -356,6 +356,11 @@ namespace ResimamisBackend.Datos
             if (inicioUtc.HasValue && finUtcExclusivo.HasValue)
                 q = q.Where(a => a.fechaHoraAsignacion >= inicioUtc && a.fechaHoraAsignacion < finUtcExclusivo);
 
+            // Los totales cuentan TODO el período; la lista de detalle sigue limitada a los 50 más recientes
+            // (antes el total salía de la lista y nunca pasaba de 50).
+            var totalAbrazos = q.Count();
+            var totalFinalizados = q.Count(a => a.fechaHoraInicio != null && a.fechaHoraFin != null && !a.cierreAutomatico);
+
             var asignaciones = q
                 .OrderByDescending(a => a.fechaHoraAsignacion)
                 .ThenByDescending(a => a.idAsignacion)
@@ -393,8 +398,8 @@ namespace ResimamisBackend.Datos
                 FechaFin = finUtcExclusivo.HasValue
                     ? NegConversorFecha.FechaCalendarioArgentina(finUtcExclusivo.Value.AddTicks(-1))
                     : null,
-                TotalAbrazos = abrazos.Count,
-                AbrazosFinalizados = abrazos.Count(a => a.FechaHoraInicio.HasValue && a.FechaHoraFin.HasValue && !a.CierreAutomatico),
+                TotalAbrazos = totalAbrazos,
+                AbrazosFinalizados = totalFinalizados,
                 Abrazos = abrazos
             };
         }

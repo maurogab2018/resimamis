@@ -222,6 +222,7 @@ namespace ResimamisBackend.Negocio
 
         public const string AvisoMedico = "No doy información médica ni pronósticos: eso lo responde el equipo médico de neonatología.";
         public const string AvisoJuicio = "El sistema no evalúa a las personas; lo que sí puedo mostrarte son datos de actividad.";
+        public const string AvisoSoloConsulta = "El asistente solo consulta datos: no puede borrar ni modificar nada. Eso se hace desde la pantalla correspondiente del menú.";
 
         private static bool EsPreguntaMedica(string pregunta)
         {
@@ -264,6 +265,8 @@ namespace ResimamisBackend.Negocio
             var t = SinAcentos(texto);
             if (EsJuicioSobrePersona(pregunta) && !Regex.IsMatch(t, @"no (se )?(evalua|califica|juzga|puntua)", RegexOptions.IgnoreCase))
                 texto = AvisoJuicio + "\n\n" + texto;
+            if (PideEscritura(pregunta) && !Regex.IsMatch(t, @"solo (puedo |puede )?consult|no (puedo|puede|podes) (borrar|eliminar|modificar|dar|hacer)|no tengo permiso", RegexOptions.IgnoreCase))
+                texto = AvisoSoloConsulta + "\n\n" + texto;
             if (EsPreguntaMedica(pregunta) && !t.Contains("medic"))
                 texto = AvisoMedico + "\n\n" + texto;
             return texto;

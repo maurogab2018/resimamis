@@ -346,6 +346,34 @@ namespace ResimamisBackend.Negocio
             };
         }
 
+        /// <summary>Bebés que ingresaron / egresaron en el período, con nombre (antes el modelo inventaba "Bebé 1, Bebé 2").</summary>
+        private object BebesIngresadosEgresados(DateTime desde, DateTime hasta)
+        {
+            var d = desde.Date;
+            var h = hasta.Date.AddDays(1);
+            var ingresados = db.BEBE
+                .Where(b => b.FechaIngresoNEO >= d && b.FechaIngresoNEO < h)
+                .Select(b => new { idBebe = b.ID, nombre = ((b.nombre ?? "") + " " + (b.apellido ?? "")).Trim(), fechaIngreso = b.FechaIngresoNEO, sala = b.Sala != null ? b.Sala.Nombre : null, yaEgreso = b.FechaSalida != null })
+                .OrderBy(b => b.fechaIngreso)
+                .ToList();
+            var egresados = db.BEBE
+                .Where(b => b.FechaSalida >= d && b.FechaSalida < h)
+                .Select(b => new { idBebe = b.ID, nombre = ((b.nombre ?? "") + " " + (b.apellido ?? "")).Trim(), fechaEgreso = b.FechaSalida, sala = b.Sala != null ? b.Sala.Nombre : null })
+                .OrderBy(b => b.fechaEgreso)
+                .ToList();
+            return new
+            {
+                criterio = "bebes_ingresados_egresados",
+                fechaInicio = DateOnly.FromDateTime(d),
+                fechaFin = DateOnly.FromDateTime(hasta.Date),
+                totalIngresados = ingresados.Count,
+                ingresados = ingresados.Take(MaxItemsLista),
+                totalEgresados = egresados.Count,
+                egresados = egresados.Take(MaxItemsLista),
+                aclaracion = "Usá EXACTAMENTE estos nombres e ids. Nunca inventes nombres."
+            };
+        }
+
         private object RankingBebesAbrazos(JsonDocument args)
         {
             var desde = Desde(args, 364);
