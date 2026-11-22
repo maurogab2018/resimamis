@@ -548,7 +548,7 @@ namespace ResimamisBackend.Negocio
 
         /// <summary>Palabras que solo pueden ser de Resimamis: si aparecen, la pregunta NO es un tema ajeno.</summary>
         private static readonly System.Text.RegularExpressions.Regex RegexTemaResimamis = new(
-            @"\b(tareas?|bebes?|bbs?|beba|voluntari\w*|coordinador\w*|mam[aá]s?|madres?|insumos?|stock|abrazos?|visitas?|salas?|proveedor\w*|fich\w*|asistencias?|turnos?|asignaci\w*|neo|ucin|chupetes?|pa[ñn]ales|toallitas|leche|egres\w*|ingres\w*)\b",
+            @"\b(resimamis|tareas?|bebes?|bbs?|beba|voluntari\w*|coordinador\w*|mam[aá]s?|madres?|insumos?|stock|abrazos?|visitas?|salas?|proveedor\w*|fich\w*|asistencias?|turnos?|asignaci\w*|neo|ucin|chupetes?|pa[ñn]ales|toallitas|leche|egres\w*|ingres\w*)\b",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
         private static readonly System.Text.RegularExpressions.Regex RegexRechazoAjeno = new(

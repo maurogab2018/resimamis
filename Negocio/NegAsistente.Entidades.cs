@@ -343,7 +343,9 @@ namespace ResimamisBackend.Negocio
                 var sinMiles = Regex.IsMatch(crudo, @"^\d{1,3}([.,]\d{3})+$") ? Regex.Replace(crudo, "[.,]", "") : crudo;
                 if (!decimal.TryParse(sinMiles.Replace(',', '.'), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var valor))
                     continue;
-                if (valor <= 10 || (valor >= 1990 && valor <= 2100 && valor == Math.Floor(valor)))
+                // Un año solo vale si aparece en la evidencia ("Resimamis fue creado en 2021" era inventado).
+                var esAnio = valor >= 1900 && valor <= 2100 && valor == Math.Floor(valor);
+                if (valor <= 10 || (esAnio && fuente.Contains(crudo)))
                 {
                     respaldados.Add(valor);
                     continue;

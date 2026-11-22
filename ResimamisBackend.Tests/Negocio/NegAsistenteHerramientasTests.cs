@@ -55,7 +55,7 @@ public class NegAsistenteHerramientasTests
         };
 
     private static NegAsistente Crear(OpenAiGuion openAi, ApplicationDbContext? db = null,
-        INegDashboard? dashboard = null, INegMadres? madres = null)
+        INegDashboard? dashboard = null, INegMadres? madres = null, INegBebes? bebes = null)
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -63,7 +63,7 @@ public class NegAsistenteHerramientasTests
             ["Asistente:ApiKey"] = "sk-test",
             ["Asistente:MaxPreguntasDia"] = "0",
         }).Build();
-        return new NegAsistente(config, Mock.Of<INegUsuarios>(), dashboard ?? Mock.Of<INegDashboard>(), Mock.Of<INegBebes>(),
+        return new NegAsistente(config, Mock.Of<INegUsuarios>(), dashboard ?? Mock.Of<INegDashboard>(), bebes ?? Mock.Of<INegBebes>(),
             Mock.Of<INegInsumos>(), Mock.Of<INegAsistencia>(), Mock.Of<INegVoluntaria>(), Mock.Of<INegAsignacion>(),
             Mock.Of<INegVisitas>(), madres ?? Mock.Of<INegMadres>(), Mock.Of<INegSalas>(), Mock.Of<INegTareas>(),
             Mock.Of<INegProveedores>(), Mock.Of<INegGenericos>(), Mock.Of<INegRegistroActividad>(),
@@ -348,5 +348,75 @@ public class NegAsistenteHerramientasTests
         Assert.Contains("\"terminadas\":1", resultado);
         Assert.Contains("\"enCurso\":1", resultado);
         Assert.Contains("\"pendientes\":1", resultado);
+    }
+    [Fact]
+    public async Task AbrazosBebe_ElUltimoAbrazoRealNoEsUnCierreAutomatico()
+    {
+        var ayer = DateTime.UtcNow.AddDays(-1);
+        var hace3 = DateTime.UtcNow.AddDays(-3);
+        var dashboard = new Mock<INegDashboard>();
+        dashboard.Setup(d => d.ObtenerAbrazosBebeHistorial(16, It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .Returns(new AbrazosBebeDashboardRespuesta
+            {
+                IdBebe = 16,
+                Abrazos = new()
+                {
+                    new() { NombreVoluntaria = "Soledad Ibañez", FechaHoraAsignacion = ayer, FechaHoraInicio = ayer, FechaHoraFin = ayer, CierreAutomatico = true },
+                    new() { NombreVoluntaria = "Paula Martinez", FechaHoraAsignacion = hace3, FechaHoraInicio = hace3, FechaHoraFin = hace3.AddMinutes(40), DuracionMinutos = 40 },
+                    new() { NombreVoluntaria = "Soledad Ibañez", FechaHoraAsignacion = hace3.AddDays(-1), FechaHoraInicio = hace3.AddDays(-1), FechaHoraFin = hace3.AddDays(-1).AddMinutes(30), DuracionMinutos = 30 },
+                    new() { NombreVoluntaria = "Soledad Ibañez", FechaHoraAsignacion = hace3.AddDays(-2), FechaHoraInicio = hace3.AddDays(-2), FechaHoraFin = hace3.AddDays(-2).AddMinutes(30), DuracionMinutos = 30 },
+                }
+            });
+        var openAi = new OpenAiGuion(() => Herramienta("abrazos_bebe", "{\"id_bebe\":16}"), () => Texto("listo"));
+
+        await Crear(openAi, dashboard: dashboard.Object).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "quien abrazo a mia la ultima vez" });
+
+        var resultado = ResultadoHerramienta(openAi);
+        var ultimo = resultado[(resultado.IndexOf("\"ultimoAbrazoReal\"") + 1)..];
+        Assert.StartsWith("ultimoAbrazoReal\":{", ultimo);
+        Assert.Contains("Paula Martinez", ultimo[..200]);
+        Assert.Contains("{\"voluntaria\":\"Soledad Iba", resultado[resultado.IndexOf("\"porVoluntaria\"")..]);
+        Assert.Contains("\"abrazos\":2", resultado[resultado.IndexOf("\"porVoluntaria\"")..]);
+    }
+
+    [Fact]
+    public async Task ListarBebes_LaSalaDeUnBebeYPesoAlNacer()
+    {
+        var neoA = new SALA { IdSala = 1, Nombre = "NEO A" };
+        var ucin = new SALA { IdSala = 2, Nombre = "UCIN 1" };
+        var bebes = new Mock<INegBebes>();
+        bebes.Setup(b => b.listarBebes()).Returns(new List<BEBE>
+        {
+            new() { ID = 16, nombre = "Mia", apellido = "Acosta", Sala = ucin, PesoNacimiento = 1320 },
+            new() { ID = 17, nombre = "Leo", apellido = "Paz", Sala = ucin, PesoNacimiento = 2400 },
+            new() { ID = 18, nombre = "Ana", apellido = "Gil", Sala = neoA, PesoNacimiento = 1100 },
+        });
+        var openAi = new OpenAiGuion(
+            () => Herramienta("listar_bebes", "{\"filtro_sala\":\"mia\"}"),
+            () => Herramienta("listar_bebes", "{\"peso_nacimiento_menor_a\":1500}"),
+            () => Texto("listo"));
+
+        await Crear(openAi, bebes: bebes.Object).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "que bebes estan en la sala de mia" });
+
+        var salaDeMia = System.Text.RegularExpressions.Regex.Unescape(openAi.Cuerpos[1]);
+        Assert.Contains("\"total\":2", salaDeMia[salaDeMia.LastIndexOf("\"role\":\"tool\"")..]);
+        var livianos = System.Text.RegularExpressions.Regex.Unescape(openAi.Cuerpos[2]);
+        var ultimoTool = livianos[livianos.LastIndexOf("\"role\":\"tool\"")..];
+        Assert.Contains("\"total\":2", ultimoTool);
+        Assert.DoesNotContain("Leo", ultimoTool);
+    }
+
+    [Fact]
+    public async Task Prompt_TraeElCalendarioConDiasDeLaSemana()
+    {
+        var openAi = new OpenAiGuion(() => Texto("listo"));
+        await Crear(openAi).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "a que hora ficho paula el lunes" });
+
+        var prompt = System.Text.RegularExpressions.Regex.Unescape(openAi.Cuerpos[0]);
+        var hoy = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Argentina Standard Time")));
+        var dias = new[] { "domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado" };
+        var ayer = hoy.AddDays(-1);
+        Assert.Contains($"{dias[(int)ayer.DayOfWeek]} {ayer:yyyy-MM-dd}", prompt);
+        Assert.Contains("Calendario de los últimos días", prompt);
     }
 }

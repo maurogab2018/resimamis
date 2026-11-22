@@ -518,4 +518,24 @@ public class NegAsistenteRobustezTests
         await Preguntar(Crear(openAi), pregunta);
         Assert.Contains(esperado, openAi.Cuerpos[0]);
     }
+    [Fact]
+    public async Task AnioInventado_SinHerramientas_ObligaAConsultar()
+    {
+        var openAi = new OpenAiFalso(
+            () => Texto("Resimamis fue creado en 2021."),
+            () => Texto("El sistema no guarda cuándo se creó Resimamis."));
+        var r = await Preguntar(Crear(openAi), "cuantos años tiene resimamis");
+
+        Assert.Equal(2, openAi.Llamadas);
+        Assert.DoesNotContain("2021", r.Respuesta);
+    }
+
+    [Fact]
+    public async Task AnioDeHoy_NoSeConsideraInventado()
+    {
+        var anio = DateTime.UtcNow.Year.ToString();
+        var openAi = new OpenAiFalso(() => Texto($"Estamos en {anio} y el programa sigue activo."));
+        await Preguntar(Crear(openAi), "en que año estamos");
+        Assert.Equal(1, openAi.Llamadas);
+    }
 }

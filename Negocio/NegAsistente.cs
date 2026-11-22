@@ -578,6 +578,14 @@ namespace ResimamisBackend.Negocio
             }
         }
 
+        private static readonly string[] DiasSemana = { "domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado" };
+
+        private static string DiaSemana(DateOnly d) => DiasSemana[(int)d.DayOfWeek];
+
+        /// <summary>"lunes 2026-11-16, martes 2026-11-17, ...": el modelo confundía el día de la semana ("el lunes 20" era viernes).</summary>
+        private static string CalendarioUltimosDias(DateOnly hoy) =>
+            string.Join(", ", Enumerable.Range(0, 8).Select(i => hoy.AddDays(-i)).Select(d => $"{DiaSemana(d)} {d:yyyy-MM-dd}"));
+
         private string PromptSistema()
         {
             var hoy = NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
@@ -597,6 +605,11 @@ namespace ResimamisBackend.Negocio
             - "Abrazos dados / hechos / que hubo" en un período = abrazos FINALIZADOS (resumen_periodo → abrazos finalizados). Las asignaciones NO son abrazos: si mostrás las dos, nombralas distinto.
             - "Tareas" es una sección de Resimamis (trabajos que hacen las voluntarias sin bebé): "¿cuántas tareas hay hoy?", "tareas pendientes" → tareas_periodo (periodo='hoy'); el catálogo de tareas → catalogos tipo='tareas'. Nunca digas que es un tema ajeno.
             - "¿Quién es el proveedor de X?" → movimientos_stock con periodo='ultimos_365' y mirá porInsumo[X].proveedoresQueLoEntregaron. El catálogo de proveedores NO dice qué insumo vende cada uno: nunca relaciones un proveedor con un insumo sin ese dato.
+            - Preguntas sobre Resimamis mismo ("¿qué es?", "¿quién lo creó?", "¿desde cuándo existe?", "¿cuántos usuarios tiene?"): NO es un tema ajeno. Usá guia_operativa (tema='general') y conteos_generales; si el dato puntual no está (ej. quién lo creó, en qué año empezó, cuántos años tiene), decí que el sistema no lo guarda y contá lo que sí es Resimamis. Nunca inventes fechas, años ni autores.
+            - "La sala de X" / "los bebés que están con X": primero buscá a X (buscar_bebes) para saber su sala y después listá esa sala. Nunca uses el nombre de una persona como nombre de sala.
+            - "¿Cuándo / quién fue el último abrazo de X?" y "¿qué voluntaria lo abrazó más?" → abrazos_bebe y usá ultimoAbrazoReal / porVoluntaria. Una asignación con cierre automático NO es un abrazo.
+            - "¿Cuánto engordó / aumentó X?" → ficha_bebe (gananciaDesdeIngresoNeoGramos). Nunca uses promedios del programa para una persona.
+            - "¿Qué día de la semana viene más gente?" → asistencias_periodo (porDiaDeLaSemana). Nunca cuentes días de la semana a mano.
             - Respondé SOLO lo que preguntaron. No agregues conteos, listas o "datos relevantes" que nadie pidió, ni recomendaciones ("te sugiero contactar...") salvo que las pidan.
             - Un seguimiento corto ("¿cuántos minutos en total?", "¿y cuándo fue el último?", "¿y la semana pasada?") habla de la MISMA persona o tema del mensaje anterior: consultá la herramienta de esa persona (abrazos_bebe / abrazos_voluntaria con su id), no el total general del programa.
             - "Bebés de la sala X" = listá sus nombres (listar_bebes con filtro_sala), no solo la cantidad.
@@ -663,7 +676,8 @@ namespace ResimamisBackend.Negocio
             - No uses links a páginas web.
 
             Contexto de fecha (obligatorio):
-            - Hoy en calendario Argentina es {hoy:yyyy-MM-dd}. Usá SIEMPRE esa fecha para "hoy".
+            - Hoy en calendario Argentina es {hoy:yyyy-MM-dd} ({DiaSemana(hoy)}). Usá SIEMPRE esa fecha para "hoy".
+            - Calendario de los últimos días (usalo para "el lunes", "el martes pasado", "anteayer"; no calcules días de la semana de memoria): {CalendarioUltimosDias(hoy)}.
             - Nunca uses la fecha UTC del servidor si difiere. Si una tool *_hoy ya trae la fecha, citá esa.
 
             Datos rápidos de Resimamis en este momento (usalos para conteos generales sin llamar herramientas; para listas y detalles sí usá herramientas):
@@ -965,7 +979,8 @@ namespace ResimamisBackend.Negocio
                         {
                             filtro_estado = new { type = "string", description = "Estado del bebé, ej. Sin abrazar / Asignado / Abrazado." },
                             filtro_sala = new { type = "string", description = "Nombre o parte del nombre de la sala." },
-                            texto = new { type = "string", description = "Nombre o apellido opcional." }
+                            texto = new { type = "string", description = "Nombre o apellido opcional." },
+                            peso_nacimiento_menor_a = new { type = "integer", description = "Solo bebés que nacieron con MENOS de estos gramos (ej. 1500). Cada bebé trae pesoNacimientoGramos." }
                         }
                     }
                 }
@@ -1368,8 +1383,24 @@ namespace ResimamisBackend.Negocio
 
             // Con los totales ya calculados, "¿cuántos minutos en total?" no termina en el total general del programa.
             var minutos = r.Abrazos.Sum(a => a.DuracionMinutos ?? 0);
+            // Un abrazo "real" empezó y terminó y no lo cerró el sistema solo (cierreAutomatico = nunca se dio).
+            var reales = r.Abrazos.Where(a => a.FechaHoraInicio.HasValue && a.FechaHoraFin.HasValue && !a.CierreAutomatico).ToList();
+            var ultimo = reales.OrderByDescending(a => a.FechaHoraFin).FirstOrDefault();
             return new
             {
+                aclaracion = "Para '¿cuándo / quién fue el último abrazo?' usá ultimoAbrazoReal. Las asignaciones con CierreAutomatico=true NO son abrazos (el sistema las cerró porque nunca se dieron). Para '¿qué voluntaria lo abrazó más?' usá porVoluntaria.",
+                ultimoAbrazoReal = ultimo == null ? null : new
+                {
+                    fecha = DateOnly.FromDateTime(NegConversorFecha.HoraArgentina(ultimo.FechaHoraFin!.Value)),
+                    horaInicio = NegConversorFecha.HoraArgentina(ultimo.FechaHoraInicio!.Value).ToString("HH:mm"),
+                    voluntaria = ultimo.NombreVoluntaria,
+                    duracionMinutos = Math.Round(ultimo.DuracionMinutos ?? 0)
+                },
+                porVoluntaria = reales
+                    .GroupBy(a => a.NombreVoluntaria)
+                    .Select(g => new { voluntaria = g.Key, abrazos = g.Count(), minutos = Math.Round(g.Sum(a => a.DuracionMinutos ?? 0)) })
+                    .OrderByDescending(x => x.abrazos)
+                    .ToList(),
                 r.IdBebe,
                 r.NombreBebe,
                 r.ApellidoBebe,
@@ -1516,6 +1547,7 @@ namespace ResimamisBackend.Negocio
                     ? Math.Max(0, HoyArgentina().DayNumber - DateOnly.FromDateTime(b.FechaNacimiento.Value.Date).DayNumber)
                     : (int?)null,
                 pesoActualGramos = b.PesoDiaAbrazos ?? b.PesoIngresoNEO ?? b.PesoNacimiento,
+                pesoNacimientoGramos = b.PesoNacimiento,
                 fechaIngresoNeo = b.FechaIngresoNEO,
                 fechaSalida = b.FechaSalida
             };
@@ -1554,6 +1586,10 @@ namespace ResimamisBackend.Negocio
                 pesoIngresoNeoGramos = b.PesoIngresoNEO,
                 pesoDiaAbrazosGramos = b.PesoDiaAbrazos,
                 pesoAltaGramos = b.PesoAlta,
+                // "¿Cuánto engordó?" = peso actual menos el de ingreso (antes mezclaba promedios del programa).
+                pesoActualGramos = b.PesoAlta ?? b.PesoDiaAbrazos ?? b.PesoIngresoNEO,
+                gananciaDesdeIngresoNeoGramos = (b.PesoAlta ?? b.PesoDiaAbrazos) - b.PesoIngresoNEO,
+                gananciaDesdeNacimientoGramos = (b.PesoAlta ?? b.PesoDiaAbrazos ?? b.PesoIngresoNEO) - b.PesoNacimiento,
                 diagnosticoIngreso = b.DiagnosticoIngreso,
                 diagnosticoEgreso = b.DiagnosticoEgreso,
                 sala = b.Sala?.Nombre,
@@ -1624,10 +1660,15 @@ namespace ResimamisBackend.Negocio
                     // "noe a", "ucim": se toma la sala existente más parecida.
                     var salas = antes.Select(b => b.Sala?.Nombre).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToArray();
                     var parecida = ElegirOpcion(sala, salas!);
-                    if (parecida != null)
+                    // "la sala de Mia": el modelo pasa el nombre del bebé como sala → se usa la sala de ese bebé.
+                    var deUnBebe = parecida == null
+                        ? antes.FirstOrDefault(b => CoincidePersona(b.nombre, b.apellido, sala))?.Sala?.Nombre
+                        : null;
+                    var elegida = parecida ?? deUnBebe;
+                    if (elegida != null)
                     {
-                        sala = parecida;
-                        q = antes.Where(b => b.Sala?.Nombre == parecida).ToList();
+                        sala = elegida;
+                        q = antes.Where(b => b.Sala?.Nombre == elegida).ToList();
                     }
                 }
             }
@@ -1635,6 +1676,9 @@ namespace ResimamisBackend.Negocio
             {
                 q = q.Where(b => CoincidePersona(b.nombre, b.apellido, texto));
             }
+            var pesoMax = LeerInt(args, "peso_nacimiento_menor_a");
+            if (pesoMax is > 0)
+                q = q.Where(b => b.PesoNacimiento.HasValue && b.PesoNacimiento.Value < pesoMax.Value);
 
             var filtrados = q.ToList();
             var items = filtrados
@@ -1865,6 +1909,7 @@ namespace ResimamisBackend.Negocio
                 reporte.FechaFin,
                 idVoluntariaFiltro = idVol,
                 totalFichajes = registros.Count,
+                porDiaDeLaSemana = registros.Where(r => r.FechaHoraIngreso.HasValue).GroupBy(r => (int)NegConversorFecha.HoraArgentina(r.FechaHoraIngreso!.Value).DayOfWeek).OrderBy(g => g.Key == 0 ? 7 : g.Key).Select(g => new { dia = DiasSemana[g.Key], fichajes = g.Count(), voluntariasDistintas = g.Select(r => r.IdVoluntaria).Distinct().Count() }).ToList(),
                 totalHorasFichadas = Math.Round(registros.Sum(r => r.DuracionMinutos ?? 0) / 60.0, 1),
                 notaHoras = "totalHorasFichadas suma TODAS las asistencias del período con salida registrada (las que no tienen salida no suman).",
                 voluntariasDistintas = registros.Select(r => r.IdVoluntaria).Distinct().Count(),
