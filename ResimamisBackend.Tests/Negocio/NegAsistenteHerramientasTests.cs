@@ -270,4 +270,35 @@ public class NegAsistenteHerramientasTests
         Assert.Equal(70, r.AbrazosFinalizados);
         Assert.True(r.Abrazos.Count <= 50); // el detalle sigue limitado a los 50 más recientes
     }
+    [Fact]
+    public async Task AbrazosDeUnBebe_TraeLosMinutosTotalesDeEseBebe()
+    {
+        var dashboard = new Mock<INegDashboard>();
+        dashboard.Setup(d => d.ObtenerAbrazosBebeHistorial(31, It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .Returns(new AbrazosBebeDashboardRespuesta
+            {
+                IdBebe = 31, NombreBebe = "Simón", ApellidoBebe = "Gómez", TotalAbrazos = 3, AbrazosFinalizados = 2,
+                Abrazos = new() { new() { DuracionMinutos = 30 }, new() { DuracionMinutos = 45.4 }, new() { DuracionMinutos = null } }
+            });
+        var openAi = new OpenAiGuion(() => Herramienta("abrazos_bebe", "{\"id_bebe\":31}"), () => Texto("listo"));
+
+        await Crear(openAi, dashboard: dashboard.Object).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "cuantos minutos en total?" });
+
+        var resultado = ResultadoHerramienta(openAi);
+        Assert.Contains("\"minutosTotalesDeAbrazo\":75", resultado);
+        Assert.Contains("\"promedioMinutosPorAbrazo\":37.7", resultado);
+    }
+    [Fact]
+    public async Task DuracionAbrazos_ConUnBebe_DevuelveLosMinutosDeEseBebe()
+    {
+        var dashboard = new Mock<INegDashboard>();
+        dashboard.Setup(d => d.ObtenerAbrazosBebeHistorial(31, It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .Returns(new AbrazosBebeDashboardRespuesta { IdBebe = 31, AbrazosFinalizados = 1, Abrazos = new() { new() { DuracionMinutos = 40 } } });
+        var openAi = new OpenAiGuion(() => Herramienta("duracion_abrazos", "{\"id_bebe\":31}"), () => Texto("listo"));
+
+        await Crear(openAi, dashboard: dashboard.Object).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "cuantos minutos en total?" });
+
+        Assert.Contains("\"minutosTotalesDeAbrazo\":40", ResultadoHerramienta(openAi));
+        dashboard.Verify(d => d.ObtenerDuracionAbrazos(It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Never);
+    }
 }

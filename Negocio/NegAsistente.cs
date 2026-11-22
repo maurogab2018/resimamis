@@ -595,6 +595,8 @@ namespace ResimamisBackend.Negocio
             - Nunca califiques a una persona ("la peor voluntaria", "¿es buena?", "¿es mala madre?"): aclará que el sistema no evalúa personas y ofrecé datos de actividad. Si piden "la que menos abrazos dio", ranking_abrazos_voluntarias con orden='menos'.
             - DNI, teléfono, celular o dirección: solo de UNA persona puntual que nombren. Nunca listes datos de contacto de muchas personas juntas ("dame el dni y teléfono de todas"): explicá que por privacidad se consultan de a una y ofrecé buscar a una persona.
             - "Abrazos dados / hechos / que hubo" en un período = abrazos FINALIZADOS (resumen_periodo → abrazos finalizados). Las asignaciones NO son abrazos: si mostrás las dos, nombralas distinto.
+            - Un seguimiento corto ("¿cuántos minutos en total?", "¿y cuándo fue el último?", "¿y la semana pasada?") habla de la MISMA persona o tema del mensaje anterior: consultá la herramienta de esa persona (abrazos_bebe / abrazos_voluntaria con su id), no el total general del programa.
+            - "Bebés de la sala X" = listá sus nombres (listar_bebes con filtro_sala), no solo la cantidad.
             - Si desglosás voluntarias por rol, mostrá TODOS los roles de voluntariasPorRol / totalPorRol, para que la suma dé el total.
             - No inventes explicaciones ni causas que los datos no dicen ("porque están todas ocupadas", "porque faltan voluntarias"). Si una lista viene vacía, decí que está vacía y ofrecé qué consultar.
             - No muestres estados internos de la base ("Creado", "Eliminado", "Activo/Inactivo" de un registro): un bebé "Eliminado" con fecha de salida es "egresado"; un insumo "Creado" es simplemente un insumo cargado (no lo menciones).
@@ -777,7 +779,26 @@ namespace ResimamisBackend.Negocio
             ToolPeriodoOpcional("evolucion_peso", "Evolución de peso ingreso vs egreso (gramos): promedio, mínima y máxima ganancia."),
             ToolPeriodoOpcional("ranking_abrazos_voluntarias", "Ranking de voluntarias por ABRAZOS FINALIZADOS (no fichajes). Sin fechas: últimos 365 días. Parámetro extra: top (1-20)."),
             ToolPeriodoOpcional("ranking_asistencias", "Ranking de voluntarias por FICHAJES de asistencia (ingresos al hospital, no abrazos). Sin fechas: últimos 365 días. Parámetro extra: top (1-20)."),
-            ToolPeriodoOpcional("duracion_abrazos", "Duración de abrazos finalizados: promedio, mínimo y máximo en minutos."),
+            new OpenAiTool
+            {
+                Function = new OpenAiFunction
+                {
+                    Name = "duracion_abrazos",
+                    Description = "Duración de abrazos finalizados (total, promedio, mínimo y máximo en minutos) de TODO el programa, o de UN bebé si pasás id_bebe/nombre_bebe. En un seguimiento sobre un bebé ('¿cuántos minutos en total?') pasá SIEMPRE el bebé del mensaje anterior.",
+                    Parameters = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            id_bebe = new { type = "integer", description = "Id del bebé (del link [Nombre](bebe:id) del historial)." },
+                            nombre_bebe = new { type = "string", description = "Nombre y apellido del bebé." },
+                            fecha_desde = new { type = "string", description = "Inicio yyyy-MM-dd (opcional)." },
+                            fecha_hasta = new { type = "string", description = "Fin yyyy-MM-dd (opcional)." },
+                            periodo = new { type = "string", description = "Alias: hoy, esta_semana, este_mes, mes_pasado, este_anio... (opcional)." }
+                        }
+                    }
+                }
+            },
             Tool("bebes_rango_edades", "Distribución de bebés activos por rango de edad en días."),
             Tool("bebes_permanencia", "Tiempo de permanencia en NEO de bebés activos (días desde ingreso)."),
             Tool("bebes_disponibles_abrazo", "Lista de bebés disponibles para abrazo HOY (sin abrazo iniciado). Solo lectura."),
@@ -1263,7 +1284,9 @@ namespace ResimamisBackend.Negocio
                     "ranking_abrazos_voluntarias" => Json(ResumirRankingAbrazos(Desde(args, 364), Hasta(args, 364), Top(args), PideMenos(args))),
                     "ranking_voluntarias" => Json(ResumirRankingAbrazos(Desde(args, 364), Hasta(args, 364), Top(args))),
                     "ranking_asistencias" => Json(ResumirRankingAsistencias(Desde(args, 364), Hasta(args, 364), Top(args))),
-                    "duracion_abrazos" => Json(negDashboard.ObtenerDuracionAbrazos(DesdeOpcional(args), HastaOpcional(args))),
+                    "duracion_abrazos" => (LeerInt(args, "id_bebe") ?? 0) > 0
+                        ? Json(AbrazosBebe(args))
+                        : Json(negDashboard.ObtenerDuracionAbrazos(DesdeOpcional(args), HastaOpcional(args))),
                     "bebes_rango_edades" => Json(negDashboard.ObtenerRangoEdadesBebes()),
                     "bebes_permanencia" => Json(negDashboard.ObtenerPermanenciaBebes()),
                     "bebes_disponibles_abrazo" => Json(ResumirBebesDisponiblesAbrazo()),
@@ -1334,12 +1357,27 @@ namespace ResimamisBackend.Negocio
                 return new { error = "Falta id_bebe." };
 
             var hoy = LeerBool(args, "hoy") == true;
-            if (hoy)
-                return negDashboard.ObtenerAbrazosBebeHoy(idBebe.Value);
+            var r = hoy
+                ? negDashboard.ObtenerAbrazosBebeHoy(idBebe.Value)
+                : negDashboard.ObtenerAbrazosBebeHistorial(idBebe.Value, DesdeOpcional(args), HastaOpcional(args));
 
-            var desde = DesdeOpcional(args);
-            var hasta = HastaOpcional(args);
-            return negDashboard.ObtenerAbrazosBebeHistorial(idBebe.Value, desde, hasta);
+            // Con los totales ya calculados, "¿cuántos minutos en total?" no termina en el total general del programa.
+            var minutos = r.Abrazos.Sum(a => a.DuracionMinutos ?? 0);
+            return new
+            {
+                r.IdBebe,
+                r.NombreBebe,
+                r.ApellidoBebe,
+                r.FechaConsulta,
+                r.FechaInicio,
+                r.FechaFin,
+                r.TotalAbrazos,
+                r.AbrazosFinalizados,
+                minutosTotalesDeAbrazo = Math.Round(minutos),
+                horasTotalesDeAbrazo = Math.Round(minutos / 60.0, 1),
+                promedioMinutosPorAbrazo = r.AbrazosFinalizados > 0 ? Math.Round(minutos / r.AbrazosFinalizados, 1) : 0,
+                r.Abrazos
+            };
         }
 
         private object AbrazosVoluntaria(JsonDocument args)

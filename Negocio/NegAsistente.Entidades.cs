@@ -25,6 +25,7 @@ namespace ResimamisBackend.Negocio
         {
             ["ficha_bebe"] = ("bebe", "id_bebe", "nombre_bebe"),
             ["abrazos_bebe"] = ("bebe", "id_bebe", "nombre_bebe"),
+            ["duracion_abrazos"] = ("bebe", "id_bebe", "nombre_bebe"),
             ["visitas_bebe"] = ("bebe", "id_bebe", "nombre_bebe"),
             ["ficha_voluntaria"] = ("voluntaria", "id_voluntaria", "nombre_voluntaria"),
             ["abrazos_voluntaria"] = ("voluntaria", "id_voluntaria", "nombre_voluntaria"),
