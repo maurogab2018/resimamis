@@ -433,4 +433,37 @@ public class NegAsistenteRobustezTests
         var r = await neg.Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "como viene el dia" });
         Assert.Contains("Resimamis", r.Respuesta);
     }
+
+    [Fact]
+    public async Task PremisaFalsa_NoRepiteQueLasMadresMurieron()
+    {
+        var openAi = new OpenAiFalso(
+            () => Texto("Hay 7 madres dadas de baja y todas han fallecido."),
+            () => Texto("Hay 7 madres dadas de baja. El sistema solo indica que ya no están activas."));
+        var r = await Preguntar(Crear(openAi), "madres muertas hay 8");
+
+        Assert.Equal(2, openAi.Llamadas);
+        Assert.DoesNotContain("fallec", r.Respuesta, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("NO registra fallecimientos", openAi.Cuerpos[1]);
+    }
+
+    [Fact]
+    public async Task PremisaFalsa_SiInsiste_SeAgregaLaAclaracion()
+    {
+        var openAi = new OpenAiFalso(() => Texto("Las madres dadas de baja murieron."));
+        var r = await Preguntar(Crear(openAi), "madres muertas");
+
+        Assert.Equal(2, openAi.Llamadas);
+        Assert.Contains("no registra fallecimientos", r.Respuesta);
+    }
+
+    [Fact]
+    public async Task RespuestaQueYaAclara_NoGastaOtraLlamada()
+    {
+        var openAi = new OpenAiFalso(() => Texto("Resimamis no registra fallecimientos; solo sabe qué madres están dadas de baja."));
+        var r = await Preguntar(Crear(openAi), "cuantas madres muertas hay");
+
+        Assert.Equal(1, openAi.Llamadas);
+        Assert.DoesNotContain("Aclaración", r.Respuesta);
+    }
 }

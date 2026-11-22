@@ -193,7 +193,7 @@ namespace ResimamisBackend.Negocio
         // ---------- Tope de uso ----------
 
         /// <summary>Preguntas por usuaria y por día (Asistente:MaxPreguntasDia). 0 = sin tope.</summary>
-        private int LimiteDiario() => Math.Max(0, configuration.GetValue("Asistente:MaxPreguntasDia", 30));
+        private int LimiteDiario() => Math.Max(0, ParametroEntero("Asistente.MaxPreguntasDia", configuration.GetValue("Asistente:MaxPreguntasDia", 150)));
 
         private static DateOnly HoyArgentina() => NegConversorFecha.FechaCalendarioArgentina(DateTime.UtcNow);
 
@@ -335,6 +335,8 @@ namespace ResimamisBackend.Negocio
                 mensajes.Add(new OpenAiMessage { Role = "user", Content = pregunta });
                 // Lo que el modelo "sabe" en esta pregunta: contra esto se verifican los números de la respuesta.
                 evidencia.Clear();
+                evidenciaHerramientas.Clear();
+                var corrigioPremisa = false;
                 foreach (var m in mensajes)
                     evidencia.AppendLine(m.Content);
 
@@ -407,7 +409,29 @@ namespace ResimamisBackend.Negocio
                                 continue;
                             }
                         }
-                        return ArmarRespuesta(texto, usadas, preguntasHoy);
+
+                        // Afirmó muertes/enfermedades que ningún dato respalda (suele venir de la pregunta): se corrige una vez.
+                        if (!corrigioPremisa)
+                        {
+                            var sensibles = PremisaSinRespaldo(texto);
+                            if (sensibles.Count > 0)
+                            {
+                                corrigioPremisa = true;
+                                insistioActual = true;
+                                Console.WriteLine($"[asistente] afirmación sin respaldo ({string.Join(", ", sensibles)}): pido corregir.");
+                                mensajes.Add(new OpenAiMessage { Role = "assistant", Content = texto });
+                                mensajes.Add(new OpenAiMessage
+                                {
+                                    Role = "system",
+                                    Content = $"Tu respuesta dice '{string.Join("', '", sensibles)}', pero ningún dato de Resimamis lo respalda: el sistema NO registra fallecimientos, " +
+                                              "enfermedades ni diagnósticos, y una baja no indica el motivo. No aceptes lo que afirma la pregunta si los datos no lo dicen. " +
+                                              "Reescribí la respuesta: aclará que el sistema no guarda ese dato y mostrá solo lo que sí devolvieron las herramientas " +
+                                              "(por ejemplo, las bajas con su fecha y quién la registró). Si la pregunta traía un número distinto al real, corregilo."
+                                });
+                                continue;
+                            }
+                        }
+                        return ArmarRespuesta(ConAclaracionSiHaceFalta(texto), usadas, preguntasHoy);
                     }
 
                     mensajes.Add(new OpenAiMessage
@@ -426,6 +450,7 @@ namespace ResimamisBackend.Negocio
                         var resultado = errorPersona ?? EjecutarHerramienta(nombre, argumentos);
                         AnotarPersonas(resultado);
                         evidencia.AppendLine(resultado);
+                        evidenciaHerramientas.AppendLine(resultado);
                         Console.WriteLine($"[tool] {nombre} {argumentos ?? call.Function?.Arguments} → {(resultado.Length > 160 ? resultado[..160] + "…" : resultado)}");
                         mensajes.Add(new OpenAiMessage
                         {
@@ -450,7 +475,7 @@ namespace ResimamisBackend.Negocio
                 var textoCierre = cierre.Choices[0].Message.Content?.Trim();
                 if (string.IsNullOrWhiteSpace(textoCierre))
                     return RespuestaDeRespaldo(pregunta, preguntasHoy, usadas);
-                return ArmarRespuesta(textoCierre, usadas, preguntasHoy);
+                return ArmarRespuesta(ConAclaracionSiHaceFalta(textoCierre), usadas, preguntasHoy);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -537,6 +562,8 @@ namespace ResimamisBackend.Negocio
             Reglas que no se rompen nunca:
             - SIEMPRE respondé algo útil y referido a Resimamis. Nunca contestes solo "no entiendo" ni "no puedo".
             - Ante la duda, CONSULTÁ una herramienta antes de responder. Es mejor consultar de más que inventar o rendirse.
+            - NUNCA aceptes lo que afirma la pregunta si los datos no lo respaldan. Si dice "hay 8" y el dato da 7, corregilo ("Son 7, no 8"). Si da por hecho algo que el sistema no registra, aclaralo en vez de repetirlo.
+            - Resimamis NO registra fallecimientos, enfermedades, diagnósticos ni el motivo de baja de una mamá o una voluntaria. "Dada de baja" solo significa que ya no está activa en el sistema; un bebé dado de baja es un egreso del NEO. Nunca digas que alguien murió, falleció o está enfermo. Si lo preguntan ("madres muertas", "bebés fallecidos"), decí que el sistema no guarda ese dato y ofrecé lo que sí hay (historial_bajas: quién fue dada de baja, cuándo y quién lo registró).
             - Las coordinadoras escriben rápido: abreviado, sin acentos, sin signos y con errores. Interpretá siempre la intención: "volunt libs hoy" = voluntarias libres hoy; "bbs" / "bbes" = bebés; "asist" = asistencias; "abz" / "abr" = abrazos; "vis" = visitas; "coord" = coordinadoras; "stk" = stock; "q" = qué; "cuants" = cuántos; "x" = por. Nunca pidas que reformule si se puede adivinar.
             - Palabra suelta, con error de tipeo o sin contexto ("chupte", "pañal", "leche", "gasas"): probablemente es un insumo → stock_insumos con ese texto. Si es un nombre de persona → buscar_bebes / buscar_voluntarias / buscar_madres.
             - "¿Cuántos X hay?" / "¿hay X?": si X puede ser un insumo → stock_insumos; bebés, voluntarias, coordinadoras, mamás, salas o insumos en general → los "Datos rápidos" de abajo o conteos_generales; para nombres → listar_bebes / listar_voluntarias (filtro_rol='coordinadora') / buscar_madres.

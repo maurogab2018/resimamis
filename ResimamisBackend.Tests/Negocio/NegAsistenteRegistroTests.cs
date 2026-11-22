@@ -152,4 +152,29 @@ public class NegAsistenteRegistroTests
         Assert.DoesNotContain(bien, malas);
         Assert.Equal(3, conModelo.ObtenerRegistros(Dni, soloMalas: false, limite: 50).Count);
     }
+    [Fact]
+    public async Task TopeDiario_SeLeeDeLaTablaParametro()
+    {
+        var db = TestDb.Crear();
+        db.PARAMETRO.RemoveRange(db.PARAMETRO.Where(p => p.clave == "Asistente.MaxPreguntasDia"));
+        db.PARAMETRO.Add(new PARAMETRO { clave = "Asistente.MaxPreguntasDia", valor = "2" });
+        db.SaveChanges();
+
+        var r = await Preguntar(Crear(db, conClave: true), "hay chupetes?");
+        Assert.Equal(2, r.LimiteDiario);
+        await Preguntar(Crear(db, conClave: true), "y pañales?");
+        await Assert.ThrowsAsync<LimiteAsistenteException>(() => Preguntar(Crear(db, conClave: true), "y leche?"));
+    }
+
+    [Fact]
+    public async Task ParametroInvalido_UsaElValorPorDefecto()
+    {
+        var db = TestDb.Crear();
+        db.PARAMETRO.RemoveRange(db.PARAMETRO.Where(p => p.clave == "Asistente.MaxPreguntasDia"));
+        db.PARAMETRO.Add(new PARAMETRO { clave = "Asistente.MaxPreguntasDia", valor = "muchas" });
+        db.SaveChanges();
+
+        var r = await Preguntar(Crear(db, conClave: true), "hay chupetes?");
+        Assert.Equal(0, r.LimiteDiario); // cae a la config del test (0 = sin tope)
+    }
 }

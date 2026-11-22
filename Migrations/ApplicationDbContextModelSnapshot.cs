@@ -530,6 +530,46 @@ namespace ResimamisBackend.Migrations
                     b.ToTable("MOVIMIENTOSTOCK");
                 });
 
+            modelBuilder.Entity("ResimamisBackend.Datos.PARAMETRO", b =>
+                {
+                    b.Property<string>("clave")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("descripcion")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("valor")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.HasKey("clave");
+
+                    b.ToTable("PARAMETRO");
+
+                    b.HasData(
+                        new
+                        {
+                            clave = "Asistente.MaxPreguntasDia",
+                            descripcion = "Preguntas al asistente por usuaria y por día. 0 = sin tope.",
+                            valor = "150"
+                        },
+                        new
+                        {
+                            clave = "Asistente.MaxRegistros",
+                            descripcion = "Preguntas guardadas en ASISTENTEREGISTRO (se borran las más viejas).",
+                            valor = "1000"
+                        },
+                        new
+                        {
+                            clave = "Asistente.MaxRegistrosMalos",
+                            descripcion = "Preguntas calificadas como mal que se guardan aparte del tope general.",
+                            valor = "200"
+                        });
+                });
+
             modelBuilder.Entity("ResimamisBackend.Datos.PROVEEDOR", b =>
                 {
                     b.Property<int>("idProveedor")

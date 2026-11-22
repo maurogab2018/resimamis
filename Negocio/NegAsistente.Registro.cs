@@ -19,6 +19,31 @@ namespace ResimamisBackend.Negocio
         private bool insistioActual;
         private int tokensActual;
 
+        private readonly Dictionary<string, int> parametrosLeidos = new();
+
+        /// <summary>
+        /// Valor entero de la tabla PARAMETRO (se lee una vez por pedido). Si la clave no está,
+        /// no es un número o la base falla, se usa el valor por defecto: nunca rompe el chat.
+        /// </summary>
+        private int ParametroEntero(string clave, int porDefecto)
+        {
+            if (parametrosLeidos.TryGetValue(clave, out var guardado))
+                return guardado;
+            var valor = porDefecto;
+            try
+            {
+                var texto = db.PARAMETRO.AsNoTracking().Where(p => p.clave == clave).Select(p => p.valor).FirstOrDefault();
+                if (int.TryParse(texto?.Trim(), out var leido))
+                    valor = leido;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[asistente] no se pudo leer el parámetro {clave}: {ex.Message}");
+            }
+            parametrosLeidos[clave] = valor;
+            return valor;
+        }
+
         private static string Recortar(string? texto, int max)
         {
             texto ??= "";
@@ -61,15 +86,17 @@ namespace ResimamisBackend.Negocio
         {
             try
             {
+                var tope = Math.Max(1, ParametroEntero("Asistente.MaxRegistros", MaxRegistros));
+                var topeMalas = Math.Max(0, ParametroEntero("Asistente.MaxRegistrosMalos", MaxRegistrosMalos));
                 var viejas = db.ASISTENTEREGISTRO
                     .Where(r => r.calificacion == null || r.calificacion != -1)
                     .OrderByDescending(r => r.idAsistenteRegistro)
-                    .Skip(MaxRegistros)
+                    .Skip(tope)
                     .ToList();
                 var malasViejas = db.ASISTENTEREGISTRO
                     .Where(r => r.calificacion == -1)
                     .OrderByDescending(r => r.idAsistenteRegistro)
-                    .Skip(MaxRegistrosMalos)
+                    .Skip(topeMalas)
                     .ToList();
                 if (viejas.Count == 0 && malasViejas.Count == 0)
                     return;
@@ -108,7 +135,7 @@ namespace ResimamisBackend.Negocio
         public List<AsistenteRegistroItem> ObtenerRegistros(int dniSolicitante, bool soloMalas, int limite)
         {
             negUsuarios.ValidarCoordinadora(dniSolicitante);
-            limite = Math.Clamp(limite <= 0 ? 100 : limite, 1, MaxRegistros + MaxRegistrosMalos);
+            limite = Math.Clamp(limite <= 0 ? 100 : limite, 1, 5000);
 
             var query = db.ASISTENTEREGISTRO.AsNoTracking();
             if (soloMalas)

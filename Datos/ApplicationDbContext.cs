@@ -65,6 +65,8 @@ namespace ResimamisBackend.Datos
 
         public DbSet<ASISTENTEREGISTRO> ASISTENTEREGISTRO { get; set; }
 
+        public DbSet<PARAMETRO> PARAMETRO { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -205,6 +207,11 @@ namespace ResimamisBackend.Datos
             modelBuilder.Entity<ASISTENTEUSO>()
                 .HasIndex(u => new { u.dni, u.fecha })
                 .IsUnique();
+
+            modelBuilder.Entity<PARAMETRO>().HasData(
+                new PARAMETRO { clave = "Asistente.MaxPreguntasDia", valor = "150", descripcion = "Preguntas al asistente por usuaria y por día. 0 = sin tope." },
+                new PARAMETRO { clave = "Asistente.MaxRegistros", valor = "1000", descripcion = "Preguntas guardadas en ASISTENTEREGISTRO (se borran las más viejas)." },
+                new PARAMETRO { clave = "Asistente.MaxRegistrosMalos", valor = "200", descripcion = "Preguntas calificadas como mal que se guardan aparte del tope general." });
         }
     }
 }

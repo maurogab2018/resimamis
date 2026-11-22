@@ -205,6 +205,51 @@ namespace ResimamisBackend.Negocio
             };
         }
 
+        // ---------- Afirmaciones que el sistema no registra ----------
+
+        /// <summary>Solo lo que devolvieron las herramientas (sin la pregunta: la pregunta puede traer una premisa falsa).</summary>
+        private readonly System.Text.StringBuilder evidenciaHerramientas = new();
+
+        /// <summary>Muerte, enfermedad o diagnóstico: Resimamis no guarda nada de eso (una baja no dice el motivo).</summary>
+        private static readonly Regex RegexAfirmacionSensible = new(
+            @"\b(fallec\w*|muert[oae]s?|muri[óo]|murieron|defunci\w*|[óo]bitos?|enferm[oa]s?|enfermedad\w*|diagn[óo]stic\w*)\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        internal const string AclaracionSinRegistro =
+            "Aclaración: Resimamis no registra fallecimientos, enfermedades ni diagnósticos. Que una persona esté dada de baja solo significa que ya no está activa en el sistema; no indica el motivo.";
+
+        /// <summary>
+        /// Palabras de la respuesta sobre muerte/enfermedad que no salen de ninguna herramienta
+        /// (ej. la coordinadora preguntó "madres muertas" y el modelo afirmó que "todas fallecieron").
+        /// </summary>
+        private List<string> AfirmacionesSinRespaldo(string respuesta)
+        {
+            var fuente = evidenciaHerramientas.ToString();
+            return RegexAfirmacionSensible.Matches(respuesta)
+                .Select(m => m.Value)
+                .Where(p => !fuente.Contains(p[..Math.Min(p.Length, 6)], StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        /// <summary>Si después de corregir todavía habla de eso, se agrega la aclaración (salvo que ya la diga).</summary>
+        private string ConAclaracionSiHaceFalta(string texto)
+        {
+            if (AfirmacionesSinRespaldo(texto).Count == 0)
+                return texto;
+            if (AclaraQueNoSeRegistra(texto))
+                return texto;
+            return texto.TrimEnd() + "\n\n" + AclaracionSinRegistro;
+        }
+
+        /// <summary>La respuesta ya explica que ese dato no existe ("el sistema no registra fallecimientos").</summary>
+        private static bool AclaraQueNoSeRegistra(string texto) =>
+            Regex.IsMatch(texto, @"\bno (se )?(registra|guarda|tiene registr|lleva registr|figura)", RegexOptions.IgnoreCase);
+
+        /// <summary>Habla de muertes/enfermedades sin respaldo y sin aclarar que el sistema no lo guarda.</summary>
+        private List<string> PremisaSinRespaldo(string texto) =>
+            AclaraQueNoSeRegistra(texto) ? new List<string>() : AfirmacionesSinRespaldo(texto);
+
         // ---------- Verificador de números ----------
 
         /// <summary>Todo lo que el modelo pudo ver en esta pregunta: Datos rápidos, historial y resultados de herramientas.</summary>
