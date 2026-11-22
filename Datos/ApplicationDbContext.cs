@@ -63,6 +63,8 @@ namespace ResimamisBackend.Datos
 
         public DbSet<ASISTENTEUSO> ASISTENTEUSO { get; set; }
 
+        public DbSet<ASISTENTEREGISTRO> ASISTENTEREGISTRO { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

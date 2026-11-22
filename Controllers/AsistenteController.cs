@@ -81,5 +81,50 @@ namespace ResimamisBackend.Controllers
                 return ApiResults.InternalServerError(ex.Message);
             }
         }
+
+        /// <summary>Calificación opcional de una respuesta propia: 1 = bien, -1 = mal, 0 = quitar el voto.</summary>
+        [HttpPost("calificar")]
+        public IActionResult Calificar([FromBody] AsistenteCalificarRequest request)
+        {
+            try
+            {
+                negAsistente.Calificar(ObtenerDniAutenticado(User), request);
+                return ApiResults.Success(true);
+            }
+            catch (NotFoundException ex)
+            {
+                return ApiResults.NotFound(ex.Message);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError(ex.Message);
+            }
+        }
+
+        /// <summary>Últimas preguntas al asistente (solo coordinadoras). soloMalas=true: 👎 o que no terminaron bien.</summary>
+        [HttpGet("registros")]
+        public IActionResult GetRegistros([FromQuery] bool soloMalas = false, [FromQuery] int limite = 100)
+        {
+            try
+            {
+                return ApiResults.Success(negAsistente.ObtenerRegistros(ObtenerDniAutenticado(User), soloMalas, limite));
+            }
+            catch (ForbiddenException ex)
+            {
+                return ApiResults.Forbidden(ex.Message);
+            }
+            catch (ApplicationException ex)
+            {
+                return ApiResults.BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResults.InternalServerError(ex.Message);
+            }
+        }
     }
 }

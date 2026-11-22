@@ -253,6 +253,19 @@ namespace ResimamisBackend.Negocio
             AsistentePreguntaRequest request,
             CancellationToken cancellationToken = default)
         {
+            var reloj = System.Diagnostics.Stopwatch.StartNew();
+            insistioActual = false;
+            tokensActual = 0;
+            var respuesta = await PreguntarInterno(dniSolicitante, request, cancellationToken);
+            respuesta.IdRegistro = GuardarRegistro(dniSolicitante, request?.Pregunta?.Trim() ?? "", respuesta, (int)reloj.ElapsedMilliseconds);
+            return respuesta;
+        }
+
+        private async Task<AsistentePreguntaRespuesta> PreguntarInterno(
+            int dniSolicitante,
+            AsistentePreguntaRequest request,
+            CancellationToken cancellationToken)
+        {
             negUsuarios.ValidarCoordinadora(dniSolicitante);
             dniSolicitanteActual = dniSolicitante;
 
@@ -359,6 +372,7 @@ namespace ResimamisBackend.Negocio
                         if (!insistio && SeRindio(texto, pregunta))
                         {
                             insistio = true;
+                            insistioActual = true;
                             Console.WriteLine($"[asistente] el modelo se rindió ('{(texto.Length > 80 ? texto[..80] : texto)}'): insisto con herramientas.");
                             mensajes.Add(new OpenAiMessage { Role = "assistant", Content = texto });
                             mensajes.Add(new OpenAiMessage
@@ -380,6 +394,7 @@ namespace ResimamisBackend.Negocio
                             if (sinRespaldo.Count > 0)
                             {
                                 insistio = true;
+                                insistioActual = true;
                                 Console.WriteLine($"[asistente] números sin respaldo ({string.Join(", ", sinRespaldo)}): exijo herramientas.");
                                 mensajes.Add(new OpenAiMessage { Role = "assistant", Content = texto });
                                 mensajes.Add(new OpenAiMessage
@@ -450,6 +465,7 @@ namespace ResimamisBackend.Negocio
             }
             finally
             {
+                tokensActual = tokensEntrada + tokensSalida;
                 SumarTokens(dniSolicitante, tokensEntrada, tokensSalida);
             }
         }

@@ -123,6 +123,58 @@ namespace ResimamisBackend.Migrations
                     b.ToTable("ASISTENCIA");
                 });
 
+            modelBuilder.Entity("ResimamisBackend.Datos.ASISTENTEREGISTRO", b =>
+                {
+                    b.Property<int>("idAsistenteRegistro")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("idAsistenteRegistro"));
+
+                    b.Property<short?>("calificacion")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("comentario")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<int>("dni")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("duracionMs")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("fecha")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("herramientas")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("pregunta")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("respuesta")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("resultado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("tokens")
+                        .HasColumnType("integer");
+
+                    b.HasKey("idAsistenteRegistro");
+
+                    b.ToTable("ASISTENTEREGISTRO");
+                });
+
             modelBuilder.Entity("ResimamisBackend.Datos.ASISTENTEUSO", b =>
                 {
                     b.Property<int>("idAsistenteUso")

@@ -31,6 +31,9 @@ public class AsistentePreguntaRespuesta
 
     public int PreguntasHoy { get; set; }
     public int LimiteDiario { get; set; }
+
+    /// <summary>Id del registro de esta pregunta, para calificarla (👍/👎). Null si no se pudo guardar.</summary>
+    public int? IdRegistro { get; set; }
 }
 
 /// <summary>La usuaria ya hizo todas las preguntas del día (Asistente:MaxPreguntasDia).</summary>
@@ -56,4 +59,27 @@ public class AsistenteEstadoRespuesta
     public string[] QuePuedeConsultar { get; set; } = [];
     public int PreguntasHoy { get; set; }
     public int LimiteDiario { get; set; }
+}
+
+/// <summary>Calificación opcional de una respuesta: 1 = bien, -1 = mal, 0 = quitar el voto.</summary>
+public class AsistenteCalificarRequest
+{
+    public int IdRegistro { get; set; }
+    public int Calificacion { get; set; }
+    public string? Comentario { get; set; }
+}
+
+public class AsistenteRegistroItem
+{
+    public int IdRegistro { get; set; }
+    public DateTime Fecha { get; set; }
+    public int Dni { get; set; }
+    public string Pregunta { get; set; } = "";
+    public string Respuesta { get; set; } = "";
+    public string Herramientas { get; set; } = "";
+    public string Resultado { get; set; } = "";
+    public int DuracionMs { get; set; }
+    public int Tokens { get; set; }
+    public int? Calificacion { get; set; }
+    public string? Comentario { get; set; }
 }
