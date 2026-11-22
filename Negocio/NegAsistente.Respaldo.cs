@@ -374,6 +374,45 @@ namespace ResimamisBackend.Negocio
             };
         }
 
+        /// <summary>
+        /// Tareas asignadas a voluntarias (asignaciones SIN bebé) en un período: qué tarea, quién y si terminó.
+        /// "¿Cuántas tareas hay hoy?" antes se tomaba como tema ajeno.
+        /// </summary>
+        private object TareasPeriodo(DateTime desde, DateTime hasta)
+        {
+            var (inicioUtc, finUtc) = NegConversorFecha.RangoFechasArgentinaEnUtc(desde, hasta);
+            var lista = db.ASIGNACION
+                .Where(a => a.idTarea != null && a.fechaHoraAsignacion >= inicioUtc && a.fechaHoraAsignacion < finUtc)
+                .Select(a => new
+                {
+                    a.idAsignacion,
+                    tarea = a.tarea != null ? a.tarea.nombre : null,
+                    idVoluntaria = a.idVoluntaria,
+                    voluntaria = a.voluntaria != null ? (a.voluntaria.Nombre + " " + a.voluntaria.Apellido) : null,
+                    a.fechaHoraAsignacion,
+                    a.fechaHoraInicio,
+                    a.fechaHoraFin,
+                })
+                .OrderByDescending(a => a.fechaHoraAsignacion)
+                .ToList();
+
+            var catalogo = (negTareas.listarTareas() ?? new List<TAREA>()).Where(t => t.Estado).Select(t => t.nombre).ToList();
+            return new
+            {
+                criterio = "tareas_periodo",
+                aclaracion = "Tareas = trabajos que hace una voluntaria sin bebé (menú Tareas). 'enCurso' = empezada y sin terminar; 'pendiente' = asignada sin empezar.",
+                fechaInicio = DateOnly.FromDateTime(desde.Date),
+                fechaFin = DateOnly.FromDateTime(hasta.Date),
+                totalTareasAsignadas = lista.Count,
+                terminadas = lista.Count(t => t.fechaHoraFin != null),
+                enCurso = lista.Count(t => t.fechaHoraInicio != null && t.fechaHoraFin == null),
+                pendientes = lista.Count(t => t.fechaHoraInicio == null),
+                porTarea = lista.GroupBy(t => t.tarea ?? "Sin nombre").Select(g => new { tarea = g.Key, cantidad = g.Count() }).OrderByDescending(x => x.cantidad),
+                tareasDelCatalogo = catalogo,
+                detalle = lista.Take(MaxItemsLista)
+            };
+        }
+
         private object RankingBebesAbrazos(JsonDocument args)
         {
             var desde = Desde(args, 364);
@@ -505,7 +544,20 @@ namespace ResimamisBackend.Negocio
         /// obligándolo a usar una herramienta. Saludos sueltos no cuentan.
         /// </summary>
         private static bool SeRindio(string texto, string pregunta) =>
-            !RegexSaludo.IsMatch(pregunta) && RegexRendicion.IsMatch(texto);
+            !RegexSaludo.IsMatch(pregunta) && (RegexRendicion.IsMatch(texto) || RechazoTemaPropio(texto, pregunta));
+
+        /// <summary>Palabras que solo pueden ser de Resimamis: si aparecen, la pregunta NO es un tema ajeno.</summary>
+        private static readonly System.Text.RegularExpressions.Regex RegexTemaResimamis = new(
+            @"\b(tareas?|bebes?|bbs?|beba|voluntari\w*|coordinador\w*|mam[aá]s?|madres?|insumos?|stock|abrazos?|visitas?|salas?|proveedor\w*|fich\w*|asistencias?|turnos?|asignaci\w*|neo|ucin|chupetes?|pa[ñn]ales|toallitas|leche|egres\w*|ingres\w*)\b",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        private static readonly System.Text.RegularExpressions.Regex RegexRechazoAjeno = new(
+            @"solo (puedo )?(ayudar(te)?|responder|consultar)\w* (con|sobre|en)|no (es|est[aá]) relacionad|fuera de (tema|mi alcance)|tema ajeno",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+        /// <summary>"¿Cuántas tareas hay hoy?" → "Solo puedo ayudarte con Resimamis": rechazó algo que SÍ es de Resimamis.</summary>
+        private static bool RechazoTemaPropio(string texto, string pregunta) =>
+            RegexRechazoAjeno.IsMatch(texto) && RegexTemaResimamis.IsMatch(SinAcentos(pregunta));
 
         // ---------- Búsqueda de insumos tolerante ----------
 

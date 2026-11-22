@@ -301,4 +301,52 @@ public class NegAsistenteHerramientasTests
         Assert.Contains("\"minutosTotalesDeAbrazo\":40", ResultadoHerramienta(openAi));
         dashboard.Verify(d => d.ObtenerDuracionAbrazos(It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Never);
     }
+    [Fact]
+    public async Task TareasDeHoy_NoSeRechazanComoTemaAjeno()
+    {
+        var openAi = new OpenAiGuion(
+            () => Texto("Solo puedo ayudarte con datos de Resimamis."),
+            () => Herramienta("tareas_periodo", "{\"periodo\":\"hoy\"}"),
+            () => Texto("Hoy no hay tareas asignadas."));
+
+        var r = await Crear(openAi).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "cuantas tareas hay hoy" });
+
+        Assert.Equal("Hoy no hay tareas asignadas.", r.Respuesta);
+        Assert.Contains("tareas_periodo", r.HerramientasUsadas);
+    }
+
+    [Theory]
+    [InlineData("cual es la capital de francia")]
+    [InlineData("contame un chiste")]
+    public async Task TemaAjenoDeVerdad_SeAceptaElRechazo(string pregunta)
+    {
+        var openAi = new OpenAiGuion(() => Texto("Solo puedo ayudarte con datos de Resimamis."));
+        var r = await Crear(openAi).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = pregunta });
+
+        Assert.Single(openAi.Cuerpos);
+        Assert.Equal("Solo puedo ayudarte con datos de Resimamis.", r.Respuesta);
+    }
+
+    [Fact]
+    public async Task TareasPeriodo_CuentaTerminadasEnCursoYPendientes()
+    {
+        var db = TestDb.Crear();
+        db.VOLUNTARIA.Add(new VOLUNTARIA { IdVoluntaria = 1, Nombre = "Paula", Apellido = "Martínez", Mail = "p@x.com" });
+        var ahora = DateTime.UtcNow;
+        db.ASIGNACION.AddRange(
+            new ASIGNACION { idTarea = 1, idVoluntaria = 1, fechaHoraAsignacion = ahora, fechaHoraInicio = ahora, fechaHoraFin = ahora.AddMinutes(20) },
+            new ASIGNACION { idTarea = 1, idVoluntaria = 1, fechaHoraAsignacion = ahora, fechaHoraInicio = ahora },
+            new ASIGNACION { idTarea = 2, idVoluntaria = 1, fechaHoraAsignacion = ahora },
+            new ASIGNACION { idBebe = 5, idVoluntaria = 1, fechaHoraAsignacion = ahora });
+        db.SaveChanges();
+        var openAi = new OpenAiGuion(() => Herramienta("tareas_periodo", "{\"periodo\":\"hoy\"}"), () => Texto("listo"));
+
+        await Crear(openAi, db).Preguntar(Dni, new AsistentePreguntaRequest { Pregunta = "cuantas tareas hay hoy" });
+
+        var resultado = ResultadoHerramienta(openAi);
+        Assert.Contains("\"totalTareasAsignadas\":3", resultado);
+        Assert.Contains("\"terminadas\":1", resultado);
+        Assert.Contains("\"enCurso\":1", resultado);
+        Assert.Contains("\"pendientes\":1", resultado);
+    }
 }

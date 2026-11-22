@@ -595,6 +595,9 @@ namespace ResimamisBackend.Negocio
             - Nunca califiques a una persona ("la peor voluntaria", "¿es buena?", "¿es mala madre?"): aclará que el sistema no evalúa personas y ofrecé datos de actividad. Si piden "la que menos abrazos dio", ranking_abrazos_voluntarias con orden='menos'.
             - DNI, teléfono, celular o dirección: solo de UNA persona puntual que nombren. Nunca listes datos de contacto de muchas personas juntas ("dame el dni y teléfono de todas"): explicá que por privacidad se consultan de a una y ofrecé buscar a una persona.
             - "Abrazos dados / hechos / que hubo" en un período = abrazos FINALIZADOS (resumen_periodo → abrazos finalizados). Las asignaciones NO son abrazos: si mostrás las dos, nombralas distinto.
+            - "Tareas" es una sección de Resimamis (trabajos que hacen las voluntarias sin bebé): "¿cuántas tareas hay hoy?", "tareas pendientes" → tareas_periodo (periodo='hoy'); el catálogo de tareas → catalogos tipo='tareas'. Nunca digas que es un tema ajeno.
+            - "¿Quién es el proveedor de X?" → movimientos_stock con periodo='ultimos_365' y mirá porInsumo[X].proveedoresQueLoEntregaron. El catálogo de proveedores NO dice qué insumo vende cada uno: nunca relaciones un proveedor con un insumo sin ese dato.
+            - Respondé SOLO lo que preguntaron. No agregues conteos, listas o "datos relevantes" que nadie pidió, ni recomendaciones ("te sugiero contactar...") salvo que las pidan.
             - Un seguimiento corto ("¿cuántos minutos en total?", "¿y cuándo fue el último?", "¿y la semana pasada?") habla de la MISMA persona o tema del mensaje anterior: consultá la herramienta de esa persona (abrazos_bebe / abrazos_voluntaria con su id), no el total general del programa.
             - "Bebés de la sala X" = listá sus nombres (listar_bebes con filtro_sala), no solo la cantidad.
             - Si desglosás voluntarias por rol, mostrá TODOS los roles de voluntariasPorRol / totalPorRol, para que la suma dé el total.
@@ -773,6 +776,7 @@ namespace ResimamisBackend.Negocio
             Tool("visitas_hoy", "Visitas familiares de HOY (calendario Argentina): total, bebés visitados y detalle (visitante, familiar, bebé, hora). Usá esta para 'visitas de hoy'."),
             Tool("asignaciones_hoy", "Lista de asignaciones/abrazos del día HOY (bebe, voluntaria, estado, sala). Para detalle del día, no uses solo el contador de coordinacion_hoy."),
             ToolPeriodo("resumen_periodo", "KPIs del período: asignaciones, abrazos finalizados, visitas, promedios."),
+            ToolPeriodo("tareas_periodo", "TAREAS asignadas a voluntarias (trabajos sin bebé, menú Tareas) en un período: cuántas, cuáles, quién, terminadas/en curso/pendientes. Para '¿cuántas tareas hay hoy?' usá periodo='hoy'. Es parte de Resimamis."),
             ToolPeriodo("bebes_ingresados_egresados", "Bebés que INGRESARON al NEO y que EGRESARON en un período, con nombre, fecha y sala. Para '¿cuántos bebés ingresaron/egresaron este mes y cómo se llaman?'."),
             ToolPeriodo("asignaciones_por_dia", "ASIGNACIONES creadas por día en un rango (NO son abrazos finalizados: para 'cuántos abrazos hubo' usá resumen_periodo). NO detalle de hoy: para lista de hoy usá asignaciones_hoy)."),
             ToolPeriodo("visitas_periodo", "Estadísticas de visitas en un rango (NO para solo hoy: para hoy usá visitas_hoy). Total, por día, por familiar y por bebé (porBebe, de mayor a menor)."),
@@ -1278,6 +1282,7 @@ namespace ResimamisBackend.Negocio
                     "asignaciones_hoy" => Json(ResumirAsignacionesHoy()),
                     "resumen_periodo" => Json(negDashboard.ObtenerResumen(Desde(args), Hasta(args))),
                     "bebes_ingresados_egresados" => Json(BebesIngresadosEgresados(Desde(args), Hasta(args))),
+                    "tareas_periodo" => Json(TareasPeriodo(Desde(args), Hasta(args))),
                     "asignaciones_por_dia" => Json(AsignacionesPorDia(Desde(args), Hasta(args))),
                     "visitas_periodo" => Json(ResumirVisitasPeriodo(Desde(args), Hasta(args))),
                     "evolucion_peso" => Json(ResumirPeso(negDashboard.ObtenerEvolucionPesoBebes(DesdeOpcional(args), HastaOpcional(args)))),
@@ -1806,6 +1811,7 @@ namespace ResimamisBackend.Negocio
                     movimientosDeSalida = g.Count(m => !EsEntrada(m)),
                     unidadesQueEntraron = g.Where(EsEntrada).Sum(m => m.cantidad ?? 0),
                     movimientosDeEntrada = g.Count(EsEntrada),
+                    proveedoresQueLoEntregaron = g.Where(EsEntrada).Select(m => m.nombreProveedor).Where(p => !string.IsNullOrWhiteSpace(p)).Distinct().ToList(),
                 })
                 .OrderByDescending(x => x.unidadesQueSalieron)
                 .ToList();
